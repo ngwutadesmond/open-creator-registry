@@ -435,6 +435,21 @@ describe('critical handles, imports, releases and audit', () => {
     const previewData = await responseData(preview);
     const batch = previewData.batch as Record<string, unknown>;
     expect(preview.status).toBe(201);
+    const previewAudits = await createAuditLogRepository(env.DB).findByEntity(
+      'import_batch',
+      String(batch.id),
+    );
+    expect(previewAudits[0]?.newValue).toEqual({
+      format: 'json',
+      file_name: 'phase5.json',
+      status: 'previewed',
+      total_rows: 1,
+      valid_rows: 1,
+      invalid_rows: 0,
+      duplicate_rows: 0,
+      warning_rows: 0,
+    });
+    expect(JSON.stringify(previewAudits)).not.toContain('Imported Phase Five');
     expect((await request('/api/admin/v1/creators?query=Imported%20Phase%20Five')).status).toBe(
       200,
     );

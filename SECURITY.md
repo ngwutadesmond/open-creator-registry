@@ -30,7 +30,8 @@ coordinate a fix and disclosure window, and credit the reporter when requested a
 - Admin CORS is an origin allowlist with credentials. It is not authentication. Responses are
   `no-store` and set clickjacking, MIME, referrer, permissions, transport, and CSP headers.
 - Audit history is append-only through its repository/API surface. It stores safe mutation values,
-  authenticated actor identifiers, and request IDs, never secrets or tokens.
+  authenticated actor identifiers, and request IDs, never secrets, tokens, or complete validated
+  import payloads.
 - Zod validates untrusted parameters and bodies. POST bodies are JSON-only and limited to 32 KiB.
 - D1 access is repository-owned and uses prepared statements. Sort fields and directions are
   explicit allowlists.

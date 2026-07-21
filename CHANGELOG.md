@@ -37,6 +37,12 @@ after its first public release.
 - No remote database, Cloudflare login, external connector, scheduled ingestion, or deployment was
   created. Cloudflare Access JWT verification remains an explicit Phase 7 prerequisite.
 
+### Phase 5 hardened
+
+- Redacted validated import records from `import.previewed` audit entries. Preview audits now retain
+  only bounded counts, file metadata, status, and checksum while the private import batch remains
+  the sole store for the validated commit payload.
+
 ### Phase 4 added
 
 - Responsive public home, handle checker, creator explorer/detail, release history, public

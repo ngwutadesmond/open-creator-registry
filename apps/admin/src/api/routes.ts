@@ -1182,7 +1182,16 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
       action: 'import.previewed',
       entityType: 'import_batch',
       entityId: result.batch.id,
-      next: result.batch,
+      next: {
+        format: result.batch.format,
+        file_name: result.batch.fileName,
+        status: result.batch.status,
+        total_rows: result.batch.totalRows,
+        valid_rows: result.batch.validRows,
+        invalid_rows: result.batch.invalidRows,
+        duplicate_rows: result.batch.duplicateRows,
+        warning_rows: result.batch.warningRows,
+      },
       metadata: { checksum: result.batch.checksum },
     });
     return context.json(successEnvelope(context, toAdminApiValue(result)), 201);
