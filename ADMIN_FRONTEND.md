@@ -53,3 +53,10 @@ npm run test:frontend
 npm run test:e2e
 npm run dev:admin
 ```
+
+The creator detail page now manages optional platform profiles, visibility, verification,
+provenance, and retained suppression inside the Phase 5 design system. The ingestion page extends
+the existing operations area with disabled-by-default source configuration, bounded preview/run,
+checkpoint status/reset confirmation, run counters, and per-record candidate links. Candidate
+detail displays source licence, mapping/connector versions, aliases, profile evidence, match
+recommendation, retrieval time, and checksum without exposing raw responses.

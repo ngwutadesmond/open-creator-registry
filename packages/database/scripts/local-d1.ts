@@ -18,17 +18,23 @@ const expectedTables = [
   'admin_approval_requests',
   'admin_mutation_guards',
   'audit_logs',
+  'candidate_source_provenance',
   'creator_aliases',
   'creator_candidates',
   'creator_entities',
+  'creator_external_profiles',
   'creator_sources',
   'import_batch_errors',
   'import_batches',
+  'ingestion_record_outcomes',
   'ingestion_runs',
   'public_submissions',
   'registry_release_snapshots',
   'registry_releases',
   'reserved_handles',
+  'source_checkpoints',
+  'source_configurations',
+  'source_run_locks',
 ] as const;
 
 async function runWrangler(arguments_: string[]): Promise<void> {
@@ -83,6 +89,8 @@ async function seed(): Promise<void> {
     sources: summary.sources,
     aliases: summary.aliases,
     reserved_handles: summary.reservedHandles,
+    external_profiles: summary.externalProfiles,
+    source_configurations: summary.sourceConfigurations,
   });
 }
 
@@ -111,7 +119,7 @@ async function validate(): Promise<void> {
     const indexCount = await database
       .prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'index'")
       .first<{ count: number }>();
-    if (!indexCount || indexCount.count < 20) {
+    if (!indexCount || indexCount.count < 80) {
       throw new Error('Schema validation found fewer indexes than expected.');
     }
 
@@ -129,7 +137,11 @@ async function inspect(): Promise<void> {
           (SELECT COUNT(*) FROM creator_entities) AS creators,
           (SELECT COUNT(*) FROM creator_aliases) AS aliases,
           (SELECT COUNT(*) FROM creator_sources) AS sources,
-          (SELECT COUNT(*) FROM reserved_handles) AS reserved_handles`,
+          (SELECT COUNT(*) FROM reserved_handles) AS reserved_handles,
+          (SELECT COUNT(*) FROM creator_external_profiles) AS external_profiles,
+          (SELECT COUNT(*) FROM source_configurations) AS source_configurations,
+          (SELECT COUNT(*) FROM creator_candidates) AS candidates,
+          (SELECT COUNT(*) FROM ingestion_runs) AS ingestion_runs`,
       )
       .first<Record<string, number>>();
     const handles = await database

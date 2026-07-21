@@ -5,6 +5,41 @@ after its first public release.
 
 ## Unreleased
 
+### Phase 6 added
+
+- Strongly typed source connector contracts, explicit future MusicBrainz/public-web boundaries,
+  and a narrow Wikidata proof of concept using structured Q-ID scope, deterministic pagination,
+  bounded responses/timeouts/retries, licence provenance, and offline fixtures.
+- D1 source configurations, checkpoints, expiring owner-aware run leases, bounded record outcomes,
+  candidate provenance, richer run counters, and idempotent source-entity candidate updates in
+  migration `0004_scheduled_ingestion_and_profiles.sql`.
+- An awaited Cloudflare scheduled handler and matching manual preview/run orchestration; connectors
+  are disabled, scheduling-disabled, and dry-run by default, and no production Cron Trigger exists.
+- Optional normalized creator profiles with host validation, global account/URL conflicts, public
+  visibility policy, safe suppression, audit logging, and approval-gated critical redirects.
+- Public profile display plus private source configuration, run/outcome/checkpoint, candidate
+  provenance, and profile-management interfaces without exposing ingestion administration publicly.
+- Offline connector/D1/API/frontend coverage and dedicated source/profile/ingestion policy and
+  local-operation documentation.
+- Atomic primary-profile reassignment so an explicit reviewed selection demotes the previous
+  primary association for the same creator/platform without weakening global account/URL conflict
+  checks.
+
+### Phase 6 verified
+
+- Clean application of all four migrations produced 21 tables and 86 indexes with no foreign-key
+  violations; repeat demonstration seeding remained idempotent at 10 creators, 12 handles, two
+  public external profiles, and one disabled source configuration.
+- The complete gate passes 142 Vitest tests and 14 Chromium workflows, zero-warning ESLint, strict
+  TypeScript, formatting checks, both production builds, and a production dependency audit with
+  zero reported vulnerabilities.
+- Desktop public creator detail, desktop admin ingestion, and 390px public explorer renders were
+  inspected from live local Workers. The actual local Wrangler scheduled endpoint completed a
+  fixture-backed scheduled run and persisted its bounded outcome.
+- No live Wikidata call, remote D1 database, production Cron Trigger, Cloudflare login, deployment,
+  handle reservation, protection-tier change, creator approval, or registry publication was
+  performed by ingestion.
+
 ### Phase 5 added
 
 - Default-deny administration authentication abstraction, deterministic server-configured local

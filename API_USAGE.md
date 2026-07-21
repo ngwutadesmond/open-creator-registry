@@ -282,6 +282,13 @@ $result = $response->json('data');
 9. The Registry does not process Merchrix claims. Merchrix remains responsible for account
    creation, temporary usernames, claims, and final username assignment.
 
+## External profiles
+
+`GET /api/v1/creators/{creatorId}` includes `external_profiles`. The array can be empty. Entries are
+public reviewed associations only and contain platform, optional account ID/handle/name/URL,
+verification status, primary flag, and last-confirmed time. Source-linked associations are not
+identity or account-control proof. Connector configuration and private provenance are never public.
+
 ## Caching and rate limits
 
 Single-handle checks permit shared caching for 60 seconds with mandatory revalidation. Creator and

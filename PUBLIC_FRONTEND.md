@@ -79,3 +79,7 @@ npm run test:e2e
 responses. `test:e2e` resets the local D1 database, starts the public Worker and separate admin
 shell, then runs Chromium against real HTTP and seeded data. Browser tests do not call public network
 creator services. Scalar's pinned browser bundle is the only existing documentation dependency.
+Creator detail conditionally renders “Official and associated profiles” only when reviewed public
+records exist. Each safe HTTPS link opens with `noopener noreferrer`; status copy distinguishes a
+source association from manual, cross-source, or creator-control verification. Creators without
+profiles retain the existing detail layout without empty platform placeholders.

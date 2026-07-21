@@ -9,6 +9,10 @@ Phases 1–2 provide the monorepo foundation, separate application shells, share
 persistence, and normalization. Phase 3 adds the complete read-oriented public API and generated API
 reference. Phase 4 adds the responsive public experience. Phase 5 adds the private administration
 API and interface, review queues, imports, approvals, audit history, and release publication.
+Phase 6 adds an evidence-only scheduled-ingestion framework, a disabled-by-default Wikidata proof
+of concept, persistent checkpoints and leases, candidate provenance, and optional reviewed creator
+platform profiles. It does not configure a production schedule or automatically approve creators,
+reserve handles, or publish releases.
 
 ## Applications
 
@@ -24,6 +28,7 @@ canonical local D1 state when run individually or together.
 - `packages/contracts`: shared classifications and recommended actions
 - `packages/normalization`: canonical handle/name normalization and confusable risk signals
 - `packages/database`: migrations, typed models, prepared-statement repositories, and seed tooling
+- `packages/ingestion`: connector contracts, bounded orchestration, offline fixtures, and scheduling
 - `packages/ui`: shared visual tokens and base styles
 
 ## Start locally
@@ -42,7 +47,7 @@ The public application runs at `http://localhost:5173`; the authenticated local 
 
 ## Project status
 
-Phases 1–5 run locally against clearly labelled demonstration D1 data. Production admin
+Phases 1–6 run locally against clearly labelled demonstration D1 data. Production admin
 authentication, remote D1, deployment, source connectors, and scheduled ingestion are not
 configured; do not use this version as a production registry service. See
 [ADMIN_AUTHENTICATION.md](./ADMIN_AUTHENTICATION.md), [ADMIN_FRONTEND.md](./ADMIN_FRONTEND.md), and

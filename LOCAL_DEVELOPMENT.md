@@ -4,7 +4,7 @@
 
 - Node.js 22 or newer (`.nvmrc` contains the project version)
 - npm 10 or newer
-- No Cloudflare account or credentials are required for Phase 5 local development
+- No Cloudflare account or credentials are required for Phase 6 local development
 
 ## Install
 
@@ -59,7 +59,8 @@ all migrations, inserts demonstration data, and validates the schema:
 npm run db:reset:local
 ```
 
-Expected summary: 10 creators, 10 sources, 11 aliases, and 12 reserved handles. The seed identifies
+Expected summary: 10 creators, 10 sources, 11 aliases, 12 reserved handles, 2 external profiles,
+and 1 disabled source configuration. The seed identifies
 itself as local demonstration data and is not an authoritative creator list.
 
 Inspect the result:
@@ -82,8 +83,58 @@ scripts and either individually started Vite Worker use `.wrangler/state/v3/d1` 
 `DB` binding.
 
 There are no remote D1 commands. Do not add a real database ID or log in to Cloudflare during
-Phase 5. Remote creation, binding, migrations, and deployment are documented and performed in
+Phase 6. Remote creation, binding, migrations, and deployment are documented and performed in
 Phase 7.
+
+## Fixture-backed Wikidata ingestion
+
+Normal tests never use the network. To exercise the deterministic fixture, edit only the ignored
+`apps/admin/.dev.vars` copy:
+
+```dotenv
+WIKIDATA_FIXTURE_MODE=enabled
+```
+
+Restart `npm run dev:admin`, open `http://localhost:5174/ingestion-runs`, and confirm Wikidata is
+disabled. Select **Enable**, then **Preview** or **Run**. Enabling in this local fixture panel
+explicitly turns dry-run off; preview always remains non-mutating. Inspect a run, its record
+outcomes, generated pending candidates, candidate provenance, and checkpoint. Repeating the run
+records duplicates rather than creating another candidate. Disable the source when finished.
+
+Equivalent authenticated API calls, with the local cookie/configuration in place, are:
+
+```bash
+curl -X PATCH http://localhost:5174/api/admin/v1/source-configurations/wikidata \
+  -H 'Content-Type: application/json' \
+  --data '{"enabled":true,"dry_run":false,"reason":"Enable local fixture"}'
+curl -X POST http://localhost:5174/api/admin/v1/ingestion-runs/preview \
+  -H 'Content-Type: application/json' \
+  --data '{"source_name":"wikidata","scope_key":"default"}'
+curl -X POST http://localhost:5174/api/admin/v1/ingestion-runs/start \
+  -H 'Content-Type: application/json' \
+  --data '{"source_name":"wikidata","scope_key":"default"}'
+curl http://localhost:5174/api/admin/v1/ingestion-runs
+curl http://localhost:5174/api/admin/v1/source-checkpoints
+```
+
+Reset a checkpoint through the confirmed admin UI or call its returned UUID:
+
+```bash
+curl -X POST http://localhost:5174/api/admin/v1/source-checkpoints/CHECKPOINT_UUID/reset \
+  -H 'Content-Type: application/json' \
+  --data '{"reason":"Restart reviewed local fixture scope"}'
+```
+
+To invoke the actual Cloudflare scheduled handler locally, stop the Vite admin Worker and use two
+terminals:
+
+```bash
+npm run ingestion:serve:local
+npm run ingestion:trigger:local
+```
+
+The first command runs Wrangler on port 8788 with test scheduling enabled. The second calls the
+local scheduled endpoint. No remote Cron Trigger or remote resource is created.
 
 ## Exercise the administration application
 
@@ -137,6 +188,7 @@ npm run test:frontend
 npm run test:database
 npm run test:api
 npm run test:admin-api
+npm run test:ingestion
 npm run test:e2e
 npm run build
 ```
@@ -155,6 +207,7 @@ Playwright output is written to ignored `test-results/` and `playwright-report/`
 - `lint` applies ESLint to all workspaces with zero tolerated warnings.
 - `typecheck` runs each workspace TypeScript configuration.
 - `test:unit` runs framework, contract, and normalization tests in Node.
+- `test:ingestion` runs deterministic connector/retry/query-mapping tests without network access.
 - `test:database` runs the actual SQL migrations and repositories in Cloudflare's Vitest pool with
   isolated Miniflare-backed D1 storage. It does not mock D1 behavior.
 - `test:api` and `test:admin-api` run the separate Workers through Cloudflare's Vitest pool against
@@ -195,3 +248,10 @@ Root and app templates are safe examples only. Never commit any `.dev.vars` file
 - If either Worker reports D1 unavailable, stop both, reset D1, and restart. Do not delete files
   outside this repository or add a `--remote` flag.
 - See `DATABASE.md` for schema policy and `NORMALIZATION.md` for exact matching rules.
+- If an ingestion run reports locked, inspect the source configuration page. Wait for an active
+  run/lease to finish. A super administrator may force-release only after confirming the owner is
+  no longer running; that action requires a reason and writes an audit record.
+- If fixture preview would call Wikidata, `WIKIDATA_FIXTURE_MODE=enabled` was not loaded. Put it in
+  ignored `apps/admin/.dev.vars` and restart. Never add it to committed Worker variables.
+- Live Wikidata testing is intentionally not automated in Phase 6. The documented tests are offline;
+  public-service availability is not part of the quality gate.

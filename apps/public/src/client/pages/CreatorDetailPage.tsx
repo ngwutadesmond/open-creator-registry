@@ -37,6 +37,17 @@ function toApiError(error: unknown, message: string) {
     : new PublicApiError({ code: 'unexpected_error', message, status: 0 });
 }
 
+const verificationCopy = {
+  unverified: 'The association has not yet been verified and is not normally public.',
+  source_linked: 'Connected through an approved public data source.',
+  cross_source_confirmed: 'Multiple approved sources associate this profile with the creator.',
+  manually_verified: 'The association was reviewed by Registry administrators.',
+  creator_verified: 'Control was confirmed through an approved creator-verification process.',
+  stale: 'The association needs a fresh review.',
+  disputed: 'The association is disputed and is not normally public.',
+  rejected: 'The association was rejected and is not normally public.',
+} as const;
+
 export default function CreatorDetailPage() {
   const { creatorId = '' } = useParams();
   const [attempt, setAttempt] = useState(0);
@@ -155,6 +166,41 @@ export default function CreatorDetailPage() {
       </header>
 
       <div className="detail-sections">
+        {creator.external_profiles.length > 0 ? (
+          <section aria-labelledby="creator-profiles-title">
+            <div className="section-heading">
+              <h2 id="creator-profiles-title">Official and associated profiles</h2>
+              <p>
+                Public associations supported by Registry evidence. A source link is not proof of
+                account control or identity.
+              </p>
+            </div>
+            <ul className="external-profile-list">
+              {creator.external_profiles.map((profile) => {
+                const profileUrl = safeExternalUrl(profile.url);
+                const label =
+                  profile.handle ?? profile.profile_name ?? profile.account_id ?? 'Profile';
+                return (
+                  <li key={`${profile.platform}:${profile.account_id ?? profile.url ?? label}`}>
+                    <div>
+                      <strong>{formatLabel(profile.platform)}</strong>
+                      <span>{label}</span>
+                    </div>
+                    <p>{verificationCopy[profile.verification_status]}</p>
+                    {profile.last_verified_at ? (
+                      <small>Last confirmed {formatDateTime(profile.last_verified_at)}</small>
+                    ) : null}
+                    {profileUrl ? (
+                      <a href={profileUrl} target="_blank" rel="noopener noreferrer">
+                        Open external profile
+                      </a>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ) : null}
         <section aria-labelledby="creator-handles-title">
           <div className="section-heading section-heading--inline">
             <div>

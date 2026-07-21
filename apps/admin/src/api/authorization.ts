@@ -35,6 +35,17 @@ const rules: readonly PermissionRule[] = [
   },
   {
     methods: ['GET'],
+    pattern: /^\/api\/admin\/v1\/(?:creators\/[^/]+\/profiles|external-profiles\/[^/]+)$/u,
+    permission: 'external_profiles:read',
+  },
+  {
+    methods: ['POST', 'PATCH', 'DELETE'],
+    pattern:
+      /^\/api\/admin\/v1\/(?:creators\/[^/]+\/profiles|external-profiles(?:\/[^/]+|\/check-conflicts))$/u,
+    permission: 'external_profiles:write',
+  },
+  {
+    methods: ['GET'],
     pattern: /^\/api\/admin\/v1\/reserved-handles(?:\/.*)?$/u,
     permission: 'handles:read',
   },
@@ -82,6 +93,36 @@ const rules: readonly PermissionRule[] = [
     methods: ['GET'],
     pattern: /^\/api\/admin\/v1\/ingestion-runs(?:\/.*)?$/u,
     permission: 'ingestion_runs:read',
+  },
+  {
+    methods: ['POST'],
+    pattern: /^\/api\/admin\/v1\/ingestion-runs\/(?:preview|start)$/u,
+    permission: 'ingestion_runs:write',
+  },
+  {
+    methods: ['GET'],
+    pattern: /^\/api\/admin\/v1\/source-configurations(?:\/[^/]+)?$/u,
+    permission: 'source_configurations:read',
+  },
+  {
+    methods: ['PATCH'],
+    pattern: /^\/api\/admin\/v1\/source-configurations\/[^/]+$/u,
+    permission: 'source_configurations:write',
+  },
+  {
+    methods: ['GET'],
+    pattern: /^\/api\/admin\/v1\/source-checkpoints$/u,
+    permission: 'source_configurations:read',
+  },
+  {
+    methods: ['POST'],
+    pattern: /^\/api\/admin\/v1\/source-checkpoints\/[^/]+\/reset$/u,
+    permission: 'source_checkpoints:reset',
+  },
+  {
+    methods: ['POST'],
+    pattern: /^\/api\/admin\/v1\/source-locks\/[^/]+\/[^/]+\/force-release$/u,
+    permission: 'source_locks:release',
   },
   {
     methods: ['GET'],

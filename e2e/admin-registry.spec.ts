@@ -129,6 +129,77 @@ test('previews and commits a validated JSON import', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Phase Five Imported Creator' })).toBeVisible();
 });
 
+test('runs fixture-backed ingestion and reviews candidate provenance without live reservations', async ({
+  page,
+  request,
+}) => {
+  const before = await request.get(`${publicUrl}/api/v1/registry/meta`);
+  const beforeBody = (await before.json()) as {
+    data: { record_counts: { active_reserved_handles: number } };
+  };
+
+  await page.goto(`${adminUrl}/ingestion-runs`);
+  await expect(page.getByRole('heading', { name: 'Source configurations' })).toBeVisible();
+  await expect(page.getByText('disabled', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Enable' }).click();
+  await expect(page.getByText('wikidata enabled.')).toBeVisible();
+  await page.getByRole('button', { name: 'Preview' }).click();
+  await expect(page.getByText('Preview completed for wikidata.')).toBeVisible();
+  await page.getByRole('button', { name: 'Run', exact: true }).click();
+  await expect(page.getByText('Bounded ingestion run completed for wikidata.')).toBeVisible();
+
+  await page.goto(`${adminUrl}/candidates?query=Fixture+Ada+Rhythm`);
+  await page.getByRole('link', { name: 'Fixture Ada Rhythm' }).click();
+  await expect(page.getByRole('heading', { name: 'Source provenance' })).toBeVisible();
+  await expect(page.getByText('Q100001', { exact: true })).toBeVisible();
+  await expect(page.getByText(/youtube: UCFIXTUREADA/i)).toBeVisible();
+
+  const after = await request.get(`${publicUrl}/api/v1/registry/meta`);
+  const afterBody = (await after.json()) as typeof beforeBody;
+  expect(afterBody.data.record_counts.active_reserved_handles).toBe(
+    beforeBody.data.record_counts.active_reserved_handles,
+  );
+
+  await page.goto(`${adminUrl}/ingestion-runs`);
+  await page.getByRole('button', { name: 'Run', exact: true }).click();
+  await expect(page.getByText('Bounded ingestion run completed for wikidata.')).toBeVisible();
+  await page.getByRole('button', { name: 'Reset checkpoint' }).click();
+  await page.getByRole('button', { name: 'Reset checkpoint' }).last().click();
+  await expect(page.getByText(/Checkpoint reset to the beginning/i)).toBeVisible();
+});
+
+test('renders optional profiles publicly and manages a non-critical profile in admin', async ({
+  page,
+}) => {
+  await page.goto(`${publicUrl}/creators/10000000-0000-4000-8000-000000000001`);
+  await expect(
+    page.getByRole('heading', { name: 'Official and associated profiles' }),
+  ).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Open external profile' }).first()).toHaveAttribute(
+    'rel',
+    'noopener noreferrer',
+  );
+
+  await page.goto(`${publicUrl}/creators/10000000-0000-4000-8000-000000000002`);
+  await expect(page.getByRole('heading', { name: 'Official and associated profiles' })).toHaveCount(
+    0,
+  );
+
+  await page.goto(`${adminUrl}/creators/10000000-0000-4000-8000-000000000002`);
+  await expect(page.getByRole('heading', { name: 'Platform profiles', exact: true })).toBeVisible();
+  const form = page.getByRole('form', { name: 'Add platform profile' });
+  await form.getByRole('combobox', { name: 'Platform', exact: true }).selectOption('twitch');
+  await form.getByLabel('Handle').fill('phase6fixturechannel');
+  await form.getByLabel('HTTPS profile URL').fill('https://www.twitch.tv/phase6fixturechannel');
+  await form.getByLabel('Verification').selectOption('source_linked');
+  await form.getByLabel('Visibility').selectOption('public');
+  await form.getByLabel('Profile provenance label').fill('browser_fixture');
+  await form.getByLabel('Change reason').fill('Add browser-tested source association.');
+  await page.getByRole('button', { name: 'Add platform profile' }).click();
+  await expect(page.getByText('Platform profile added.')).toBeVisible();
+  await expect(page.getByText('phase6fixturechannel')).toBeVisible();
+});
+
 test('enforces two-person critical handle approval and publishes a release', async ({ page }) => {
   await page.goto(`${adminUrl}/creators/new`);
   await page.getByLabel('Canonical name').fill('Phase Five Critical Creator');

@@ -27,6 +27,7 @@ npm run test:frontend
 npm run test:database
 npm run test:api
 npm run test:admin-api
+npm run test:ingestion
 npm run test:e2e
 npm run build
 npm run types:worker:public
@@ -37,6 +38,8 @@ npm run db:migrations:list
 npm run db:seed:local
 npm run db:validate
 npm run db:inspect:local
+npm run ingestion:serve:local
+npm run ingestion:trigger:local
 ```
 
 Database and seed commands are local-only and documented in `LOCAL_DEVELOPMENT.md` and `DATABASE.md`.
@@ -57,6 +60,14 @@ deferred until Phase 7 and must be documented before use.
 - Import repositories from `@open-creator-registry/database/repositories/*`; never put SQL in a
   Worker route or React component.
 - Use `@open-creator-registry/normalization` for every handle/name comparison or write.
+- Connector output is candidate evidence only. Never auto-approve or merge creators, create
+  handles, change protection tiers, or publish releases from ingestion.
+- External connectors remain disabled by default. Wikidata accepts structured Q-ID scope only;
+  never accept arbitrary SPARQL or arbitrary URLs.
+- Public external profiles must pass repository visibility/verification policy. `source_linked` is
+  not identity, ownership, or account-control proof.
+- Successful pages advance checkpoints only after processing. Source/scope leases require owner
+  release; force release is super-admin and audited.
 - Keep public route handlers thin: HTTP in routes, policy in services, SQL in repositories, and
   field selection in public mappers. Handle checks must remain local and set-based.
 - Public API errors use stable envelopes and request IDs. Do not log submission bodies, SQL text,

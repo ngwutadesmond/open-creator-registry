@@ -244,6 +244,14 @@ export type IngestionRunRow = {
   updated_count: number;
   skipped_count: number;
   failed_count: number;
+  trigger_type: string;
+  scope_key: string;
+  fetched_count: number;
+  duplicate_count: number;
+  retry_count: number;
+  checkpoint_before: string | null;
+  checkpoint_after: string | null;
+  dry_run: number;
   error_summary: string | null;
   started_at: string;
   completed_at: string | null;
@@ -260,6 +268,18 @@ export function mapIngestionRun(row: IngestionRunRow): IngestionRun {
     updatedCount: row.updated_count,
     skippedCount: row.skipped_count,
     failedCount: row.failed_count,
+    triggerType: row.trigger_type as IngestionRun['triggerType'],
+    scopeKey: row.scope_key,
+    fetchedCount: row.fetched_count,
+    duplicateCount: row.duplicate_count,
+    retryCount: row.retry_count,
+    checkpointBefore: row.checkpoint_before
+      ? parseJson(row.checkpoint_before, 'ingestion_runs.checkpoint_before')
+      : null,
+    checkpointAfter: row.checkpoint_after
+      ? parseJson(row.checkpoint_after, 'ingestion_runs.checkpoint_after')
+      : null,
+    dryRun: row.dry_run === 1,
     errorSummary: row.error_summary,
     startedAt: row.started_at,
     completedAt: row.completed_at,

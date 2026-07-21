@@ -125,6 +125,8 @@ D1 stores these structured fields as `TEXT` with `json_valid` checks:
 - country-code arrays on creators, candidates, and submissions;
 - requested-handle and public-source arrays on submissions;
 - previous, new, and metadata values on audit logs.
+- source scopes/checkpoint metadata, candidate aliases/profile evidence, ingestion checkpoints, and
+  bounded record-outcome metadata.
 
 Repository writes use `serializeJson`; reads use checked `parseJson`, `parseStringArray`, or
 `parseRequiredStringArray`. Invalid stored JSON becomes a stable database failure instead of being
@@ -161,6 +163,25 @@ metadata provider.
 - Pagination defaults to 25 and rejects limits above 100.
 - Multi-statement atomic work uses D1 `batch()`; D1 executes a batch transactionally.
 - Audit repositories remain append-only.
+- Source locks use an atomic insert-or-expired-update lease and ownership-aware release.
+- Candidate provenance is unique by source/entity ID. Repeat ingestion updates evidence/checksum
+  without overwriting a non-pending administrator decision.
+- External profiles have global stable-account/URL uniqueness and partial uniqueness for one
+  creator/platform primary. Suppression retains provenance.
+
+## Phase 6 tables
+
+- `creator_external_profiles`: optional reviewed creator/platform associations and provenance.
+- `source_configurations`: disabled-by-default connector limits, scope, licence, and readiness.
+- `source_checkpoints`: successful cursor plus failure/backoff state by source and scope.
+- `source_run_locks`: expiring D1-safe leases preventing overlapping source/scope runs.
+- `ingestion_record_outcomes`: bounded per-record created/updated/duplicate/skipped/failure results.
+- `candidate_source_provenance`: source identity, checksum, aliases, profile evidence, match
+  recommendation, warnings, and first/last seen timestamps.
+
+Migration `0004_scheduled_ingestion_and_profiles.sql` also extends `ingestion_runs` with trigger,
+scope, fetched/duplicate/retry counters, checkpoint before/after, and dry-run state. It extends the
+approval action allowlist for critical external-profile changes without editing older migrations.
 
 ## Demonstration data
 
@@ -170,6 +191,8 @@ notable video creator, streamer, comedian, visual artist, creator group, regiona
 common-name safeguard, multi-alias creator, and design collective. It includes exact hard-reserved,
 official-style soft-protected, monitored fan/archive, and deliberately absent ordinary-handle
 examples.
+It also contains two obvious demonstration profiles for Demo Aurora Vale and one disabled Wikidata
+configuration. Other creators intentionally have no profile records.
 
 ## Local reset, seed, validation, and inspection
 

@@ -1,16 +1,30 @@
 import type { IngestionStatus } from '@open-creator-registry/contracts/domain';
+import type { IngestionTriggerType } from '@open-creator-registry/contracts/sources';
 
 import { createInvalidInputError, createNotFoundError } from '../errors';
+import { serializeJson, type JsonValue } from '../json';
 import type { IngestionRun, PaginatedResult, Pagination } from '../models';
 import { defaultRecordMetadataProvider, type RecordMetadataProvider } from '../runtime';
 import { mapIngestionRun, type IngestionRunRow } from './row-mappers';
 import { allRows, firstRow, resolvePagination, runStatement } from './shared';
 
 export type IngestionCounts = {
+  fetchedCount?: number;
   importedCount: number;
   updatedCount: number;
+  duplicateCount?: number;
   skippedCount: number;
   failedCount: number;
+  retryCount?: number;
+};
+
+export type CreateIngestionRunInput = {
+  id?: string;
+  sourceName: string;
+  triggerType?: IngestionTriggerType;
+  scopeKey?: string;
+  checkpointBefore?: JsonValue | null;
+  dryRun?: boolean;
 };
 
 export type IngestionRunListOptions = Pagination & {
@@ -19,7 +33,11 @@ export type IngestionRunListOptions = Pagination & {
 };
 
 function validateCounts(counts: IngestionCounts): void {
-  if (Object.values(counts).some((count) => !Number.isInteger(count) || count < 0)) {
+  if (
+    Object.values(counts).some(
+      (count) => count !== undefined && (!Number.isInteger(count) || count < 0),
+    )
+  ) {
     throw createInvalidInputError('Ingestion counters must be non-negative integers.');
   }
 }
@@ -36,18 +54,32 @@ export function createIngestionRunRepository(
     return row ? mapIngestionRun(row) : null;
   }
 
-  async function create(sourceName: string): Promise<IngestionRun> {
-    const id = metadata.createId();
+  async function create(input: string | CreateIngestionRunInput): Promise<IngestionRun> {
+    const values = typeof input === 'string' ? { sourceName: input } : input;
+    const id = values.id ?? metadata.createId();
     const timestamp = metadata.now();
     await runStatement(
       db
         .prepare(
           `INSERT INTO ingestion_runs (
             id, source_name, status, imported_count, updated_count, skipped_count, failed_count,
-            error_summary, started_at, completed_at, created_at, updated_at
-          ) VALUES (?, ?, 'pending', 0, 0, 0, 0, NULL, ?, NULL, ?, ?)`,
+            error_summary, started_at, completed_at, created_at, updated_at, trigger_type, scope_key,
+            fetched_count, duplicate_count, retry_count, checkpoint_before, checkpoint_after, dry_run
+          ) VALUES (?, ?, 'pending', 0, 0, 0, 0, NULL, ?, NULL, ?, ?, ?, ?, 0, 0, 0, ?, NULL, ?)`,
         )
-        .bind(id, sourceName, timestamp, timestamp, timestamp),
+        .bind(
+          id,
+          values.sourceName,
+          timestamp,
+          timestamp,
+          timestamp,
+          values.triggerType ?? 'manual',
+          values.scopeKey ?? 'default',
+          values.checkpointBefore === undefined || values.checkpointBefore === null
+            ? null
+            : serializeJson(values.checkpointBefore),
+          values.dryRun ? 1 : 0,
+        ),
       'ingestionRun.create',
     );
     const created = await findById(id);
@@ -61,23 +93,29 @@ export function createIngestionRunRepository(
     counts: IngestionCounts,
     errorSummary: string | null,
     completedAt: string | null,
+    checkpointAfter: JsonValue | null = null,
   ): Promise<IngestionRun> {
     validateCounts(counts);
     const result = await runStatement(
       db
         .prepare(
-          `UPDATE ingestion_runs SET status = ?, imported_count = ?, updated_count = ?,
-           skipped_count = ?, failed_count = ?, error_summary = ?, completed_at = ?, updated_at = ?
+          `UPDATE ingestion_runs SET status = ?, fetched_count = ?, imported_count = ?,
+           updated_count = ?, duplicate_count = ?, skipped_count = ?, failed_count = ?,
+           retry_count = ?, error_summary = ?, completed_at = ?, checkpoint_after = ?, updated_at = ?
            WHERE id = ?`,
         )
         .bind(
           status,
+          counts.fetchedCount ?? 0,
           counts.importedCount,
           counts.updatedCount,
+          counts.duplicateCount ?? 0,
           counts.skippedCount,
           counts.failedCount,
+          counts.retryCount ?? 0,
           errorSummary,
           completedAt,
+          checkpointAfter === null ? null : serializeJson(checkpointAfter),
           metadata.now(),
           id,
         ),
@@ -100,6 +138,9 @@ export function createIngestionRunRepository(
         updatedCount: current.updatedCount,
         skippedCount: current.skippedCount,
         failedCount: current.failedCount,
+        fetchedCount: current.fetchedCount,
+        duplicateCount: current.duplicateCount,
+        retryCount: current.retryCount,
       },
       null,
       null,
@@ -110,6 +151,7 @@ export function createIngestionRunRepository(
     id: string,
     counts: IngestionCounts,
     errorSummary: string | null = null,
+    checkpointAfter: JsonValue | null = null,
   ): Promise<IngestionRun> {
     return updateStatus(
       id,
@@ -117,6 +159,7 @@ export function createIngestionRunRepository(
       counts,
       errorSummary,
       metadata.now(),
+      checkpointAfter,
     );
   }
 
@@ -131,6 +174,9 @@ export function createIngestionRunRepository(
         updatedCount: current.updatedCount,
         skippedCount: current.skippedCount,
         failedCount: current.failedCount,
+        fetchedCount: current.fetchedCount,
+        duplicateCount: current.duplicateCount,
+        retryCount: current.retryCount,
       },
       errorSummary,
       metadata.now(),

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createCreatorRepository } from '@open-creator-registry/database/repositories/creator-repository';
 import { createCreatorAliasRepository } from '@open-creator-registry/database/repositories/creator-alias-repository';
 import { createCreatorSourceRepository } from '@open-creator-registry/database/repositories/creator-source-repository';
+import { createExternalProfileRepository } from '@open-creator-registry/database/repositories/external-profile-repository';
 import { createRegistryReleaseRepository } from '@open-creator-registry/database/repositories/registry-release-repository';
 import { createReservedHandleRepository } from '@open-creator-registry/database/repositories/reserved-handle-repository';
 import { createDeterministicMetadataProvider } from '@open-creator-registry/database/runtime';
@@ -103,6 +104,16 @@ describe('public creator routes', () => {
 
   it('returns safe creator detail, verified aliases, and active handles', async () => {
     const creatorId = '10000000-0000-4000-8000-000000000001';
+    await createExternalProfileRepository(env.DB).create({
+      creatorEntityId: creatorId,
+      platform: 'twitch',
+      platformHandle: '@private-review-only',
+      profileUrl: 'https://www.twitch.tv/private-review-only',
+      verificationStatus: 'unverified',
+      visibilityStatus: 'private',
+      sourceName: 'PRIVATE_PROFILE_PROVENANCE',
+      confidenceScore: 50,
+    });
     await createReservedHandleRepository(env.DB).create({
       creatorEntityId: creatorId,
       displayHandle: '@ordinary_unlisted_demo',
@@ -120,10 +131,15 @@ describe('public creator routes', () => {
     expect(detail.data.aliases.length).toBeGreaterThan(0);
     expect(detail.data.handles.length).toBeGreaterThan(0);
     expect(detail.data.sources).toHaveLength(1);
+    expect(detail.data.external_profiles).toHaveLength(2);
+    expect(detail.data.external_profiles.map((profile) => profile.platform)).not.toContain(
+      'twitch',
+    );
     expect(JSON.stringify(detail)).not.toContain('decision_source');
     expect(JSON.stringify(detail)).not.toContain('review_status');
     expect(JSON.stringify(detail)).not.toContain('PRIVATE REVIEW WORDING');
     expect(JSON.stringify(detail)).not.toContain('ordinary_unlisted_demo');
+    expect(JSON.stringify(detail)).not.toContain('PRIVATE_PROFILE_PROVENANCE');
     expect(detail.data.handles[0]?.reason_summary).toContain('Registry decision');
 
     const handles = creatorHandlesResponseSchema.parse(

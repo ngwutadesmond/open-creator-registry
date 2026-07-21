@@ -10,3 +10,5 @@ DEV_ADMIN_ROLES=super_admin,publisher,editor,reviewer,admin_viewer
 DEV_ADMIN_SECONDARY_EMAIL=admin-two@example.test
 DEV_ADMIN_SECONDARY_NAME=Admin Two
 DEV_ADMIN_SECONDARY_ROLES=super_admin,publisher,editor,reviewer,admin_viewer
+# Keep fixture mode disabled unless intentionally testing the offline Phase 6 Wikidata fixture.
+WIKIDATA_FIXTURE_MODE=disabled

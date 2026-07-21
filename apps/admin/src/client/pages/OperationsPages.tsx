@@ -11,6 +11,8 @@ import {
   ingestionRunSchema,
   listEnvelopeSchema,
   releaseSchema,
+  sourceCheckpointSchema,
+  sourceConfigurationSchema,
 } from '../api/schemas';
 import { useAdminIdentity } from '../app/AdminIdentityContext';
 import {
@@ -69,6 +71,173 @@ const releaseDetailSchema = dataEnvelopeSchema(
 const approvalDetailSchema = dataEnvelopeSchema(
   z.object({ approval: approvalSchema, decisions: z.array(z.unknown()) }),
 );
+
+const sourceConfigurationListSchema = dataEnvelopeSchema(
+  z.object({
+    configurations: z.array(sourceConfigurationSchema),
+    checkpoints: z.array(sourceCheckpointSchema),
+    locks: z.array(z.unknown()),
+  }),
+);
+
+function SourceConfigurationPanel({ onRun }: { onRun: () => void }) {
+  const load = useCallback(
+    (signal: AbortSignal) =>
+      adminApi.get('/api/admin/v1/source-configurations', sourceConfigurationListSchema, signal),
+    [],
+  );
+  const { resource, retry } = useAdminResource(load, 'source-configurations');
+  const [busy, setBusy] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<AdminApiError | null>(null);
+  const [checkpointToReset, setCheckpointToReset] = useState<
+    z.infer<typeof sourceCheckpointSchema> | undefined
+  >();
+  if (resource.status === 'loading') return <LoadingState label="Loading source configuration…" />;
+  if (resource.status === 'error') return <ErrorState error={resource.error} onRetry={retry} />;
+  const update = async (sourceName: string, enabled: boolean) => {
+    setBusy(`toggle:${sourceName}`);
+    setError(null);
+    try {
+      await adminApi.patch(
+        `/api/admin/v1/source-configurations/${sourceName}`,
+        {
+          enabled,
+          dry_run: !enabled,
+          reason: `${enabled ? 'Enable' : 'Disable'} fixture-backed local source.`,
+        },
+        dataEnvelopeSchema(sourceConfigurationSchema),
+      );
+      setMessage(`${sourceName} ${enabled ? 'enabled' : 'disabled'}.`);
+      retry();
+    } catch (caught) {
+      setError(caught as AdminApiError);
+    } finally {
+      setBusy(null);
+    }
+  };
+  const resetCheckpoint = async () => {
+    if (!checkpointToReset) return;
+    setBusy(`reset:${checkpointToReset.id}`);
+    try {
+      await adminApi.post(
+        `/api/admin/v1/source-checkpoints/${checkpointToReset.id}/reset`,
+        { reason: 'Reset local fixture checkpoint after administrator confirmation.' },
+        dataEnvelopeSchema(sourceCheckpointSchema.nullable()),
+      );
+      setMessage('Checkpoint reset to the beginning of the configured scope.');
+      setCheckpointToReset(undefined);
+      retry();
+    } catch (caught) {
+      setError(caught as AdminApiError);
+      setCheckpointToReset(undefined);
+    } finally {
+      setBusy(null);
+    }
+  };
+  const run = async (sourceName: string, preview: boolean) => {
+    setBusy(`${preview ? 'preview' : 'run'}:${sourceName}`);
+    setError(null);
+    try {
+      const response = await adminApi.post(
+        `/api/admin/v1/ingestion-runs/${preview ? 'preview' : 'start'}`,
+        { source_name: sourceName, scope_key: 'default' },
+        dataEnvelopeSchema(z.unknown()),
+      );
+      setMessage(`${preview ? 'Preview' : 'Bounded ingestion run'} completed for ${sourceName}.`);
+      if (!preview) onRun();
+      void response;
+      retry();
+    } catch (caught) {
+      setError(caught as AdminApiError);
+    } finally {
+      setBusy(null);
+    }
+  };
+  const { configurations, checkpoints } = resource.data.data;
+  return (
+    <section className="panel">
+      <div className="section-heading">
+        <h2>Source configurations</h2>
+        <p>
+          External connectors remain disabled by default. Local Wikidata runs require fixture mode
+          unless a developer explicitly opts into the public endpoint.
+        </p>
+      </div>
+      {message ? <Feedback kind="success">{message}</Feedback> : null}
+      {error ? <Feedback kind="error">{error.message}</Feedback> : null}
+      <DataTable
+        caption="Source connector configuration"
+        headers={['Source', 'Access', 'Limits', 'Checkpoint', 'License', 'Actions']}
+      >
+        {configurations.map((configuration) => {
+          const checkpoint = checkpoints.find(
+            (item) => item.source_name === configuration.source_name,
+          );
+          return (
+            <tr key={configuration.source_name}>
+              <td>
+                <strong>{configuration.source_name}</strong>
+                <StatusBadge value={configuration.enabled ? 'enabled' : 'disabled'} />
+                <small>
+                  {configuration.scheduled_enabled ? 'Scheduled locally' : 'Manual only'}
+                </small>
+              </td>
+              <td>
+                {configuration.access_mode}
+                <small>{configuration.connector_version}</small>
+              </td>
+              <td>
+                {configuration.batch_size}/page · {configuration.maximum_records_per_run}/run
+              </td>
+              <td>
+                {checkpoint?.cursor ?? 'Start'}
+                <small>{checkpoint?.last_success_at ?? 'Never completed'}</small>
+                {checkpoint ? (
+                  <button className="text-button" onClick={() => setCheckpointToReset(checkpoint)}>
+                    Reset checkpoint
+                  </button>
+                ) : null}
+              </td>
+              <td>{configuration.source_license}</td>
+              <td>
+                <button
+                  className="text-button"
+                  disabled={Boolean(busy)}
+                  onClick={() => void update(configuration.source_name, !configuration.enabled)}
+                >
+                  {configuration.enabled ? 'Disable' : 'Enable'}
+                </button>{' '}
+                <button
+                  className="text-button"
+                  disabled={Boolean(busy) || !configuration.enabled}
+                  onClick={() => void run(configuration.source_name, true)}
+                >
+                  Preview
+                </button>{' '}
+                <button
+                  className="text-button"
+                  disabled={Boolean(busy) || !configuration.enabled}
+                  onClick={() => void run(configuration.source_name, false)}
+                >
+                  Run
+                </button>
+              </td>
+            </tr>
+          );
+        })}
+      </DataTable>
+      <ConfirmationDialog
+        open={Boolean(checkpointToReset)}
+        title="Reset this source checkpoint?"
+        description="The next bounded run starts from the beginning of this reviewed source scope. Existing candidates are updated idempotently."
+        confirmLabel="Reset checkpoint"
+        onCancel={() => setCheckpointToReset(undefined)}
+        onConfirm={() => void resetCheckpoint()}
+      />
+    </section>
+  );
+}
 
 function ImportPanel({ onCreated }: { onCreated: (id: string) => void }) {
   const [format, setFormat] = useState<'json' | 'csv'>('json');
@@ -229,6 +398,7 @@ function OperationList({ type }: { type: Exclude<OperationType, 'settings'> }) {
           }}
         />
       ) : null}
+      {type === 'ingestion' ? <SourceConfigurationPanel onRun={retry} /> : null}
       {type === 'audits' ? (
         <form className="filter-bar" onSubmit={filter}>
           <label>
@@ -677,7 +847,23 @@ function SimpleDetail({ type, id }: { type: 'ingestion' | 'audits'; id: string }
   return type === 'ingestion' ? <IngestionDetail id={id} /> : <AuditDetail id={id} />;
 }
 
-const ingestionDetailSchema = dataEnvelopeSchema(ingestionRunSchema);
+const ingestionDetailSchema = dataEnvelopeSchema(
+  z.object({
+    run: ingestionRunSchema,
+    records: z.array(
+      z.object({
+        id: z.string(),
+        source_record_id: z.string().nullable(),
+        outcome_status: z.string(),
+        candidate_id: z.string().nullable(),
+        retry_count: z.number(),
+        error_code: z.string().nullable(),
+        error_message: z.string().nullable(),
+        created_at: z.string(),
+      }),
+    ),
+  }),
+);
 function IngestionDetail({ id }: { id: string }) {
   const load = useCallback(
     (signal: AbortSignal) =>
@@ -687,10 +873,80 @@ function IngestionDetail({ id }: { id: string }) {
   const { resource, retry } = useAdminResource(load, id);
   if (resource.status === 'loading') return <LoadingState label="Loading record…" />;
   if (resource.status === 'error') return <ErrorState error={resource.error} onRetry={retry} />;
+  const { run, records } = resource.data.data;
   return (
     <>
-      <PageHeader title="Ingestion run" description="Bounded processing status and counts" />
-      <pre className="json-view panel">{JSON.stringify(resource.data.data, null, 2)}</pre>
+      <PageHeader
+        title={`${run.source_name} ingestion run`}
+        description="Bounded processing status, checkpoint, and per-record outcomes"
+      />
+      <div className="record-summary">
+        <div>
+          <span>Status</span>
+          <StatusBadge value={run.status} />
+        </div>
+        <div>
+          <span>Trigger</span>
+          <strong>{run.trigger_type}</strong>
+        </div>
+        <div>
+          <span>Fetched</span>
+          <strong>{run.fetched_count}</strong>
+        </div>
+        <div>
+          <span>Created / updated</span>
+          <strong>
+            {run.imported_count} / {run.updated_count}
+          </strong>
+        </div>
+        <div>
+          <span>Duplicates / failed</span>
+          <strong>
+            {run.duplicate_count} / {run.failed_count}
+          </strong>
+        </div>
+        <div>
+          <span>Retries</span>
+          <strong>{run.retry_count}</strong>
+        </div>
+      </div>
+      <section className="panel">
+        <h2>Checkpoint</h2>
+        <pre className="json-view">
+          {JSON.stringify({ before: run.checkpoint_before, after: run.checkpoint_after }, null, 2)}
+        </pre>
+      </section>
+      <section className="panel">
+        <h2>Record outcomes</h2>
+        {records.length ? (
+          <DataTable
+            caption="Ingestion record outcomes"
+            headers={['Source record', 'Outcome', 'Candidate', 'Error']}
+          >
+            {records.map((record) => (
+              <tr key={record.id}>
+                <td>{record.source_record_id ?? 'Unknown'}</td>
+                <td>
+                  <StatusBadge value={record.outcome_status} />
+                </td>
+                <td>
+                  {record.candidate_id ? (
+                    <Link to={`/candidates/${record.candidate_id}`}>{record.candidate_id}</Link>
+                  ) : (
+                    'None'
+                  )}
+                </td>
+                <td>{record.error_message ?? 'None'}</td>
+              </tr>
+            ))}
+          </DataTable>
+        ) : (
+          <EmptyState
+            title="No record outcomes"
+            description="This run did not process source records."
+          />
+        )}
+      </section>
     </>
   );
 }

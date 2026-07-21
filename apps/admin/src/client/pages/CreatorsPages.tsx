@@ -8,6 +8,7 @@ import {
   approvalSchema,
   auditSchema,
   creatorSchema,
+  externalProfileSchema,
   dataEnvelopeSchema,
   handleSchema,
   listEnvelopeSchema,
@@ -31,6 +32,7 @@ const creatorDetailSchema = dataEnvelopeSchema(
     creator: creatorSchema,
     aliases: z.array(aliasSchema),
     sources: z.array(sourceSchema),
+    profiles: z.array(externalProfileSchema),
     handles: z.array(handleSchema),
     audit_history: z.array(auditSchema),
     approval_requests: z.array(approvalSchema),
@@ -227,6 +229,105 @@ function CreatorForm({ creatorId }: { creatorId?: string }) {
   );
 }
 
+function ProfileFields({ profile }: { profile?: z.infer<typeof externalProfileSchema> }) {
+  return (
+    <>
+      <label>
+        Platform
+        <select name="platform" defaultValue={profile?.platform ?? 'youtube'}>
+          {[
+            'youtube',
+            'spotify',
+            'tiktok',
+            'instagram',
+            'x',
+            'facebook',
+            'twitch',
+            'soundcloud',
+            'apple_music',
+            'official_website',
+            'other',
+          ].map((platform) => (
+            <option key={platform} value={platform}>
+              {platform.replaceAll('_', ' ')}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        Stable account ID
+        <input name="platform_account_id" defaultValue={profile?.platform_account_id ?? ''} />
+      </label>
+      <label>
+        Handle
+        <input name="platform_handle" defaultValue={profile?.platform_handle ?? ''} />
+      </label>
+      <label>
+        HTTPS profile URL
+        <input name="profile_url" type="url" defaultValue={profile?.profile_url ?? ''} />
+      </label>
+      <label>
+        Profile name
+        <input name="profile_name" defaultValue={profile?.profile_name ?? ''} />
+      </label>
+      <label>
+        Verification
+        <select
+          name="verification_status"
+          defaultValue={profile?.verification_status ?? 'unverified'}
+        >
+          <option value="unverified">Unverified</option>
+          <option value="source_linked">Source linked</option>
+          <option value="cross_source_confirmed">Cross-source confirmed</option>
+          <option value="manually_verified">Manually verified</option>
+          <option value="creator_verified">Creator verified</option>
+          <option value="stale">Stale</option>
+          <option value="disputed">Disputed</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </label>
+      <label>
+        Visibility
+        <select name="visibility_status" defaultValue={profile?.visibility_status ?? 'private'}>
+          <option value="public">Public</option>
+          <option value="private">Private</option>
+          <option value="suppressed">Suppressed</option>
+        </select>
+      </label>
+      <label>
+        Profile provenance label
+        <input required name="source_name" defaultValue={profile?.source_name ?? ''} />
+      </label>
+      <label>
+        Profile provenance reference
+        <input name="source_reference" defaultValue={profile?.source_reference ?? ''} />
+      </label>
+      <label>
+        Profile provenance license
+        <input name="source_license" defaultValue={profile?.source_license ?? ''} />
+      </label>
+      <label>
+        Confidence
+        <input
+          name="confidence_score"
+          type="number"
+          min={0}
+          max={100}
+          defaultValue={profile?.confidence_score ?? 80}
+        />
+      </label>
+      <label className="checkbox-label">
+        <input name="is_primary" type="checkbox" defaultChecked={profile?.is_primary ?? false} />
+        Primary profile for this platform
+      </label>
+      <label className="full-field">
+        Change reason
+        <input required minLength={3} name="change_reason" />
+      </label>
+    </>
+  );
+}
+
 function CreatorDetail({ creatorId }: { creatorId: string }) {
   const load = useCallback(
     (signal: AbortSignal) =>
@@ -237,7 +338,7 @@ function CreatorDetail({ creatorId }: { creatorId: string }) {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<AdminApiError | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{
-    kind: 'alias' | 'source';
+    kind: 'alias' | 'source' | 'profile';
     id: string;
     label: string;
   } | null>(null);
@@ -245,12 +346,14 @@ function CreatorDetail({ creatorId }: { creatorId: string }) {
     kind: 'alias' | 'source';
     id: string;
   } | null>(null);
+  const [editingProfile, setEditingProfile] = useState<string | null>(null);
   if (resource.status === 'loading') return <LoadingState label="Loading creator evidence…" />;
   if (resource.status === 'error') return <ErrorState error={resource.error} onRetry={retry} />;
   const {
     creator,
     aliases,
     sources,
+    profiles,
     handles,
     audit_history: audits,
     approval_requests: approvals,
@@ -345,12 +448,70 @@ function CreatorDetail({ creatorId }: { creatorId: string }) {
       setError(caught as AdminApiError);
     }
   };
+  const profileBody = (data: FormData) => ({
+    platform: formText(data, 'platform'),
+    platform_account_id: formText(data, 'platform_account_id') || null,
+    platform_handle: formText(data, 'platform_handle') || null,
+    profile_url: formText(data, 'profile_url') || null,
+    profile_name: formText(data, 'profile_name') || null,
+    is_primary: data.get('is_primary') === 'on',
+    verification_status: formText(data, 'verification_status'),
+    visibility_status: formText(data, 'visibility_status'),
+    source_name: formText(data, 'source_name'),
+    source_reference: formText(data, 'source_reference') || null,
+    source_license: formText(data, 'source_license') || null,
+    confidence_score: Number(data.get('confidence_score')),
+    change_reason: formText(data, 'change_reason'),
+  });
+  const addProfile = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    try {
+      await adminApi.post(
+        `/api/admin/v1/creators/${creatorId}/profiles`,
+        profileBody(new FormData(form)),
+        dataEnvelopeSchema(z.unknown()),
+      );
+      form.reset();
+      setFeedback(
+        creator.protection_tier === 'critical'
+          ? 'Critical profile change sent to the approval queue.'
+          : 'Platform profile added.',
+      );
+      retry();
+    } catch (caught) {
+      setError(caught as AdminApiError);
+    }
+  };
+  const updateProfile = async (event: FormEvent<HTMLFormElement>, id: string) => {
+    event.preventDefault();
+    try {
+      await adminApi.patch(
+        `/api/admin/v1/external-profiles/${id}`,
+        profileBody(new FormData(event.currentTarget)),
+        dataEnvelopeSchema(z.unknown()),
+      );
+      setEditingProfile(null);
+      setFeedback(
+        creator.protection_tier === 'critical'
+          ? 'Critical profile change sent to the approval queue.'
+          : 'Platform profile updated.',
+      );
+      retry();
+    } catch (caught) {
+      setError(caught as AdminApiError);
+    }
+  };
   const removeEvidence = async () => {
     if (!confirmDelete) return;
     try {
-      await adminApi.delete(
-        `/api/admin/v1/${confirmDelete.kind === 'alias' ? 'aliases' : 'sources'}/${confirmDelete.id}`,
-      );
+      const path =
+        confirmDelete.kind === 'alias'
+          ? `aliases/${confirmDelete.id}`
+          : confirmDelete.kind === 'source'
+            ? `sources/${confirmDelete.id}`
+            : `external-profiles/${confirmDelete.id}`;
+      await adminApi.delete(`/api/admin/v1/${path}`);
       setFeedback(`${confirmDelete.label} removed.`);
       setConfirmDelete(null);
       retry();
@@ -659,6 +820,98 @@ function CreatorDetail({ creatorId }: { creatorId: string }) {
           <button className="secondary-button" type="submit">
             Add source
           </button>
+        </form>
+      </section>
+      <section className="panel">
+        <div className="section-heading">
+          <h2>Platform profiles</h2>
+          <p>
+            Review public associations, provenance, visibility, and conflicts. Source-linked does
+            not prove account control.
+          </p>
+        </div>
+        {profiles.length ? (
+          <DataTable
+            caption="Creator platform profiles"
+            headers={['Platform', 'Account', 'Verification', 'Visibility', 'Source', 'Actions']}
+          >
+            {profiles.map((profile) => (
+              <tr key={profile.id}>
+                <td>
+                  {profile.profile_url ? (
+                    <a href={profile.profile_url} target="_blank" rel="noopener noreferrer">
+                      {profile.platform}
+                    </a>
+                  ) : (
+                    profile.platform
+                  )}
+                  {profile.is_primary ? <small>Primary</small> : null}
+                </td>
+                <td>{profile.platform_handle ?? profile.platform_account_id ?? 'URL only'}</td>
+                <td>
+                  <StatusBadge value={profile.verification_status} />
+                </td>
+                <td>
+                  <StatusBadge value={profile.visibility_status} />
+                </td>
+                <td>
+                  {profile.source_name}
+                  <small>{profile.source_reference ?? 'No source reference'}</small>
+                </td>
+                <td>
+                  <button className="text-button" onClick={() => setEditingProfile(profile.id)}>
+                    Edit
+                  </button>{' '}
+                  <button
+                    className="text-button danger-text"
+                    onClick={() =>
+                      setConfirmDelete({
+                        kind: 'profile',
+                        id: profile.id,
+                        label: `${profile.platform} profile`,
+                      })
+                    }
+                  >
+                    Suppress
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </DataTable>
+        ) : (
+          <EmptyState
+            title="No platform profiles"
+            description="This creator has no reviewed external profile associations."
+          />
+        )}
+        {editingProfile
+          ? (() => {
+              const profile = profiles.find((item) => item.id === editingProfile);
+              return profile ? (
+                <form
+                  className="inline-form evidence-editor"
+                  onSubmit={(event) => void updateProfile(event, profile.id)}
+                >
+                  <ProfileFields profile={profile} />
+                  <button className="secondary-button">Save profile</button>
+                  <button
+                    className="text-button"
+                    type="button"
+                    onClick={() => setEditingProfile(null)}
+                  >
+                    Cancel
+                  </button>
+                </form>
+              ) : null;
+            })()
+          : null}
+        <form
+          aria-label="Add platform profile"
+          className="inline-form"
+          onSubmit={(event) => void addProfile(event)}
+        >
+          <ProfileFields />
+          <button className="secondary-button">Add platform profile</button>
         </form>
       </section>
       <section className="panel">

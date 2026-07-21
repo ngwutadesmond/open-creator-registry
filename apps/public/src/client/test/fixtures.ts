@@ -63,6 +63,18 @@ export const creatorDetail: PublicCreatorDetail = {
       last_checked_at: '2026-07-21T10:00:00.000Z',
     },
   ],
+  external_profiles: [
+    {
+      platform: 'youtube',
+      account_id: 'UCDEMOAURORAVALE',
+      handle: 'DemoAuroraVale',
+      profile_name: 'Demo Aurora Vale',
+      url: 'https://www.youtube.com/@DemoAuroraVale',
+      verification_status: 'source_linked',
+      is_primary: true,
+      last_verified_at: '2026-01-15T00:00:00.000Z',
+    },
+  ],
 };
 
 export const pagination = {

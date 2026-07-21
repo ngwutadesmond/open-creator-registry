@@ -10,6 +10,10 @@ import {
   handleMatchTypes,
   reservationStatuses,
 } from '@open-creator-registry/contracts/domain';
+import {
+  externalProfilePlatforms,
+  externalProfileVerificationStatuses,
+} from '@open-creator-registry/contracts/sources';
 
 const requestMetaSchema = z.object({
   request_id: z.uuid(),
@@ -68,10 +72,22 @@ const publicSourceSchema = z.object({
   last_checked_at: z.iso.datetime().nullable(),
 });
 
+const publicExternalProfileSchema = z.object({
+  platform: z.enum(externalProfilePlatforms),
+  account_id: z.string().nullable(),
+  handle: z.string().nullable(),
+  profile_name: z.string().nullable(),
+  url: z.url().nullable(),
+  verification_status: z.enum(externalProfileVerificationStatuses),
+  is_primary: z.boolean(),
+  last_verified_at: z.iso.datetime().nullable(),
+});
+
 const publicCreatorDetailSchema = publicCreatorSchema.extend({
   aliases: z.array(publicAliasSchema),
   handles: z.array(publicHandleSchema),
   sources: z.array(publicSourceSchema),
+  external_profiles: z.array(publicExternalProfileSchema),
 });
 
 export const handleCheckResponseSchema = z.object({

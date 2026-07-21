@@ -11,6 +11,7 @@ export type AdminAuthenticationBindings = {
   DEV_ADMIN_SECONDARY_EMAIL?: string;
   DEV_ADMIN_SECONDARY_NAME?: string;
   DEV_ADMIN_SECONDARY_ROLES?: string;
+  WIKIDATA_FIXTURE_MODE?: string;
 };
 
 export type AdminRuntimeBindings = Omit<

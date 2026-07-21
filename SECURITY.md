@@ -53,6 +53,16 @@ coordinate a fix and disclosure window, and credit the reporter when requested a
   persisted to local storage. Client validation improves feedback but never replaces API validation.
 - The API tester uses a fixed public GET allowlist; visitors cannot enter an arbitrary URL or invoke
   an administration endpoint through it.
+- Connector endpoints and host policy are fixed in code. Wikidata accepts structured Q-ID scope
+  values, never arbitrary SPARQL or arbitrary URLs, and applies time/retry/response-size bounds.
+- Automated source records store allowlisted mapped fields and checksums, not full responses.
+  Per-record errors are bounded and redact source payloads.
+- External official-site URLs reject non-HTTPS, embedded credentials, loopback, private/local hosts,
+  and selected-platform host mismatches. The POC never fetches creator profile URLs.
+- Scheduled ingestion remains disabled by default and has no production Cron Trigger. D1 leases,
+  checkpoints, strict run bounds, and audited force release limit overlap and runaway processing.
+- Critical creator profile redirects use the same different-person, expiring, replay/stale-target
+  guards as other critical changes.
 
 ## Operational requirements
 

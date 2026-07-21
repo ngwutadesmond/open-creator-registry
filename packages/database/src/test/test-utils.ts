@@ -10,15 +10,21 @@ export async function clearDatabase(): Promise<void> {
     env.DB.prepare('DELETE FROM import_batch_errors'),
     env.DB.prepare('DELETE FROM import_batches'),
     env.DB.prepare('DELETE FROM registry_release_snapshots'),
+    env.DB.prepare('DELETE FROM ingestion_record_outcomes'),
+    env.DB.prepare('DELETE FROM candidate_source_provenance'),
+    env.DB.prepare('DELETE FROM source_run_locks'),
+    env.DB.prepare('DELETE FROM source_checkpoints'),
     env.DB.prepare('DELETE FROM audit_logs'),
     env.DB.prepare('DELETE FROM creator_aliases'),
     env.DB.prepare('DELETE FROM creator_sources'),
+    env.DB.prepare('DELETE FROM creator_external_profiles'),
     env.DB.prepare('DELETE FROM reserved_handles'),
     env.DB.prepare('DELETE FROM creator_candidates'),
     env.DB.prepare('DELETE FROM public_submissions'),
     env.DB.prepare('DELETE FROM registry_releases'),
     env.DB.prepare('DELETE FROM ingestion_runs'),
     env.DB.prepare('DELETE FROM creator_entities'),
+    env.DB.prepare('DELETE FROM source_configurations'),
   ]);
 }
 

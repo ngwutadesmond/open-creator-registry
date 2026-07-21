@@ -195,6 +195,33 @@ function SubmissionList() {
 const candidateDetailSchema = dataEnvelopeSchema(
   z.object({
     candidate: candidateSchema,
+    provenance: z.array(
+      z.object({
+        id: z.string(),
+        source_name: z.string(),
+        source_entity_id: z.string(),
+        source_url: z.string(),
+        source_license: z.string(),
+        connector_version: z.string(),
+        mapping_version: z.string(),
+        raw_record_checksum: z.string(),
+        aliases: z.array(z.string()),
+        external_profiles: z.array(
+          z.object({
+            platform: z.string(),
+            platform_account_id: z.string().optional(),
+            platform_handle: z.string().optional(),
+            profile_url: z.string().optional(),
+            profile_name: z.string().optional(),
+          }),
+        ),
+        match_recommendation: z.string(),
+        possible_creator_entity_id: z.string().nullable(),
+        warnings: z.array(z.string()),
+        retrieved_at: z.string(),
+        last_seen_at: z.string(),
+      }),
+    ),
     potential_creator_matches: z.array(creatorSchema),
     policy: z.string(),
   }),
@@ -269,6 +296,50 @@ function CandidateDetail({ id }: { id: string }) {
         <strong>Identity boundary</strong>
         <p>{data.policy}</p>
       </div>
+      <section className="panel">
+        <h2>Source provenance</h2>
+        {data.provenance.length ? (
+          data.provenance.map((item) => (
+            <article className="evidence-card" key={item.id}>
+              <div className="section-heading section-heading--inline">
+                <div>
+                  <h3>{item.source_name}</h3>
+                  <p>
+                    {item.connector_version} · mapping {item.mapping_version} ·{' '}
+                    {item.source_license}
+                  </p>
+                </div>
+                <StatusBadge value={item.match_recommendation} />
+              </div>
+              <a href={item.source_url} target="_blank" rel="noopener noreferrer">
+                {item.source_entity_id}
+              </a>
+              <p>Retrieved {new Date(item.retrieved_at).toLocaleString()}</p>
+              {item.aliases.length ? <p>Aliases: {item.aliases.join(', ')}</p> : null}
+              {item.external_profiles.length ? (
+                <ul>
+                  {item.external_profiles.map((profile) => (
+                    <li
+                      key={`${profile.platform}:${profile.platform_account_id ?? profile.profile_url}`}
+                    >
+                      {profile.platform}:{' '}
+                      {profile.platform_handle ??
+                        profile.platform_account_id ??
+                        profile.profile_url}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              <code className="checksum">{item.raw_record_checksum}</code>
+            </article>
+          ))
+        ) : (
+          <EmptyState
+            title="No connector provenance"
+            description="This candidate was created manually or predates source-provenance records."
+          />
+        )}
+      </section>
       <section className="panel">
         <h2>Potential creator matches</h2>
         {data.potential_creator_matches.length ? (

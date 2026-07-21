@@ -6,7 +6,8 @@
   "exports": {
     "./admin": "./src/admin.ts",
     "./classifications": "./src/classifications.ts",
-    "./domain": "./src/domain.ts"
+    "./domain": "./src/domain.ts",
+    "./sources": "./src/sources.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

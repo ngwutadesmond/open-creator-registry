@@ -96,11 +96,15 @@ Status: Complete and quality-gate reviewed on 2026-07-21.
 
 ## Phase 6 — scheduled ingestion and source connectors
 
+Status: Complete and quality-gate reviewed on 2026-07-21.
+
 - Define connector contracts for future sources such as Wikidata and MusicBrainz.
 - Implement a carefully scoped, disabled-by-default Wikidata proof of concept with explicit
   configuration and licensing provenance.
 - Add an idempotent Cloudflare scheduled handler with bounded batches and ingestion-run visibility.
 - Test retries, duplicates, partial failures, disabled configuration, and idempotency.
+- Add optional normalized creator external profiles, private profile management with critical
+  approval, public-only projection, and fixture-backed UI coverage.
 - Commit as `feat: add scheduled ingestion framework`.
 
 ## Phase 7 — deployment, automation, security, and final QA

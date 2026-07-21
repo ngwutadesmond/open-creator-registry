@@ -1,0 +1,21 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "open-creator-registry-admin-scheduled-local",
+  "compatibility_date": "2026-07-21",
+  "main": "src/worker.ts",
+  "vars": {
+    "ENVIRONMENT": "production",
+    "AUTH_PROVIDER": "unconfigured",
+    "ADMIN_ALLOWED_ORIGINS": "",
+    "WIKIDATA_FIXTURE_MODE": "disabled",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "open-creator-registry-local",
+      "database_id": "local-open-creator-registry",
+      "preview_database_id": "local-open-creator-registry",
+      "migrations_dir": "../../packages/database/migrations",
+    },
+  ],
+}

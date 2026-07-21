@@ -14,16 +14,25 @@ import {
 import { createAuditLogRepository } from '@open-creator-registry/database/repositories/audit-log-repository';
 import { createCreatorAliasRepository } from '@open-creator-registry/database/repositories/creator-alias-repository';
 import { createCreatorCandidateRepository } from '@open-creator-registry/database/repositories/creator-candidate-repository';
+import { createCandidateProvenanceRepository } from '@open-creator-registry/database/repositories/candidate-provenance-repository';
 import { createCreatorRepository } from '@open-creator-registry/database/repositories/creator-repository';
 import { createCreatorSourceRepository } from '@open-creator-registry/database/repositories/creator-source-repository';
 import { createImportBatchRepository } from '@open-creator-registry/database/repositories/import-batch-repository';
 import { createIngestionRunRepository } from '@open-creator-registry/database/repositories/ingestion-run-repository';
+import { createIngestionRecordOutcomeRepository } from '@open-creator-registry/database/repositories/ingestion-record-outcome-repository';
+import { createExternalProfileRepository } from '@open-creator-registry/database/repositories/external-profile-repository';
+import { createSourceConfigurationRepository } from '@open-creator-registry/database/repositories/source-configuration-repository';
+import { createSourceCheckpointRepository } from '@open-creator-registry/database/repositories/source-checkpoint-repository';
+import { createSourceLockRepository } from '@open-creator-registry/database/repositories/source-lock-repository';
 import { createPublicRegistryRepository } from '@open-creator-registry/database/repositories/public-registry-repository';
 import { createPublicSubmissionRepository } from '@open-creator-registry/database/repositories/public-submission-repository';
 import { createRegistryReleaseRepository } from '@open-creator-registry/database/repositories/registry-release-repository';
 import { createRegistryReleaseSnapshotRepository } from '@open-creator-registry/database/repositories/registry-release-snapshot-repository';
 import { createReservedHandleRepository } from '@open-creator-registry/database/repositories/reserved-handle-repository';
 import { createConfusableSkeleton, normalizeHandle } from '@open-creator-registry/normalization';
+import { createWikidataFixtureFetch } from '@open-creator-registry/ingestion/fixtures';
+import { createIngestionOrchestrator } from '@open-creator-registry/ingestion/orchestrator';
+import { createDefaultConnectorRegistry } from '@open-creator-registry/ingestion/registry';
 
 import type { AdminAppEnv, RequestMetadataProvider } from './app-env';
 import { defaultRequestMetadataProvider } from './app-env';
@@ -57,10 +66,14 @@ import {
   candidateListQuerySchema,
   candidateMergeSchema,
   conflictCheckSchema,
+  checkpointIdParamsSchema,
   creatorIdParamsSchema,
   creatorInputSchema,
   creatorListQuerySchema,
   creatorPatchSchema,
+  externalProfileConflictSchema,
+  externalProfileInputSchema,
+  externalProfilePatchSchema,
   handleIdParamsSchema,
   handleInputSchema,
   handleListQuerySchema,
@@ -71,12 +84,17 @@ import {
   importListQuerySchema,
   importPreviewSchema,
   ingestionListQuerySchema,
+  ingestionStartSchema,
+  profileIdParamsSchema,
   releaseCreateSchema,
   releaseIdParamsSchema,
   releaseListQuerySchema,
   reviewDecisionSchema,
   runIdParamsSchema,
   sourceIdParamsSchema,
+  sourceConfigurationPatchSchema,
+  sourceLockParamsSchema,
+  sourceNameParamsSchema,
   sourceInputSchema,
   sourcePatchSchema,
   submissionIdParamsSchema,
@@ -198,6 +216,51 @@ const releaseApprovalPayloadSchema = z.object({
   checksum: z.string(),
   updatedAt: z.string().datetime(),
 });
+const externalProfileApprovalPayloadSchema = z.object({
+  id: z.string().uuid(),
+  creatorEntityId: z.string().uuid().optional(),
+  platform: z
+    .enum([
+      'youtube',
+      'spotify',
+      'tiktok',
+      'instagram',
+      'x',
+      'facebook',
+      'twitch',
+      'soundcloud',
+      'apple_music',
+      'official_website',
+      'other',
+      'twitter',
+    ])
+    .optional(),
+  platformAccountId: z.string().nullable().optional(),
+  platformHandle: z.string().nullable().optional(),
+  profileUrl: z.string().nullable().optional(),
+  profileName: z.string().nullable().optional(),
+  isPrimary: z.boolean().optional(),
+  verificationStatus: z
+    .enum([
+      'unverified',
+      'source_linked',
+      'cross_source_confirmed',
+      'manually_verified',
+      'creator_verified',
+      'stale',
+      'disputed',
+      'rejected',
+    ])
+    .optional(),
+  visibilityStatus: z.enum(['public', 'private', 'suppressed']).optional(),
+  sourceName: z.string().optional(),
+  sourceReference: z.string().nullable().optional(),
+  sourceLicense: z.string().nullable().optional(),
+  confidenceScore: z.number().int().min(0).max(100).optional(),
+  connectorVersion: z.string().nullable().optional(),
+  mappingVersion: z.string().nullable().optional(),
+  lastVerifiedAt: z.string().datetime().nullable().optional(),
+});
 
 function criticalPayload(input: {
   id: string;
@@ -226,6 +289,47 @@ function requireCriticalPermission(context: Context<AdminAppEnv>) {
       'Critical handle changes require the super-admin permission.',
     );
   }
+}
+
+function externalProfileInput(
+  creatorEntityId: string,
+  input: Omit<z.infer<typeof externalProfileConflictSchema>, 'creator_entity_id'> & {
+    creator_entity_id?: string;
+  },
+) {
+  return {
+    creatorEntityId,
+    platform: input.platform,
+    platformAccountId: input.platform_account_id,
+    platformHandle: input.platform_handle,
+    profileUrl: input.profile_url,
+    profileName: input.profile_name,
+    isPrimary: input.is_primary,
+    verificationStatus: input.verification_status,
+    visibilityStatus: input.visibility_status,
+    sourceName: input.source_name,
+    sourceReference: input.source_reference,
+    sourceLicense: input.source_license,
+    confidenceScore: input.confidence_score,
+    connectorVersion: input.connector_version,
+    mappingVersion: input.mapping_version,
+    lastVerifiedAt: input.last_verified_at,
+  };
+}
+
+function connectorContext(context: Context<AdminAppEnv>) {
+  return context.env.WIKIDATA_FIXTURE_MODE === 'enabled'
+    ? {
+        fetch: createWikidataFixtureFetch(),
+        now: () => metadataTimestamp(context),
+        sleep: () => Promise.resolve(),
+        random: () => 0,
+      }
+    : undefined;
+}
+
+function metadataTimestamp(context: Context<AdminAppEnv>): string {
+  return context.get('requestTimestamp');
 }
 
 export type AdminAppDependencies = { metadata?: RequestMetadataProvider };
@@ -444,9 +548,10 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
     const { creatorId } = parseParams(context, creatorIdParamsSchema);
     const creator = await createCreatorRepository(context.env.DB).findById(creatorId);
     if (!creator) notFound('Creator');
-    const [aliases, sources, handles, audits, approvals] = await Promise.all([
+    const [aliases, sources, profiles, handles, audits, approvals] = await Promise.all([
       createCreatorAliasRepository(context.env.DB).listByCreator(creatorId),
       createCreatorSourceRepository(context.env.DB).listByCreator(creatorId),
+      createExternalProfileRepository(context.env.DB).listByCreator(creatorId),
       createReservedHandleRepository(context.env.DB).listByCreator(creatorId),
       createAuditLogRepository(context.env.DB).findByEntity('creator_entity', creatorId),
       createAdminApprovalRepository(context.env.DB).list({
@@ -462,6 +567,7 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
           creator,
           aliases,
           sources,
+          profiles,
           handles,
           auditHistory: audits,
           approvalRequests: approvals.items,
@@ -500,6 +606,166 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
       next: updated,
     });
     return context.json(successEnvelope(context, toAdminApiValue(updated)), 200);
+  });
+
+  app.get('/api/admin/v1/creators/:creatorId/profiles', async (context) => {
+    const { creatorId } = parseParams(context, creatorIdParamsSchema);
+    if (!(await createCreatorRepository(context.env.DB).findById(creatorId))) notFound('Creator');
+    const profiles = await createExternalProfileRepository(context.env.DB).listByCreator(creatorId);
+    return context.json(successEnvelope(context, toAdminApiValue(profiles)), 200);
+  });
+  app.post('/api/admin/v1/creators/:creatorId/profiles', async (context) => {
+    const { creatorId } = parseParams(context, creatorIdParamsSchema);
+    const body = await parseBody(context, externalProfileInputSchema);
+    const creator = await createCreatorRepository(context.env.DB).findById(creatorId);
+    if (!creator) notFound('Creator');
+    const input = externalProfileInput(creatorId, body);
+    const repository = createExternalProfileRepository(context.env.DB);
+    const conflicts = await repository.checkConflicts(input);
+    if (conflicts.some((conflict) => conflict.type !== 'primary_profile'))
+      throw new AdminRequestError(
+        'conflict',
+        'The profile conflicts with an existing association.',
+      );
+    if (creator.protectionTier === 'critical') {
+      requireCriticalPermission(context);
+      const profileId = crypto.randomUUID();
+      const approval = await createAdminApprovalRepository(context.env.DB).create({
+        actionType: 'external_profile.create_critical',
+        entityType: 'creator_external_profile',
+        entityId: profileId,
+        requestedBy: context.get('adminIdentity').email,
+        requestedPayload: jsonValue({ id: profileId, ...input }),
+        reason: body.change_reason,
+        expiresAt: expiresInOneDay(context.get('requestTimestamp')),
+        requestId: context.get('requestId'),
+      });
+      return context.json(successEnvelope(context, toAdminApiValue(approval)), 202);
+    }
+    const created = await repository.create(input);
+    await appendAudit(context, {
+      action: 'external_profile.created',
+      entityType: 'creator_external_profile',
+      entityId: created.id,
+      next: created,
+      metadata: { reason: body.change_reason },
+    });
+    return context.json(successEnvelope(context, toAdminApiValue(created)), 201);
+  });
+  app.get('/api/admin/v1/external-profiles/:profileId', async (context) => {
+    const { profileId } = parseParams(context, profileIdParamsSchema);
+    const profile = await createExternalProfileRepository(context.env.DB).findById(profileId);
+    if (!profile) notFound('External profile');
+    return context.json(successEnvelope(context, toAdminApiValue(profile)), 200);
+  });
+  app.patch('/api/admin/v1/external-profiles/:profileId', async (context) => {
+    const { profileId } = parseParams(context, profileIdParamsSchema);
+    const body = await parseBody(context, externalProfilePatchSchema);
+    const repository = createExternalProfileRepository(context.env.DB);
+    const previous = await repository.findById(profileId);
+    if (!previous) notFound('External profile');
+    const creator = await createCreatorRepository(context.env.DB).findById(
+      previous.creatorEntityId,
+    );
+    if (!creator) notFound('Creator');
+    const input = externalProfileInput(previous.creatorEntityId, {
+      platform: body.platform ?? previous.platform,
+      platform_account_id:
+        body.platform_account_id === undefined
+          ? previous.platformAccountId
+          : body.platform_account_id,
+      platform_handle:
+        body.platform_handle === undefined ? previous.platformHandle : body.platform_handle,
+      profile_url: body.profile_url === undefined ? previous.profileUrl : body.profile_url,
+      profile_name: body.profile_name === undefined ? previous.profileName : body.profile_name,
+      is_primary: body.is_primary ?? previous.isPrimary,
+      verification_status: body.verification_status ?? previous.verificationStatus,
+      visibility_status: body.visibility_status ?? previous.visibilityStatus,
+      source_name: body.source_name ?? previous.sourceName,
+      source_reference:
+        body.source_reference === undefined ? previous.sourceReference : body.source_reference,
+      source_license:
+        body.source_license === undefined ? previous.sourceLicense : body.source_license,
+      confidence_score: body.confidence_score ?? previous.confidenceScore,
+      connector_version:
+        body.connector_version === undefined ? previous.connectorVersion : body.connector_version,
+      mapping_version:
+        body.mapping_version === undefined ? previous.mappingVersion : body.mapping_version,
+      last_verified_at:
+        body.last_verified_at === undefined ? previous.lastVerifiedAt : body.last_verified_at,
+    });
+    const conflicts = await repository.checkConflicts(input, profileId);
+    if (conflicts.some((conflict) => conflict.type !== 'primary_profile'))
+      throw new AdminRequestError(
+        'conflict',
+        'The profile conflicts with an existing association.',
+      );
+    if (creator.protectionTier === 'critical') {
+      requireCriticalPermission(context);
+      const approval = await createAdminApprovalRepository(context.env.DB).create({
+        actionType: 'external_profile.update_critical',
+        entityType: 'creator_external_profile',
+        entityId: profileId,
+        requestedBy: context.get('adminIdentity').email,
+        requestedPayload: jsonValue({ id: profileId, ...input }),
+        reason: body.change_reason,
+        targetRevision: previous.updatedAt,
+        expiresAt: expiresInOneDay(context.get('requestTimestamp')),
+        requestId: context.get('requestId'),
+      });
+      return context.json(successEnvelope(context, toAdminApiValue(approval)), 202);
+    }
+    const updated = await repository.update(profileId, input);
+    await appendAudit(context, {
+      action: 'external_profile.updated',
+      entityType: 'creator_external_profile',
+      entityId: profileId,
+      previous,
+      next: updated,
+      metadata: { reason: body.change_reason },
+    });
+    return context.json(successEnvelope(context, toAdminApiValue(updated)), 200);
+  });
+  app.delete('/api/admin/v1/external-profiles/:profileId', async (context) => {
+    const { profileId } = parseParams(context, profileIdParamsSchema);
+    const repository = createExternalProfileRepository(context.env.DB);
+    const previous = await repository.findById(profileId);
+    if (!previous) notFound('External profile');
+    const creator = await createCreatorRepository(context.env.DB).findById(
+      previous.creatorEntityId,
+    );
+    if (!creator) notFound('Creator');
+    if (creator.protectionTier === 'critical') {
+      requireCriticalPermission(context);
+      const approval = await createAdminApprovalRepository(context.env.DB).create({
+        actionType: 'external_profile.delete_critical',
+        entityType: 'creator_external_profile',
+        entityId: profileId,
+        requestedBy: context.get('adminIdentity').email,
+        requestedPayload: jsonValue({ id: profileId }),
+        reason: 'Suppress an external profile association.',
+        targetRevision: previous.updatedAt,
+        expiresAt: expiresInOneDay(context.get('requestTimestamp')),
+        requestId: context.get('requestId'),
+      });
+      return context.json(successEnvelope(context, toAdminApiValue(approval)), 202);
+    }
+    const updated = await repository.deactivate(profileId);
+    await appendAudit(context, {
+      action: 'external_profile.suppressed',
+      entityType: 'creator_external_profile',
+      entityId: profileId,
+      previous,
+      next: updated,
+    });
+    return context.json(successEnvelope(context, toAdminApiValue(updated)), 200);
+  });
+  app.post('/api/admin/v1/external-profiles/check-conflicts', async (context) => {
+    const body = await parseBody(context, externalProfileConflictSchema);
+    const conflicts = await createExternalProfileRepository(context.env.DB).checkConflicts(
+      externalProfileInput(body.creator_entity_id, body),
+    );
+    return context.json(successEnvelope(context, toAdminApiValue({ conflicts })), 200);
   });
 
   app.get('/api/admin/v1/creators/:creatorId/aliases', async (context) => {
@@ -976,6 +1242,9 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
         context,
         toAdminApiValue({
           candidate,
+          provenance: await createCandidateProvenanceRepository(context.env.DB).listByCandidate(
+            candidateId,
+          ),
           potentialCreatorMatches: matches,
           policy:
             'Candidate approval may create a pending creator draft, but never creates or reserves a handle.',
@@ -1245,6 +1514,169 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
     );
   });
 
+  app.get('/api/admin/v1/source-configurations', async (context) => {
+    const repository = createSourceConfigurationRepository(context.env.DB);
+    const result = await repository.list({ page: 1, limit: 100 });
+    const [checkpoints, locks] = await Promise.all([
+      createSourceCheckpointRepository(context.env.DB).list(),
+      createSourceLockRepository(context.env.DB).list(),
+    ]);
+    return context.json(
+      successEnvelope(
+        context,
+        toAdminApiValue({ configurations: result.items, checkpoints, locks }),
+      ),
+      200,
+    );
+  });
+  app.get('/api/admin/v1/source-configurations/:sourceName', async (context) => {
+    const { sourceName } = parseParams(context, sourceNameParamsSchema);
+    const configuration = await createSourceConfigurationRepository(context.env.DB).findByName(
+      sourceName,
+    );
+    if (!configuration) notFound('Source configuration');
+    const checkpoint = await createSourceCheckpointRepository(context.env.DB).findBySourceScope(
+      sourceName,
+      'default',
+    );
+    const lock = await createSourceLockRepository(context.env.DB).find(sourceName, 'default');
+    return context.json(
+      successEnvelope(context, toAdminApiValue({ configuration, checkpoint, lock })),
+      200,
+    );
+  });
+  app.patch('/api/admin/v1/source-configurations/:sourceName', async (context) => {
+    const { sourceName } = parseParams(context, sourceNameParamsSchema);
+    const body = await parseBody(context, sourceConfigurationPatchSchema);
+    const repository = createSourceConfigurationRepository(context.env.DB);
+    const previous = await repository.findByName(sourceName);
+    if (!previous) notFound('Source configuration');
+    const proposed = {
+      sourceName,
+      enabled: body.enabled ?? previous.enabled,
+      scheduledEnabled: body.scheduled_enabled ?? previous.scheduledEnabled,
+      connectorVersion: body.connector_version ?? previous.connectorVersion,
+      accessMode: body.access_mode ?? previous.accessMode,
+      baseUrl: body.base_url ?? previous.baseUrl,
+      batchSize: body.batch_size ?? previous.batchSize,
+      maximumPagesPerRun: body.maximum_pages_per_run ?? previous.maximumPagesPerRun,
+      maximumRecordsPerRun: body.maximum_records_per_run ?? previous.maximumRecordsPerRun,
+      timeoutMs: body.timeout_ms ?? previous.timeoutMs,
+      retryCount: body.retry_count ?? previous.retryCount,
+      minimumRequestIntervalMs:
+        body.minimum_request_interval_ms ?? previous.minimumRequestIntervalMs,
+      scopeConfiguration:
+        body.scope_configuration === undefined
+          ? previous.scopeConfiguration
+          : jsonValue(body.scope_configuration),
+      candidateCreationEnabled:
+        body.candidate_creation_enabled ?? previous.candidateCreationEnabled,
+      dryRun: body.dry_run ?? previous.dryRun,
+      sourceLicense: body.source_license ?? previous.sourceLicense,
+      attribution: body.attribution ?? previous.attribution,
+      configurationStatus: body.configuration_status ?? previous.configurationStatus,
+    };
+    const readiness = createDefaultConnectorRegistry()
+      .get(sourceName)
+      ?.validateConfiguration({ ...previous, ...proposed });
+    if (readiness && readiness.status === 'invalid_configuration') {
+      throw new AdminRequestError('validation_failed', readiness.message);
+    }
+    const updated = await repository.upsert(proposed);
+    await appendAudit(context, {
+      action: 'source_configuration.updated',
+      entityType: 'source_configuration',
+      entityId: null,
+      previous,
+      next: updated,
+      metadata: { reason: body.reason, source_name: sourceName },
+    });
+    return context.json(successEnvelope(context, toAdminApiValue(updated)), 200);
+  });
+  app.post('/api/admin/v1/ingestion-runs/preview', async (context) => {
+    const body = await parseBody(context, ingestionStartSchema);
+    const result = await createIngestionOrchestrator({
+      db: context.env.DB,
+      registry: createDefaultConnectorRegistry(),
+      connectorContext: connectorContext(context),
+    }).execute({
+      sourceName: body.source_name,
+      scopeKey: body.scope_key,
+      triggerType: 'manual_preview',
+      preview: true,
+      maximumDurationMs: 30_000,
+    });
+    await appendAudit(context, {
+      action: 'ingestion.previewed',
+      entityType: 'ingestion_run',
+      entityId: result.runId,
+      next: result,
+    });
+    return context.json(successEnvelope(context, toAdminApiValue(result)), 200);
+  });
+  app.post('/api/admin/v1/ingestion-runs/start', async (context) => {
+    const body = await parseBody(context, ingestionStartSchema);
+    const result = await createIngestionOrchestrator({
+      db: context.env.DB,
+      registry: createDefaultConnectorRegistry(),
+      connectorContext: connectorContext(context),
+    }).execute({
+      sourceName: body.source_name,
+      scopeKey: body.scope_key,
+      triggerType: 'manual',
+      maximumDurationMs: 60_000,
+    });
+    await appendAudit(context, {
+      action: 'ingestion.started',
+      entityType: 'ingestion_run',
+      entityId: result.runId,
+      next: result,
+    });
+    return context.json(successEnvelope(context, toAdminApiValue(result)), 200);
+  });
+  app.get('/api/admin/v1/source-checkpoints', async (context) =>
+    context.json(
+      successEnvelope(
+        context,
+        toAdminApiValue(await createSourceCheckpointRepository(context.env.DB).list()),
+      ),
+      200,
+    ),
+  );
+  app.post('/api/admin/v1/source-checkpoints/:checkpointId/reset', async (context) => {
+    const { checkpointId } = parseParams(context, checkpointIdParamsSchema);
+    const body = await parseBody(context, actionReasonSchema);
+    const repository = createSourceCheckpointRepository(context.env.DB);
+    const previous = await repository.findById(checkpointId);
+    if (!previous) notFound('Source checkpoint');
+    const updated = await repository.reset(checkpointId, previous.connectorVersion);
+    await appendAudit(context, {
+      action: 'source_checkpoint.reset',
+      entityType: 'source_checkpoint',
+      entityId: checkpointId,
+      previous,
+      next: updated,
+      metadata: { reason: body.reason },
+    });
+    return context.json(successEnvelope(context, toAdminApiValue(updated)), 200);
+  });
+  app.post('/api/admin/v1/source-locks/:sourceName/:scopeKey/force-release', async (context) => {
+    const { sourceName, scopeKey } = parseParams(context, sourceLockParamsSchema);
+    const body = await parseBody(context, actionReasonSchema);
+    const repository = createSourceLockRepository(context.env.DB);
+    const previous = await repository.find(sourceName, scopeKey);
+    const released = await repository.forceRelease(sourceName, scopeKey);
+    await appendAudit(context, {
+      action: 'source_lock.force_released',
+      entityType: 'source_run_lock',
+      entityId: null,
+      previous,
+      next: { released },
+      metadata: { reason: body.reason, source_name: sourceName, scope_key: scopeKey },
+    });
+    return context.json(successEnvelope(context, { released }), 200);
+  });
+
   app.get('/api/admin/v1/ingestion-runs', async (context) => {
     const query = parseQuery(context, ingestionListQuerySchema);
     const repository = createIngestionRunRepository(context.env.DB);
@@ -1273,7 +1705,23 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
     const { runId } = parseParams(context, runIdParamsSchema);
     const run = await createIngestionRunRepository(context.env.DB).findById(runId);
     if (!run) notFound('Ingestion run');
-    return context.json(successEnvelope(context, toAdminApiValue(run)), 200);
+    const records = await createIngestionRecordOutcomeRepository(context.env.DB).listByRun(runId, {
+      page: 1,
+      limit: 100,
+    });
+    return context.json(
+      successEnvelope(context, toAdminApiValue({ run, records: records.items })),
+      200,
+    );
+  });
+  app.get('/api/admin/v1/ingestion-runs/:runId/records', async (context) => {
+    const { runId } = parseParams(context, runIdParamsSchema);
+    const query = parseQuery(context, ingestionListQuerySchema.pick({ page: true, limit: true }));
+    const records = await createIngestionRecordOutcomeRepository(context.env.DB).listByRun(
+      runId,
+      query,
+    );
+    return context.json(successEnvelope(context, toAdminApiValue(records.items)), 200);
   });
 
   app.get('/api/admin/v1/releases', async (context) => {
@@ -1510,6 +1958,22 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
       return context.json(successEnvelope(context, toAdminApiValue(approved)), 200);
     }
     requireCriticalPermission(context);
+    if (approval.actionType.startsWith('external_profile.')) {
+      const payload = externalProfileApprovalPayloadSchema.safeParse(approval.requestedPayload);
+      if (!payload.success)
+        throw new AdminRequestError(
+          'conflict',
+          'The critical external-profile approval payload is invalid.',
+        );
+      const applied = await repository.applyExternalProfile(
+        approval,
+        payload.data,
+        context.get('adminIdentity').email,
+        body.reason,
+        context.get('requestId'),
+      );
+      return context.json(successEnvelope(context, toAdminApiValue(applied)), 200);
+    }
     const payload = criticalHandlePayloadSchema.safeParse(approval.requestedPayload);
     if (!payload.success)
       throw new AdminRequestError('conflict', 'The critical handle approval payload is invalid.');

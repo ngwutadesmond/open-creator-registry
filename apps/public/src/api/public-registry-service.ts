@@ -7,12 +7,14 @@ import { createPublicRegistryRepository } from '@open-creator-registry/database/
 import { createPublicSubmissionRepository } from '@open-creator-registry/database/repositories/public-submission-repository';
 import { createRegistryReleaseRepository } from '@open-creator-registry/database/repositories/registry-release-repository';
 import { createReservedHandleRepository } from '@open-creator-registry/database/repositories/reserved-handle-repository';
+import { createExternalProfileRepository } from '@open-creator-registry/database/repositories/external-profile-repository';
 
 import { apiVersion, registryDisclaimer, registryName, sourcePolicySummary } from './constants';
 import {
   mapPublicAlias,
   mapPublicCreator,
   mapPublicHandle,
+  mapPublicExternalProfile,
   mapPublicRelease,
   mapPublicSource,
 } from './public-mappers';
@@ -52,6 +54,7 @@ export function createPublicRegistryService(db: D1Database) {
   const releases = createRegistryReleaseRepository(db);
   const registry = createPublicRegistryRepository(db);
   const submissions = createPublicSubmissionRepository(db);
+  const externalProfiles = createExternalProfileRepository(db);
 
   async function listCreators(input: PublicCreatorListInput) {
     const options = {
@@ -73,16 +76,18 @@ export function createPublicRegistryService(db: D1Database) {
   async function getCreatorDetail(id: string) {
     const creator = await creators.findPublicById(id);
     if (!creator) throw createNotFoundError('creator', id);
-    const [aliasResult, handleResult, sourceItems] = await Promise.all([
+    const [aliasResult, handleResult, sourceItems, profileItems] = await Promise.all([
       aliases.listPublicByCreator(id, { page: 1, limit: 100 }),
       handles.listPublicByCreator(id, { page: 1, limit: 100 }),
       sources.listVerifiedByCreator(id),
+      externalProfiles.listPublicByCreator(id),
     ]);
     return {
       ...mapPublicCreator(creator),
       aliases: aliasResult.items.map(mapPublicAlias),
       handles: handleResult.items.map(mapPublicHandle),
       sources: sourceItems.map(mapPublicSource),
+      external_profiles: profileItems.map(mapPublicExternalProfile),
     };
   }
 

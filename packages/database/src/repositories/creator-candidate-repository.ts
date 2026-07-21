@@ -142,5 +142,36 @@ export function createCreatorCandidateRepository(
     return updated;
   }
 
-  return { create, findById, list, count, updateReviewStatus };
+  async function updateDiscoveryData(
+    id: string,
+    input: Omit<CreateCreatorCandidateInput, 'reviewStatus' | 'discoveredAt'>,
+  ): Promise<CreatorCandidate> {
+    const current = await findById(id);
+    if (!current) throw createNotFoundError('creator candidate', id);
+    if (current.reviewStatus !== 'pending') return current;
+    await runStatement(
+      db
+        .prepare(
+          `UPDATE creator_candidates SET canonical_name = ?, normalized_name = ?, category = ?,
+           country_codes = ?, discovery_source = ?, confidence_score = ?, updated_at = ?
+           WHERE id = ? AND review_status = 'pending'`,
+        )
+        .bind(
+          input.canonicalName.trim(),
+          normalizeCreatorName(input.canonicalName),
+          input.category ?? null,
+          input.countryCodes ? serializeJson(input.countryCodes) : null,
+          input.discoverySource,
+          input.confidenceScore,
+          metadata.now(),
+          id,
+        ),
+      'creatorCandidate.updateDiscoveryData',
+    );
+    const updated = await findById(id);
+    if (!updated) throw createNotFoundError('creator candidate', id);
+    return updated;
+  }
+
+  return { create, findById, list, count, updateReviewStatus, updateDiscoveryData };
 }

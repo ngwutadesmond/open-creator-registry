@@ -23,23 +23,30 @@ describe('D1 migrations and constraints', () => {
       '0001_creator_registry.sql',
       '0002_registry_operations.sql',
       '0003_registry_administration.sql',
+      '0004_scheduled_ingestion_and_profiles.sql',
     ]);
     expect(tables.results.map((row) => row.name)).toEqual([
       'admin_approval_decisions',
       'admin_approval_requests',
       'admin_mutation_guards',
       'audit_logs',
+      'candidate_source_provenance',
       'creator_aliases',
       'creator_candidates',
       'creator_entities',
+      'creator_external_profiles',
       'creator_sources',
       'import_batch_errors',
       'import_batches',
+      'ingestion_record_outcomes',
       'ingestion_runs',
       'public_submissions',
       'registry_release_snapshots',
       'registry_releases',
       'reserved_handles',
+      'source_checkpoints',
+      'source_configurations',
+      'source_run_locks',
     ]);
   });
 

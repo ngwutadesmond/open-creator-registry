@@ -28,6 +28,7 @@ export default tseslint.config(
             'vitest.admin-api.config.ts',
             'scripts/*.mjs',
           ],
+          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 12,
         },
         tsconfigRootDir: import.meta.dirname,
       },
@@ -61,7 +62,12 @@ export default tseslint.config(
   {
     files: ['scripts/*.mjs'],
     languageOptions: {
-      globals: { AbortSignal: 'readonly', fetch: 'readonly', process: 'readonly' },
+      globals: {
+        AbortSignal: 'readonly',
+        console: 'readonly',
+        fetch: 'readonly',
+        process: 'readonly',
+      },
     },
   },
   {

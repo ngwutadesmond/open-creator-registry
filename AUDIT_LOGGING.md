@@ -16,3 +16,7 @@ to a request ID; internal details stay in Worker logs.
 Phase 5 retains audit entries indefinitely. A production retention/export policy requires owner
 and legal review in a later operational phase; it must preserve append-only evidence and dispute
 requirements.
+Phase 6 audits profile creation/update/suppression and critical approval decisions; source
+configuration changes; manual previews/runs; checkpoint resets; and force-released source locks.
+Ingestion audit values contain bounded summaries only. They do not include full Wikidata responses,
+authentication assertions, secret configuration, or arbitrary page content.

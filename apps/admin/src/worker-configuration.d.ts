@@ -5,6 +5,7 @@ interface __BaseEnv_AdminBindings {
   ENVIRONMENT: 'production';
   AUTH_PROVIDER: 'unconfigured';
   ADMIN_ALLOWED_ORIGINS: '';
+  WIKIDATA_FIXTURE_MODE?: string;
 }
 declare namespace Cloudflare {
   interface GlobalProps {

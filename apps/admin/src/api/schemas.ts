@@ -18,6 +18,13 @@ import {
   sourceVerificationStatuses,
   submissionStatuses,
 } from '@open-creator-registry/contracts/domain';
+import {
+  externalProfilePlatforms,
+  externalProfileVerificationStatuses,
+  externalProfileVisibilityStatuses,
+  sourceAccessModes,
+  sourceConfigurationStatuses,
+} from '@open-creator-registry/contracts/sources';
 
 export const idParamsSchema = z.object({ id: z.string().uuid() });
 export const creatorIdParamsSchema = z.object({ creatorId: z.string().uuid() });
@@ -31,6 +38,12 @@ export const runIdParamsSchema = z.object({ runId: z.string().uuid() });
 export const releaseIdParamsSchema = z.object({ releaseId: z.string().uuid() });
 export const approvalIdParamsSchema = z.object({ approvalId: z.string().uuid() });
 export const auditLogIdParamsSchema = z.object({ auditLogId: z.string().uuid() });
+export const profileIdParamsSchema = z.object({ profileId: z.string().uuid() });
+export const checkpointIdParamsSchema = z.object({ checkpointId: z.string().uuid() });
+export const sourceNameParamsSchema = z.object({ sourceName: z.string().trim().min(1).max(80) });
+export const sourceLockParamsSchema = sourceNameParamsSchema.extend({
+  scopeKey: z.string().trim().min(1).max(120),
+});
 
 export const paginationQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -99,6 +112,69 @@ export const sourcePatchSchema = sourceInputSchema
   .omit({ source_name: true, source_entity_id: true })
   .partial()
   .refine((value) => Object.keys(value).length > 0, 'At least one field is required.');
+
+const externalProfilePlatformInputSchema = z.union([
+  z.enum(externalProfilePlatforms),
+  z.literal('twitter'),
+]);
+const externalProfileFieldsSchema = z.object({
+  platform: externalProfilePlatformInputSchema,
+  platform_account_id: z.string().trim().min(1).max(200).nullable().optional(),
+  platform_handle: z.string().trim().min(1).max(100).nullable().optional(),
+  profile_url: z.string().url().max(2_000).nullable().optional(),
+  profile_name: z.string().trim().min(1).max(200).nullable().optional(),
+  is_primary: z.boolean().default(false),
+  verification_status: z.enum(externalProfileVerificationStatuses),
+  visibility_status: z.enum(externalProfileVisibilityStatuses),
+  source_name: z.string().trim().min(1).max(120),
+  source_reference: z.string().trim().min(1).max(500).nullable().optional(),
+  source_license: z.string().trim().min(1).max(160).nullable().optional(),
+  confidence_score: z.number().int().min(0).max(100),
+  connector_version: z.string().trim().min(1).max(80).nullable().optional(),
+  mapping_version: z.string().trim().min(1).max(80).nullable().optional(),
+  last_verified_at: z.string().datetime().nullable().optional(),
+  change_reason: z.string().trim().min(3).max(500),
+});
+export const externalProfileInputSchema = externalProfileFieldsSchema.refine(
+  (value) => value.platform_account_id || value.platform_handle || value.profile_url,
+  'At least one account ID, handle, or profile URL is required.',
+);
+export const externalProfilePatchSchema = externalProfileFieldsSchema
+  .omit({ change_reason: true })
+  .partial()
+  .extend({ change_reason: z.string().trim().min(3).max(500) });
+export const externalProfileConflictSchema = externalProfileFieldsSchema
+  .omit({ change_reason: true })
+  .extend({ creator_entity_id: z.string().uuid() })
+  .refine(
+    (value) => value.platform_account_id || value.platform_handle || value.profile_url,
+    'At least one account ID, handle, or profile URL is required.',
+  );
+
+export const sourceConfigurationPatchSchema = z.object({
+  enabled: z.boolean().optional(),
+  scheduled_enabled: z.boolean().optional(),
+  connector_version: z.string().trim().min(1).max(80).optional(),
+  access_mode: z.enum(sourceAccessModes).optional(),
+  base_url: z.string().url().optional(),
+  batch_size: z.number().int().min(1).max(100).optional(),
+  maximum_pages_per_run: z.number().int().min(1).max(10).optional(),
+  maximum_records_per_run: z.number().int().min(1).max(500).optional(),
+  timeout_ms: z.number().int().min(100).max(30_000).optional(),
+  retry_count: z.number().int().min(0).max(5).optional(),
+  minimum_request_interval_ms: z.number().int().min(0).max(60_000).optional(),
+  scope_configuration: z.record(z.string(), z.unknown()).optional(),
+  candidate_creation_enabled: z.boolean().optional(),
+  dry_run: z.boolean().optional(),
+  source_license: z.string().trim().min(1).max(160).optional(),
+  attribution: z.string().trim().min(1).max(500).optional(),
+  configuration_status: z.enum(sourceConfigurationStatuses).optional(),
+  reason: z.string().trim().min(3).max(500),
+});
+export const ingestionStartSchema = z.object({
+  source_name: z.string().trim().min(1).max(80),
+  scope_key: z.string().trim().min(1).max(120).default('default'),
+});
 
 export const handleInputSchema = z.object({
   creator_entity_id: z.string().uuid(),

@@ -5,6 +5,7 @@ import { createAuditLogRepository } from '@open-creator-registry/database/reposi
 import { createCreatorCandidateRepository } from '@open-creator-registry/database/repositories/creator-candidate-repository';
 import { createPublicSubmissionRepository } from '@open-creator-registry/database/repositories/public-submission-repository';
 import { createReservedHandleRepository } from '@open-creator-registry/database/repositories/reserved-handle-repository';
+import { createExternalProfileRepository } from '@open-creator-registry/database/repositories/external-profile-repository';
 import { seedDatabase } from '@open-creator-registry/database/seed';
 import { clearDatabase } from '../../../../packages/database/src/test/test-utils';
 import { createPublicApp } from '../../../public/src/api/routes';
@@ -30,6 +31,7 @@ const superAdminBindings: AdminRuntimeBindings = {
   DEV_ADMIN_SECONDARY_EMAIL: 'admin-two@example.test',
   DEV_ADMIN_SECONDARY_NAME: 'Admin Two',
   DEV_ADMIN_SECONDARY_ROLES: 'super_admin,publisher,editor,reviewer,admin_viewer',
+  WIKIDATA_FIXTURE_MODE: 'enabled',
 };
 
 const viewerBindings: AdminRuntimeBindings = {
@@ -313,6 +315,102 @@ describe('creator, evidence and review administration', () => {
 });
 
 describe('critical handles, imports, releases and audit', () => {
+  it('manages public external profiles and applies critical profile changes through approval', async () => {
+    const nonCriticalCreatorId = '10000000-0000-4000-8000-000000000002';
+    const createdResponse = await request(
+      `/api/admin/v1/creators/${nonCriticalCreatorId}/profiles`,
+      jsonInit({
+        platform: 'twitter',
+        platform_account_id: 'phase6-profile-account',
+        platform_handle: '@phase6profile',
+        profile_url: 'https://twitter.com/phase6profile',
+        profile_name: 'Phase 6 Profile',
+        is_primary: true,
+        verification_status: 'source_linked',
+        visibility_status: 'public',
+        source_name: 'integration_fixture',
+        source_reference: 'fixture-profile-1',
+        source_license: 'CC0-1.0',
+        confidence_score: 90,
+        change_reason: 'Add reviewed integration profile.',
+      }),
+    );
+    const created = await responseData(createdResponse);
+    expect(createdResponse.status).toBe(201);
+    expect(created.platform).toBe('x');
+    expect(
+      await createAuditLogRepository(env.DB).findByEntity(
+        'creator_external_profile',
+        String(created.id),
+      ),
+    ).toEqual([expect.objectContaining({ action: 'external_profile.created' })]);
+
+    const criticalResponse = await request(
+      '/api/admin/v1/creators/10000000-0000-4000-8000-000000000001/profiles',
+      jsonInit({
+        platform: 'spotify',
+        platform_account_id: 'phase6-critical-spotify',
+        profile_url: 'https://open.spotify.com/artist/phase6-critical-spotify',
+        is_primary: true,
+        verification_status: 'manually_verified',
+        visibility_status: 'public',
+        source_name: 'manual_review',
+        confidence_score: 100,
+        change_reason: 'Add reviewed critical creator profile.',
+      }),
+    );
+    const approval = await responseData(criticalResponse);
+    expect(criticalResponse.status).toBe(202);
+    expect(
+      await createExternalProfileRepository(env.DB).findByPlatformAccountId(
+        'spotify',
+        'phase6-critical-spotify',
+      ),
+    ).toBeNull();
+    const applied = await request(
+      `/api/admin/v1/approval-requests/${String(approval.id)}/approve`,
+      jsonInit({ reason: 'Independent administrator confirmed the association.' }, 'secondary'),
+    );
+    expect(applied.status).toBe(200);
+    expect(
+      await createExternalProfileRepository(env.DB).findByPlatformAccountId(
+        'spotify',
+        'phase6-critical-spotify',
+      ),
+    ).toMatchObject({ visibilityStatus: 'public' });
+  });
+
+  it('previews and runs fixture-backed Wikidata with audited configuration changes', async () => {
+    const configured = await request('/api/admin/v1/source-configurations/wikidata', {
+      ...jsonInit({
+        enabled: true,
+        dry_run: false,
+        minimum_request_interval_ms: 0,
+        reason: 'Enable deterministic integration fixture.',
+      }),
+      method: 'PATCH',
+    });
+    expect(configured.status).toBe(200);
+    const preview = await request(
+      '/api/admin/v1/ingestion-runs/preview',
+      jsonInit({ source_name: 'wikidata', scope_key: 'preview' }),
+    );
+    expect(preview.status).toBe(200);
+    expect(await responseData(preview)).toMatchObject({ dry_run: true, fetched_count: 2 });
+    const run = await request(
+      '/api/admin/v1/ingestion-runs/start',
+      jsonInit({ source_name: 'wikidata', scope_key: 'default' }),
+    );
+    const result = await responseData(run);
+    expect(run.status).toBe(200);
+    expect(result).toMatchObject({ status: 'completed', created_count: 2 });
+    const detail = await request(`/api/admin/v1/ingestion-runs/${String(result.run_id)}`);
+    expect(detail.status).toBe(200);
+    expect(
+      await createAuditLogRepository(env.DB).list({ action: 'ingestion.started' }),
+    ).toMatchObject({ items: [expect.objectContaining({ entityId: result.run_id })] });
+  });
+
   it('applies a critical handle once only after a different super administrator approves', async () => {
     const create = await request(
       '/api/admin/v1/reserved-handles',

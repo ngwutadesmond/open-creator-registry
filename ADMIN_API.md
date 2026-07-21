@@ -46,3 +46,9 @@ curl -sS 'http://localhost:5174/api/admin/v1/creators?page=1&limit=25'
 
 These work only with the local provider configured. Production callers must wait for the Phase 7
 Cloudflare Access implementation.
+Phase 6 adds authenticated profile routes under creator/external-profile paths and private source
+configuration, ingestion preview/start, record outcome, checkpoint reset, and lock force-release
+routes. RBAC uses the centralized `external_profiles:*`, `ingestion_runs:*`,
+`source_configurations:*`, `source_checkpoints:reset`, and `source_locks:release` permissions.
+Every mutation is audited. Critical creator profile creation/update/suppression returns an approval
+request and is atomically applied only by a different authorized administrator.

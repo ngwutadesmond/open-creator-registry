@@ -1,0 +1,23 @@
+{
+  "name": "@open-creator-registry/ingestion",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./contracts": "./src/contracts.ts",
+    "./registry": "./src/registry.ts",
+    "./orchestrator": "./src/orchestrator.ts",
+    "./scheduled": "./src/scheduled.ts",
+    "./wikidata": "./src/wikidata.ts",
+    "./fixtures": "./src/fixtures.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@open-creator-registry/contracts": "*",
+    "@open-creator-registry/database": "*",
+    "@open-creator-registry/normalization": "*",
+    "zod": "^4.4.3"
+  }
+}

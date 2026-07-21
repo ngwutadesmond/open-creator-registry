@@ -8,6 +8,13 @@ import {
   reservationStatuses,
   sourceVerificationStatuses,
 } from '@open-creator-registry/contracts/domain';
+import {
+  externalProfilePlatforms,
+  externalProfileVerificationStatuses,
+  externalProfileVisibilityStatuses,
+  sourceAccessModes,
+  sourceConfigurationStatuses,
+} from '@open-creator-registry/contracts/sources';
 
 const nullableString = z.string().trim().min(1).nullable().optional();
 const countryCodes = z
@@ -60,6 +67,47 @@ const seedReservedHandleSchema = z.object({
   status: z.enum(reservationStatuses),
 });
 
+const seedExternalProfileSchema = z.object({
+  id: z.uuid(),
+  creatorEntityId: z.uuid(),
+  platform: z.enum(externalProfilePlatforms),
+  platformAccountId: nullableString,
+  platformHandle: nullableString,
+  profileUrl: z.url().nullable().optional(),
+  profileName: nullableString,
+  isPrimary: z.boolean(),
+  verificationStatus: z.enum(externalProfileVerificationStatuses),
+  visibilityStatus: z.enum(externalProfileVisibilityStatuses),
+  sourceName: z.string().trim().min(1),
+  sourceReference: nullableString,
+  sourceLicense: nullableString,
+  confidenceScore: z.int().min(0).max(100),
+  connectorVersion: nullableString,
+  mappingVersion: nullableString,
+  lastVerifiedAt: z.iso.datetime().nullable().optional(),
+});
+
+const seedSourceConfigurationSchema = z.object({
+  sourceName: z.string().trim().min(1),
+  enabled: z.boolean(),
+  scheduledEnabled: z.boolean(),
+  connectorVersion: z.string().trim().min(1),
+  accessMode: z.enum(sourceAccessModes),
+  baseUrl: z.url(),
+  batchSize: z.int().min(1).max(100),
+  maximumPagesPerRun: z.int().min(1).max(10),
+  maximumRecordsPerRun: z.int().min(1).max(500),
+  timeoutMs: z.int().min(100).max(30_000),
+  retryCount: z.int().min(0).max(5),
+  minimumRequestIntervalMs: z.int().min(0).max(60_000),
+  scopeConfiguration: z.record(z.string(), z.unknown()),
+  candidateCreationEnabled: z.boolean(),
+  dryRun: z.boolean(),
+  sourceLicense: z.string().trim().min(1),
+  attribution: z.string().trim().min(1),
+  configurationStatus: z.enum(sourceConfigurationStatuses),
+});
+
 export const demonstrationSeedSchema = z.object({
   metadata: z.object({
     label: z.literal('LOCAL DEMONSTRATION DATA — NOT AN AUTHORITATIVE REGISTRY'),
@@ -70,6 +118,8 @@ export const demonstrationSeedSchema = z.object({
   sources: z.array(seedSourceSchema).min(1),
   aliases: z.array(seedAliasSchema),
   reservedHandles: z.array(seedReservedHandleSchema).min(1),
+  externalProfiles: z.array(seedExternalProfileSchema),
+  sourceConfigurations: z.array(seedSourceConfigurationSchema),
   unlistedExamples: z.array(z.string().trim().min(2)).min(1),
 });
 
@@ -385,6 +435,72 @@ export const demonstrationSeedData: DemonstrationSeedData = {
       decisionSource: 'demonstration_seed',
       reason: 'Common-name archive example requiring monitoring without broad name ownership.',
       status: 'active',
+    },
+  ],
+  externalProfiles: [
+    {
+      id: '50000000-0000-4000-8000-000000000001',
+      creatorEntityId: creatorIds.musician,
+      platform: 'youtube',
+      platformAccountId: 'UCDEMOAURORAVALE',
+      platformHandle: '@DemoAuroraVale',
+      profileUrl: 'https://www.youtube.com/@DemoAuroraVale',
+      profileName: 'Demo Aurora Vale',
+      isPrimary: true,
+      verificationStatus: 'source_linked',
+      visibilityStatus: 'public',
+      sourceName: 'demonstration_catalog',
+      sourceReference: 'demo-creator-01',
+      sourceLicense: 'CC0-1.0 demonstration fixture',
+      confidenceScore: 90,
+      connectorVersion: null,
+      mappingVersion: null,
+      lastVerifiedAt: '2026-01-15T00:00:00.000Z',
+    },
+    {
+      id: '50000000-0000-4000-8000-000000000002',
+      creatorEntityId: creatorIds.musician,
+      platform: 'official_website',
+      platformAccountId: null,
+      platformHandle: null,
+      profileUrl: 'https://demo-aurora.example/',
+      profileName: 'Demo Aurora official website',
+      isPrimary: true,
+      verificationStatus: 'manually_verified',
+      visibilityStatus: 'public',
+      sourceName: 'demonstration_catalog',
+      sourceReference: 'demo-creator-01',
+      sourceLicense: 'CC0-1.0 demonstration fixture',
+      confidenceScore: 100,
+      connectorVersion: null,
+      mappingVersion: null,
+      lastVerifiedAt: '2026-01-15T00:00:00.000Z',
+    },
+  ],
+  sourceConfigurations: [
+    {
+      sourceName: 'wikidata',
+      enabled: false,
+      scheduledEnabled: false,
+      connectorVersion: '0.1.0-poc',
+      accessMode: 'official_api',
+      baseUrl: 'https://query.wikidata.org/sparql',
+      batchSize: 10,
+      maximumPagesPerRun: 2,
+      maximumRecordsPerRun: 20,
+      timeoutMs: 5000,
+      retryCount: 2,
+      minimumRequestIntervalMs: 1000,
+      scopeConfiguration: {
+        occupation_ids: ['Q177220', 'Q639669'],
+        country_ids: [],
+        maximum_failed_records: 3,
+      },
+      candidateCreationEnabled: true,
+      dryRun: true,
+      sourceLicense: 'CC0-1.0',
+      attribution: 'Wikidata contributors',
+      configurationStatus: 'valid',
     },
   ],
   unlistedExamples: ['ordinary_unlisted_demo'],

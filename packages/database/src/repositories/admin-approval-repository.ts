@@ -2,6 +2,17 @@ import type {
   ApprovalActionType,
   ApprovalRequestStatus,
 } from '@open-creator-registry/contracts/admin';
+import type {
+  ExternalProfilePlatform,
+  ExternalProfileVerificationStatus,
+  ExternalProfileVisibilityStatus,
+} from '@open-creator-registry/contracts/sources';
+import {
+  normalizeExternalProfilePlatform,
+  normalizeExternalProfileUrl,
+  normalizePlatformHandle,
+  validateExternalProfileLocator,
+} from '@open-creator-registry/normalization/external-profiles';
 
 import { createInvalidInputError, createNotFoundError, withDatabaseErrorMapping } from '../errors';
 import { parseJson, serializeJson, type JsonValue } from '../json';
@@ -104,6 +115,26 @@ export type CriticalHandlePayload = {
   decisionSource: string;
   reason: string;
   status: 'active' | 'suspended' | 'released' | 'disputed';
+};
+
+export type CriticalExternalProfilePayload = {
+  id: string;
+  creatorEntityId?: string;
+  platform?: ExternalProfilePlatform | 'twitter';
+  platformAccountId?: string | null;
+  platformHandle?: string | null;
+  profileUrl?: string | null;
+  profileName?: string | null;
+  isPrimary?: boolean;
+  verificationStatus?: ExternalProfileVerificationStatus;
+  visibilityStatus?: ExternalProfileVisibilityStatus;
+  sourceName?: string;
+  sourceReference?: string | null;
+  sourceLicense?: string | null;
+  confidenceScore?: number;
+  connectorVersion?: string | null;
+  mappingVersion?: string | null;
+  lastVerifiedAt?: string | null;
 };
 
 export function createAdminApprovalRepository(
@@ -498,6 +529,168 @@ export function createAdminApprovalRepository(
     return applied;
   }
 
+  async function applyExternalProfile(
+    current: AdminApprovalRequest,
+    payload: CriticalExternalProfilePayload,
+    administratorIdentifier: string,
+    reason: string,
+    requestId: string,
+  ): Promise<AdminApprovalRequest> {
+    const timestamp = metadata.now();
+    if (current.requestedBy === administratorIdentifier) {
+      throw createInvalidInputError('The requester cannot approve their own approval request.');
+    }
+    if (current.status !== 'pending' || current.expiresAt <= timestamp) {
+      throw createInvalidInputError('Only a current pending approval request can be approved.');
+    }
+    const common = commonApplyStatements(
+      current,
+      administratorIdentifier,
+      reason,
+      requestId,
+      timestamp,
+      current.actionType,
+      payload,
+    );
+    const targetGuardId = metadata.createId();
+    const isCreate = current.actionType === 'external_profile.create_critical';
+    const isDelete = current.actionType === 'external_profile.delete_critical';
+    const targetGuard = isCreate
+      ? db.prepare('SELECT 1')
+      : db
+          .prepare(
+            `INSERT INTO admin_mutation_guards (id, valid)
+             VALUES (?, (SELECT COUNT(*) FROM creator_external_profiles
+               WHERE id = ? AND updated_at = ?))`,
+          )
+          .bind(targetGuardId, payload.id, current.targetRevision);
+    let mutation: D1PreparedStatement;
+    if (isDelete) {
+      mutation = db
+        .prepare(
+          `UPDATE creator_external_profiles SET visibility_status = 'suppressed', is_primary = 0,
+           updated_at = ? WHERE id = ? AND updated_at = ?`,
+        )
+        .bind(timestamp, payload.id, current.targetRevision);
+    } else {
+      if (
+        !payload.creatorEntityId ||
+        !payload.platform ||
+        !payload.verificationStatus ||
+        !payload.visibilityStatus ||
+        !payload.sourceName ||
+        payload.confidenceScore === undefined
+      ) {
+        throw createInvalidInputError('The critical external-profile payload is incomplete.');
+      }
+      validateExternalProfileLocator(payload);
+      const platform = normalizeExternalProfilePlatform(payload.platform);
+      const normalizedHandle = normalizePlatformHandle(payload.platformHandle);
+      const normalizedUrl = normalizeExternalProfileUrl(platform, payload.profileUrl);
+      mutation = isCreate
+        ? db
+            .prepare(
+              `INSERT INTO creator_external_profiles (
+                id, creator_entity_id, platform, platform_account_id, platform_handle,
+                normalized_platform_handle, profile_url, normalized_profile_url, profile_name,
+                is_primary, verification_status, visibility_status, source_name, source_reference,
+                source_license, confidence_score, connector_version, mapping_version, first_seen_at,
+                last_seen_at, last_verified_at, created_at, updated_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            )
+            .bind(
+              payload.id,
+              payload.creatorEntityId,
+              platform,
+              payload.platformAccountId ?? null,
+              payload.platformHandle ?? null,
+              normalizedHandle,
+              normalizedUrl,
+              normalizedUrl,
+              payload.profileName ?? null,
+              payload.isPrimary ? 1 : 0,
+              payload.verificationStatus,
+              payload.visibilityStatus,
+              payload.sourceName,
+              payload.sourceReference ?? null,
+              payload.sourceLicense ?? null,
+              payload.confidenceScore,
+              payload.connectorVersion ?? null,
+              payload.mappingVersion ?? null,
+              timestamp,
+              timestamp,
+              payload.lastVerifiedAt ?? null,
+              timestamp,
+              timestamp,
+            )
+        : db
+            .prepare(
+              `UPDATE creator_external_profiles SET creator_entity_id = ?, platform = ?,
+               platform_account_id = ?, platform_handle = ?, normalized_platform_handle = ?,
+               profile_url = ?, normalized_profile_url = ?, profile_name = ?, is_primary = ?,
+               verification_status = ?, visibility_status = ?, source_name = ?,
+               source_reference = ?, source_license = ?, confidence_score = ?,
+               connector_version = ?, mapping_version = ?, last_seen_at = ?,
+               last_verified_at = ?, updated_at = ? WHERE id = ? AND updated_at = ?`,
+            )
+            .bind(
+              payload.creatorEntityId,
+              platform,
+              payload.platformAccountId ?? null,
+              payload.platformHandle ?? null,
+              normalizedHandle,
+              normalizedUrl,
+              normalizedUrl,
+              payload.profileName ?? null,
+              payload.isPrimary ? 1 : 0,
+              payload.verificationStatus,
+              payload.visibilityStatus,
+              payload.sourceName,
+              payload.sourceReference ?? null,
+              payload.sourceLicense ?? null,
+              payload.confidenceScore,
+              payload.connectorVersion ?? null,
+              payload.mappingVersion ?? null,
+              timestamp,
+              payload.lastVerifiedAt ?? null,
+              timestamp,
+              payload.id,
+              current.targetRevision,
+            );
+    }
+    const primaryDemotion =
+      !isDelete && payload.isPrimary && payload.creatorEntityId && payload.platform
+        ? [
+            db
+              .prepare(
+                `UPDATE creator_external_profiles SET is_primary = 0, updated_at = ?
+                 WHERE creator_entity_id = ? AND platform = ? AND id <> ?`,
+              )
+              .bind(
+                timestamp,
+                payload.creatorEntityId,
+                normalizeExternalProfilePlatform(payload.platform),
+                payload.id,
+              ),
+          ]
+        : [];
+    await withDatabaseErrorMapping('adminApproval.applyExternalProfile', () =>
+      db.batch([
+        ...common.leading,
+        targetGuard,
+        ...primaryDemotion,
+        mutation,
+        ...common.trailing,
+        ...(isCreate
+          ? []
+          : [db.prepare('DELETE FROM admin_mutation_guards WHERE id = ?').bind(targetGuardId)]),
+      ]),
+    );
+    const applied = await findById(current.id);
+    if (!applied) throw createNotFoundError('admin approval request', current.id);
+    return applied;
+  }
+
   async function publishApprovedRelease(
     current: AdminApprovalRequest,
     payload: { releaseId: string; checksum: string; updatedAt: string },
@@ -582,6 +775,7 @@ export function createAdminApprovalRepository(
     listDecisions,
     reject,
     applyHandle,
+    applyExternalProfile,
     approveRelease,
     publishApprovedRelease,
   };

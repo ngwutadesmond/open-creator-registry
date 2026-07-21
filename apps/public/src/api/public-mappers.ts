@@ -2,6 +2,7 @@ import type {
   CreatorAlias,
   CreatorEntity,
   CreatorSource,
+  CreatorExternalProfile,
   RegistryRelease,
   ReservedHandle,
 } from '@open-creator-registry/database/models';
@@ -18,6 +19,19 @@ export function mapPublicCreator(creator: CreatorEntity) {
     protection_tier: creator.protectionTier,
     created_at: creator.createdAt,
     updated_at: creator.updatedAt,
+  };
+}
+
+export function mapPublicExternalProfile(profile: CreatorExternalProfile) {
+  return {
+    platform: profile.platform,
+    account_id: profile.platformAccountId,
+    handle: profile.platformHandle,
+    profile_name: profile.profileName,
+    url: profile.profileUrl,
+    verification_status: profile.verificationStatus,
+    is_primary: profile.isPrimary,
+    last_verified_at: profile.lastVerifiedAt,
   };
 }
 

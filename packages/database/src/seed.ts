@@ -3,9 +3,14 @@ import {
   normalizeCreatorName,
   normalizeHandle,
 } from '@open-creator-registry/normalization';
+import {
+  normalizeExternalProfileUrl,
+  normalizePlatformHandle,
+} from '@open-creator-registry/normalization/external-profiles';
 
 import { withDatabaseErrorMapping } from './errors';
 import { serializeJson } from './json';
+import type { JsonValue } from './json';
 import {
   demonstrationSeedData,
   demonstrationSeedSchema,
@@ -18,6 +23,8 @@ export type SeedSummary = {
   sources: number;
   aliases: number;
   reservedHandles: number;
+  externalProfiles: number;
+  sourceConfigurations: number;
 };
 
 export async function seedDatabase(
@@ -153,6 +160,98 @@ export async function seedDatabase(
     );
   }
 
+  for (const profile of seed.externalProfiles) {
+    const normalizedHandle = normalizePlatformHandle(profile.platformHandle);
+    const normalizedUrl = normalizeExternalProfileUrl(profile.platform, profile.profileUrl);
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO creator_external_profiles (
+            id, creator_entity_id, platform, platform_account_id, platform_handle,
+            normalized_platform_handle, profile_url, normalized_profile_url, profile_name,
+            is_primary, verification_status, visibility_status, source_name, source_reference,
+            source_license, confidence_score, connector_version, mapping_version, first_seen_at,
+            last_seen_at, last_verified_at, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET creator_entity_id = excluded.creator_entity_id,
+            platform = excluded.platform, platform_account_id = excluded.platform_account_id,
+            platform_handle = excluded.platform_handle,
+            normalized_platform_handle = excluded.normalized_platform_handle,
+            profile_url = excluded.profile_url, normalized_profile_url = excluded.normalized_profile_url,
+            profile_name = excluded.profile_name, is_primary = excluded.is_primary,
+            verification_status = excluded.verification_status,
+            visibility_status = excluded.visibility_status, source_name = excluded.source_name,
+            source_reference = excluded.source_reference, source_license = excluded.source_license,
+            confidence_score = excluded.confidence_score,
+            connector_version = excluded.connector_version, mapping_version = excluded.mapping_version,
+            last_seen_at = excluded.last_seen_at, last_verified_at = excluded.last_verified_at,
+            updated_at = excluded.updated_at`,
+        )
+        .bind(
+          profile.id,
+          profile.creatorEntityId,
+          profile.platform,
+          profile.platformAccountId ?? null,
+          profile.platformHandle ?? null,
+          normalizedHandle,
+          profile.profileUrl ?? null,
+          normalizedUrl,
+          profile.profileName ?? null,
+          profile.isPrimary ? 1 : 0,
+          profile.verificationStatus,
+          profile.visibilityStatus,
+          profile.sourceName,
+          profile.sourceReference ?? null,
+          profile.sourceLicense ?? null,
+          profile.confidenceScore,
+          profile.connectorVersion ?? null,
+          profile.mappingVersion ?? null,
+          timestamp,
+          timestamp,
+          profile.lastVerifiedAt ?? null,
+          timestamp,
+          timestamp,
+        ),
+    );
+  }
+
+  for (const configuration of seed.sourceConfigurations) {
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO source_configurations (
+            source_name, enabled, scheduled_enabled, connector_version, access_mode, base_url,
+            batch_size, maximum_pages_per_run, maximum_records_per_run, timeout_ms, retry_count,
+            minimum_request_interval_ms, scope_configuration, candidate_creation_enabled, dry_run,
+            source_license, attribution, configuration_status, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(source_name) DO NOTHING`,
+        )
+        .bind(
+          configuration.sourceName,
+          configuration.enabled ? 1 : 0,
+          configuration.scheduledEnabled ? 1 : 0,
+          configuration.connectorVersion,
+          configuration.accessMode,
+          configuration.baseUrl,
+          configuration.batchSize,
+          configuration.maximumPagesPerRun,
+          configuration.maximumRecordsPerRun,
+          configuration.timeoutMs,
+          configuration.retryCount,
+          configuration.minimumRequestIntervalMs,
+          serializeJson(configuration.scopeConfiguration as JsonValue),
+          configuration.candidateCreationEnabled ? 1 : 0,
+          configuration.dryRun ? 1 : 0,
+          configuration.sourceLicense,
+          configuration.attribution,
+          configuration.configurationStatus,
+          timestamp,
+          timestamp,
+        ),
+    );
+  }
+
   await withDatabaseErrorMapping('seedDatabase', () => db.batch(statements));
 
   return {
@@ -161,5 +260,7 @@ export async function seedDatabase(
     sources: seed.sources.length,
     aliases: seed.aliases.length,
     reservedHandles: seed.reservedHandles.length,
+    externalProfiles: seed.externalProfiles.length,
+    sourceConfigurations: seed.sourceConfigurations.length,
   };
 }

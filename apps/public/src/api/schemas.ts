@@ -11,6 +11,10 @@ import {
   reservationStatuses,
 } from '@open-creator-registry/contracts/domain';
 import { validateHandle } from '@open-creator-registry/normalization';
+import {
+  externalProfilePlatforms,
+  externalProfileVerificationStatuses,
+} from '@open-creator-registry/contracts/sources';
 
 import { defaultPageSize, maximumBatchSize, maximumPageSize } from './constants';
 
@@ -126,11 +130,25 @@ export const publicSourceSchema = z
   })
   .openapi('PublicCreatorSource');
 
+export const publicExternalProfileSchema = z
+  .object({
+    platform: z.enum(externalProfilePlatforms),
+    account_id: z.string().nullable(),
+    handle: z.string().nullable(),
+    profile_name: z.string().nullable(),
+    url: z.url().nullable(),
+    verification_status: z.enum(externalProfileVerificationStatuses),
+    is_primary: z.boolean(),
+    last_verified_at: z.iso.datetime().nullable(),
+  })
+  .openapi('PublicCreatorExternalProfile');
+
 export const publicCreatorDetailSchema = publicCreatorSchema
   .extend({
     aliases: z.array(publicAliasSchema),
     handles: z.array(publicHandleSchema),
     sources: z.array(publicSourceSchema),
+    external_profiles: z.array(publicExternalProfileSchema),
   })
   .openapi('PublicCreatorDetail');
 

@@ -33,6 +33,7 @@ packages/
   contracts/    framework-independent domain constants and types
   normalization/ shared handle/name normalization and confusable risk signals
   database/     D1 migrations, typed models, repositories, seeds, and local tooling
+  ingestion/    source contracts, bounded orchestration, Wikidata POC, and scheduling
   ui/           shared CSS tokens and base styles
 ```
 
@@ -89,6 +90,11 @@ publication use guarded D1 batches where atomicity is required. Public responses
 verified source-backed aliases/sources, active public handles, and public release history. Public
 submissions write only a pending review record and cannot mutate live protection decisions.
 
+Scheduled/manual source discovery is an evidence-only path. Connectors are disabled until a
+persisted reviewed configuration enables them, source/scope leases prevent overlap, successful
+pages advance checkpoints, and source records upsert pending candidates plus provenance. Candidate
+profile evidence is not promoted to a creator automatically. See `INGESTION_ARCHITECTURE.md`.
+
 ## Shared contracts
 
 The contracts package owns classification, recommended-action, review, status, tier, alias, source,
@@ -114,6 +120,8 @@ details.
 - D1 operations use prepared statements; untrusted values are never concatenated into SQL.
 - Secrets belong in `.dev.vars` locally and Worker secrets remotely. `.dev.vars` is ignored.
 - Public responses must never include private administrator data or raw internal errors.
+- Public profile responses include only reviewed public associations and exclude connector
+  configuration, source references, private confidence, and rejected/disputed/suppressed evidence.
 - The public Worker uses a strict origin allowlist, bounded bodies/pages/batches, short cache
   lifetimes, security headers, and an injectable rate-limit boundary. Distributed enforcement and
   bot protection require real Phase 7 Cloudflare configuration.
