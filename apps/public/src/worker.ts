@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 
-const app = new Hono();
+import type { DatabaseBinding } from '@open-creator-registry/database/binding';
+
+const app = new Hono<{ Bindings: DatabaseBinding }>();
 
 app.all('/api/*', (context) =>
   context.json(

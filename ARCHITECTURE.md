@@ -31,11 +31,10 @@ apps/
   admin/        private Vite client and Hono Worker entry
 packages/
   contracts/    framework-independent domain constants and types
+  normalization/ shared handle/name normalization and confusable risk signals
+  database/     D1 migrations, typed models, repositories, seeds, and local tooling
   ui/           shared CSS tokens and base styles
 ```
-
-Future Phase 2 packages add normalization and D1 repositories without merging the public and admin
-deployment boundaries.
 
 ## Runtime model
 
@@ -48,19 +47,31 @@ public routes are implemented in Phase 3 and private routes in Phase 5.
 
 ## Data ownership and consistency
 
-Cloudflare D1 will be the source of truth. Both Workers will bind the same database using the same
-binding name and schema migrations. Repository modules will own SQL and use D1 prepared statements;
-route and UI code will not compose SQL.
+Cloudflare D1 is the source of truth. Both Workers bind it as `DB`, use one migrations directory,
+and use the canonical repository-root `.wrangler/state` when run individually. The combined local
+shell-smoke command isolates each workerd process's ignored state to avoid SQLite ownership
+contention; this does not affect Phase 2 because the interfaces do not query D1 yet. Deployed
+Workers will bind one remote D1 database in Phase 7. Repository modules own SQL and use D1 prepared
+statements; route and UI code do not compose SQL.
 
-Administrative mutations will use explicit transactions or D1 batch operations where atomicity is
-required and will create an audit record. Public responses will expose only reviewed, active,
+Administrative mutations use D1 batch operations where atomicity is required and will create an
+audit record when Phase 5 adds mutation routes. Public responses will expose only reviewed, active,
 policy-approved fields.
 
 ## Shared contracts
 
-The contracts package owns classification and recommended-action literals so the clients, APIs,
-OpenAPI schemas, importers, and tests cannot drift. The future normalization package will similarly
-be the sole implementation used by APIs, imports, seeds, handle generation, and tests.
+The contracts package owns classification, recommended-action, review, status, tier, alias, source,
+release, and ingestion literals so clients, APIs, importers, repositories, and tests cannot drift.
+The normalization package is the sole implementation used by repositories, seeds, future APIs,
+future imports, handle generation, and tests.
+
+## Persistence packages
+
+`packages/database` maps D1 rows into camel-cased domain models, safely serializes JSON text fields,
+and maps not-found, unique, constraint, invalid-input, and unexpected failures into stable errors.
+Repository methods accept `D1Database`; they do not know about Hono or React. UUID/time generation is
+injectable for deterministic tests. See `DATABASE.md` and `NORMALIZATION.md` for schema and matching
+details.
 
 ## Security boundaries
 

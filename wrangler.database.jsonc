@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // Local-only database tooling. Phase 7 will add authenticated remote deployment configuration.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "open-creator-registry-local",
+      "database_id": "local-open-creator-registry",
+      "preview_database_id": "local-open-creator-registry",
+      "migrations_dir": "packages/database/migrations",
+    },
+  ],
+}

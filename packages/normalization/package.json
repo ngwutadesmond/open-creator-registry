@@ -1,11 +1,10 @@
 {
-  "name": "@open-creator-registry/contracts",
+  "name": "@open-creator-registry/normalization",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "exports": {
-    "./classifications": "./src/classifications.ts",
-    "./domain": "./src/domain.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

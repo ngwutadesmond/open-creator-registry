@@ -1,0 +1,24 @@
+{
+  "name": "@open-creator-registry/database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./binding": "./src/binding.ts",
+    "./errors": "./src/errors.ts",
+    "./json": "./src/json.ts",
+    "./models": "./src/models.ts",
+    "./runtime": "./src/runtime.ts",
+    "./seed": "./src/seed.ts",
+    "./seed-data": "./src/seed-data.ts",
+    "./repositories/*": "./src/repositories/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@open-creator-registry/contracts": "*",
+    "@open-creator-registry/normalization": "*",
+    "zod": "^4.0.0"
+  }
+}

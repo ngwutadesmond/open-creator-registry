@@ -23,11 +23,19 @@ npm run format:check
 npm run lint
 npm run typecheck
 npm run test
+npm run test:database
 npm run build
+npm run db:reset:local
+npm run db:migrate:local
+npm run db:migrations:list
+npm run db:seed:local
+npm run db:validate
+npm run db:inspect:local
 ```
 
-Database, seed, E2E, and deployment commands must be added with the phases that implement them and
-documented in `LOCAL_DEVELOPMENT.md` or `DEPLOYMENT.md` before use.
+Database and seed commands are local-only and documented in `LOCAL_DEVELOPMENT.md` and `DATABASE.md`.
+E2E and deployment commands must be added with the phases that implement them and documented before
+use.
 
 ## Conventions
 
@@ -39,6 +47,11 @@ documented in `LOCAL_DEVELOPMENT.md` or `DEPLOYMENT.md` before use.
 - Keep Cloudflare Worker compatibility in mind: do not depend on heavyweight Node-only servers.
 - Use Zod schemas as executable boundaries and derive OpenAPI from the actual route schemas.
 - Use D1 prepared statements for every value. Never concatenate untrusted SQL fragments.
+- Import repositories from `@open-creator-registry/database/repositories/*`; never put SQL in a
+  Worker route or React component.
+- Use `@open-creator-registry/normalization` for every handle/name comparison or write.
+- Keep audit logs append-only and creator evidence relationships restrictive by default.
+- Use the injectable metadata provider for repository IDs/timestamps in deterministic tests.
 - Add dependencies only when the platform or a clear maintenance benefit justifies them.
 - Include comments only when they explain a non-obvious invariant or security decision.
 - Use conventional commits and one verified commit per project phase.

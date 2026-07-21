@@ -6,7 +6,7 @@ platform.
 
 The repository is being delivered in the seven verified phases described in [PLAN.md](./PLAN.md).
 Phase 1 provides the monorepo foundation and independently runnable public and administration
-application shells. Database-backed registry behavior begins in Phase 2.
+application shells. Phase 2 adds the shared local D1 persistence and normalization foundation.
 
 ## Applications
 
@@ -14,12 +14,14 @@ application shells. Database-backed registry behavior begins in Phase 2.
 - `apps/admin`: private React administration application and private Hono Worker boundary
 
 The applications are intentionally separate deployable Workers. In production, the entire admin
-Worker URL must be protected with Cloudflare Access. Both Workers will receive the same D1 database
-binding when persistence is added.
+Worker URL must be protected with Cloudflare Access. Both Workers receive the same local D1 database
+through the `DB` binding.
 
 ## Packages
 
 - `packages/contracts`: shared classifications and recommended actions
+- `packages/normalization`: canonical handle/name normalization and confusable risk signals
+- `packages/database`: migrations, typed models, prepared-statement repositories, and seed tooling
 - `packages/ui`: shared visual tokens and base styles
 
 ## Start locally
@@ -28,6 +30,7 @@ Prerequisites: Node.js 22+ and npm 10+.
 
 ```bash
 npm install
+npm run db:reset:local
 npm run dev
 ```
 
@@ -37,9 +40,10 @@ and verification steps.
 
 ## Project status
 
-This is an early phased implementation. The Phase 1 interfaces truthfully state that D1-backed
-metrics and registry workflows are not connected yet. Do not use this version as a production
-registry service.
+This is an early phased implementation. D1 persistence is available locally, while the Phase 1
+interfaces truthfully state that real API and administration workflows are not connected yet.
+Those routes remain `501` until Phases 3 and 5. Do not use this version as a production registry
+service.
 
 ## Domain disclaimer
 

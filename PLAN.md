@@ -34,14 +34,20 @@ Status: Complete and quality-gate reviewed on 2026-07-21.
 
 ## Phase 2 — persistence, normalization, and seed data
 
+Status: Complete and quality-gate reviewed on 2026-07-21.
+
 - Add Wrangler-managed D1 migrations for all required tables, constraints, foreign keys, and query
   indexes.
 - Add a typed D1 repository layer that uses prepared statements exclusively.
 - Implement the shared handle-normalization and confusable-skeleton abstraction package.
-- Define validated seed JSON and CSV formats, seed clearly labelled demonstration records, and add
-  local/remote migration and seed scripts.
-- Test schema constraints, normalization edge cases, duplicate handles, and repository failures.
-- Document every database command and manual D1 creation/binding step.
+- Define a Zod-validated demonstration seed dataset and add local-only migration, seed, reset,
+  inspection, validation, and migration-list commands. CSV import belongs to Phase 5.
+- Test actual local D1 migrations, schema constraints, normalization edge cases, idempotent seeding,
+  repository operations, duplicate detection, status transitions, and stable database failures.
+- Document local database setup, repository conventions, JSON storage, normalization policy, and
+  the intentionally deferred remote D1 configuration.
+- Verify both Phase 1 interfaces still load and retain truthful `501 not_implemented` Worker
+  boundaries; no Phase 3 API or database-backed frontend work is included.
 - Commit as `feat: add registry persistence and normalization`.
 
 ## Phase 3 — public API and generated documentation
