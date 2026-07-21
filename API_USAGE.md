@@ -1,5 +1,13 @@
 # Public API usage
 
+## Browser interface
+
+The Phase 4 public application at `http://localhost:5173` uses this API through one typed,
+Zod-validating client. Visitors can check a handle at `/check`, search reviewed records at
+`/creators`, inspect releases at `/releases`, submit public evidence at `/submit`, and send an
+allowlisted public GET from `/api-tester`. The browser interface does not add authentication or
+change Registry semantics; consuming platforms should integrate with the versioned API directly.
+
 The Open Creator Registry API classifies username-protection risk. It does not report username
 availability, legal ownership, trademark rights, identity proof, or endorsement.
 

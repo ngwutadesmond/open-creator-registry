@@ -23,8 +23,10 @@ npm run format:check
 npm run lint
 npm run typecheck
 npm run test
+npm run test:frontend
 npm run test:database
 npm run test:api
+npm run test:e2e
 npm run build
 npm run types:worker:public
 npm run db:reset:local
@@ -36,8 +38,8 @@ npm run db:inspect:local
 ```
 
 Database and seed commands are local-only and documented in `LOCAL_DEVELOPMENT.md` and `DATABASE.md`.
-E2E and deployment commands must be added with the phases that implement them and documented before
-use.
+Playwright is local-only and documented in `LOCAL_DEVELOPMENT.md`. Deployment commands remain
+deferred until Phase 7 and must be documented before use.
 
 ## Conventions
 
@@ -57,6 +59,10 @@ use.
   field selection in public mappers. Handle checks must remain local and set-based.
 - Public API errors use stable envelopes and request IDs. Do not log submission bodies, SQL text,
   secrets, or stack traces.
+- Browser requests belong in `apps/public/src/client/api`; validate envelopes, abort stale reads,
+  keep explorer state in URL parameters, and never hardcode a result that the public API owns.
+- Public frontend routes must remain directly loadable and refresh-safe. Keep admin routes and code
+  out of the public navigation and bundle.
 - Keep audit logs append-only and creator evidence relationships restrictive by default.
 - Use the injectable metadata provider for repository IDs/timestamps in deterministic tests.
 - Add dependencies only when the platform or a clear maintenance benefit justifies them.

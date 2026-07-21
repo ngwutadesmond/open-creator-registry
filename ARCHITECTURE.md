@@ -13,8 +13,8 @@ Workers and small shared packages.
         Public Worker + React app          Admin Worker + React app
             public internet                    Cloudflare Access
                      │                                 │
-       public API, docs, submissions          private mutations, review,
-          explorer in Phase 4                   imports, releases, audit
+       public API, docs, submissions,         private mutations, review,
+          explorer and checker                   imports, releases, audit
                      └────────────────┬────────────────┘
                                       │
                      shared contracts and normalization
@@ -45,6 +45,19 @@ run through Hono. Asset handling falls back to the Vite-built single-page applic
 The public Worker routes `/api/v1/*`, `/openapi.json`, and `/docs` through the Phase 3 Hono API.
 Other asset requests fall through to the React shell. Private administration routes remain a
 truthful `not_implemented` response until Phase 5.
+
+## Public client layering
+
+```text
+React route -> focused page/component -> typed Zod-validating API client -> public Hono API
+```
+
+The client uses `react-router` for deep-linkable routes and URL-owned explorer filters. Route pages
+are lazy loaded except the home route. A small abortable resource hook handles GET loading, stable
+errors, retries, and stale-request cancellation without adding a query-management framework. The
+handle checker uses the shared normalization package at the browser boundary while retaining the
+API as authority. The submission form sends only the public Phase 3 contract and never mutates
+approved Registry records. See `PUBLIC_FRONTEND.md` for the route and component map.
 
 ## Public request layering
 

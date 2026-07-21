@@ -6,8 +6,9 @@ platform.
 
 The repository is being delivered in the seven verified phases described in [PLAN.md](./PLAN.md).
 Phases 1–2 provide the monorepo foundation, separate application shells, shared local D1
-persistence, and normalization. Phase 3 adds the complete read-oriented public API, pending public
-submissions, generated OpenAPI specification, and interactive API reference.
+persistence, and normalization. Phase 3 adds the complete read-oriented public API and generated API
+reference. Phase 4 adds the responsive public explorer, protection checker, creator/release views,
+submission flow, and API tester backed by those real endpoints.
 
 ## Applications
 
@@ -44,10 +45,11 @@ applications are run individually and [API_USAGE.md](./API_USAGE.md) for client 
 
 ## Project status
 
-This is an early phased implementation. The public Worker exposes the Phase 3 API locally against
-demonstration D1 data. The public database-backed explorer remains Phase 4, and administration
-routes remain explicit `501 not_implemented` boundaries until Phase 5. No remote database or
-deployment is configured; do not use this version as a production registry service.
+This is an early phased implementation. The public Worker and Phase 4 frontend run locally against
+clearly labelled demonstration D1 data. Administration routes remain explicit
+`501 not_implemented` boundaries until Phase 5. No remote database or deployment is configured; do
+not use this version as a production registry service. See [PUBLIC_FRONTEND.md](./PUBLIC_FRONTEND.md)
+and [ACCESSIBILITY.md](./ACCESSIBILITY.md) for the client behavior and verification record.
 
 ## Domain disclaimer
 

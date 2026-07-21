@@ -5,6 +5,29 @@ after its first public release.
 
 ## Unreleased
 
+### Phase 4 added
+
+- Responsive public home, handle checker, creator explorer/detail, release history, public
+  submission, API tester, about/policy, and unknown-route experiences using the real Phase 3 API.
+- A centralized Zod-validating browser client with request-ID errors, abortable reads, URL-backed
+  server-side filters/sorting/pagination, parallel creator evidence loading, and route lazy loading.
+- Accessible loading, empty, success, validation, retry, ambiguous/confusable, and truthful
+  unversioned/not-listed states with public-only desktop and mobile navigation.
+- Twenty jsdom component tests and seven Playwright workflows against the real local Worker and
+  seeded D1, including history, deep-link refresh, Scalar docs, submission count invariants,
+  390/320px layouts, and the separate Phase 5 admin boundary.
+- Public frontend and accessibility documentation, responsive visual-fidelity ledger, and exact
+  local browser-test commands.
+
+### Phase 4 hardened
+
+- Fixed Strict Mode handle-check cancellation so a remounted direct route always starts a live
+  replacement request and manual URL updates cannot restart the initial query.
+- Removed a 320px header overflow while preserving the mobile menu's accessible name.
+- Associated repeatable submission errors with their inputs and preserved failed submission data.
+- Confirmed the public submission flow leaves approved-creator and active-reservation counts
+  unchanged and that `not_listed` is never presented as availability.
+
 ### Phase 3 added
 
 - Versioned public Hono endpoints for health, single and batch handle classification, approved

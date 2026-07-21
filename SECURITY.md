@@ -10,7 +10,7 @@ Do not include real credentials or personal data in a report.
 No response-time or bounty commitment exists yet. The owner should acknowledge a credible report,
 coordinate a fix and disclosure window, and credit the reporter when requested and safe.
 
-## Phase 3 security boundary
+## Phase 4 security boundary
 
 - The public API is unauthenticated by design and exposes only approved creators, verified sources
   and aliases, active public handles, and public release history.
@@ -32,6 +32,15 @@ coordinate a fix and disclosure window, and credit the reporter when requested a
   this endpoint cannot be used as an SSRF proxy.
 - The local rate limiter is deliberately disabled behind an injectable interface. A real
   distributed limiter and bot protection are Phase 7 deployment requirements.
+- The public React bundle contains no secrets, administration routes, SQL, or private record fields.
+  Successful and error API bodies are runtime-validated before rendering.
+- External source links accept only `http` and `https` protocols and open with
+  `noopener noreferrer`. React text rendering is used throughout; the application does not inject
+  untrusted HTML.
+- Submission data is kept only in component memory for the active page, is not logged, and is not
+  persisted to local storage. Client validation improves feedback but never replaces API validation.
+- The API tester uses a fixed public GET allowlist; visitors cannot enter an arbitrary URL or invoke
+  an administration endpoint through it.
 
 ## Operational requirements
 

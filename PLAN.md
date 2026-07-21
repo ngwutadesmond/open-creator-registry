@@ -66,12 +66,18 @@ Status: Complete and quality-gate reviewed on 2026-07-21.
 
 ## Phase 4 — public registry experience
 
+Status: Complete and quality-gate reviewed on 2026-07-21.
+
 - Build the responsive public explorer, creator and handle details, protection checker, registry
   release view, API tester, and public submission flow.
 - Connect all visible data to the public API; do not display invented metrics.
 - Complete keyboard, screen-reader, focus, contrast, loading, empty, success, and error states.
-- Add Playwright coverage for the critical public workflows and inspect desktop/mobile renders.
-- Commit as `feat: build public registry experience`.
+- Add component and real-Worker Playwright coverage for critical public workflows, deep links,
+  history, Scalar docs, submission invariants, the truthful admin boundary, and 390/320px layouts.
+- Document the public client architecture, responsive visual fidelity, and accessibility behavior.
+- Verify 20 frontend component tests and seven Chromium workflows in addition to all Phase 1–3
+  tests; inspect 1536×1024, 1280×800, 768×1024, 390×844, and 320×844 renders.
+- Commit as `feat: add public creator registry explorer`.
 
 ## Phase 5 — administration, imports, audit, and releases
 

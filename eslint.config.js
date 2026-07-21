@@ -16,6 +16,7 @@ export default tseslint.config(
             'vitest.config.ts',
             'vitest.database.config.ts',
             'vitest.api.config.ts',
+            'vitest.frontend.config.ts',
           ],
         },
         tsconfigRootDir: import.meta.dirname,
@@ -31,6 +32,14 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+    },
+  },
+  {
+    files: ['apps/public/**/*.component.test.tsx'],
+    rules: {
+      '@typescript-eslint/no-base-to-string': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/require-await': 'off',
     },
   },
   {

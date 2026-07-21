@@ -8,16 +8,19 @@
     "dev": "WRANGLER_WRITE_LOGS=false vite --port 5173 --strictPort",
     "preview": "vite preview --port 4173 --strictPort",
     "typecheck": "tsc --noEmit",
-    "types:worker": "wrangler types src/worker-configuration.d.ts --env-interface PublicBindings --include-runtime false"
+    "types:worker": "WRANGLER_WRITE_LOGS=false wrangler types src/worker-configuration.d.ts --env-interface PublicBindings --include-runtime false && prettier --write src/worker-configuration.d.ts"
   },
   "dependencies": {
     "@hono/zod-openapi": "^1.5.1",
     "@open-creator-registry/contracts": "*",
     "@open-creator-registry/database": "*",
+    "@open-creator-registry/normalization": "*",
     "@open-creator-registry/ui": "*",
     "@scalar/hono-api-reference": "^0.11.11",
     "hono": "^4.0.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-router": "^8.2.0",
+    "zod": "^4.4.3"
   }
 }

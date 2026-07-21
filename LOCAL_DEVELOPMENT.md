@@ -4,7 +4,7 @@
 
 - Node.js 22 or newer (`.nvmrc` contains the project version)
 - npm 10 or newer
-- No Cloudflare account or credentials are required for Phase 3 local development
+- No Cloudflare account or credentials are required for Phase 4 local development
 
 ## Install
 
@@ -35,8 +35,8 @@ npm run dev:public
 npm run dev:admin
 ```
 
-The public Worker now exposes the Phase 3 API. The administration Worker still returns
-`501 not_implemented`; its private API belongs to Phase 5.
+The public Worker exposes the Phase 3 API and Phase 4 frontend. The administration Worker still
+returns `501 not_implemented`; its private API belongs to Phase 5.
 
 `npm run dev` uses separate ignored persistence directories for the two simultaneous local workerd
 processes. This avoids local SQLite file-lock contention and is suitable for inspecting both
@@ -111,10 +111,22 @@ npm run lint
 npm run typecheck
 npm run test
 npm run test:unit
+npm run test:frontend
 npm run test:database
 npm run test:api
+npm run test:e2e
 npm run build
 ```
+
+`test:e2e` resets canonical local D1 state, starts the public Worker and the separate admin shell,
+and runs the critical public workflows in Chromium. Install Playwright's pinned local browser once
+after `npm install` if it is not already cached:
+
+```bash
+npx playwright install chromium
+```
+
+Playwright output is written to ignored `test-results/` and `playwright-report/` directories.
 
 - `format` writes Prettier changes; `format:check` is the non-mutating CI check.
 - `lint` applies ESLint to all workspaces with zero tolerated warnings.

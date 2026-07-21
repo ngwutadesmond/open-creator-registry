@@ -6,7 +6,11 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html'],
     },
-    exclude: ['apps/public/**/*.integration.test.ts', 'packages/database/**/*.integration.test.ts'],
+    exclude: [
+      'apps/public/**/*.component.test.tsx',
+      'apps/public/**/*.integration.test.ts',
+      'packages/database/**/*.integration.test.ts',
+    ],
     include: ['apps/**/*.test.{ts,tsx}', 'packages/**/*.test.ts'],
   },
 });
