@@ -19,3 +19,11 @@ after its first public release.
   navigation behavior were exercised in the in-app browser.
 - Both Worker boundaries return explicit `501 not_implemented` envelopes until their scheduled API
   phases, instead of exposing fabricated data.
+
+### Fixed
+
+- Removed an ambiguous duplicate root `devDependencies` key that hid the direct Wrangler dependency.
+- Added validation feedback for empty public searches and replaced the premature `/docs` route with
+  an honest Phase 3 status control.
+- Marked Phase 5 administration sections as unavailable instead of exposing inert navigation links,
+  and clarified desktop and mobile navigation-toggle semantics.

@@ -48,6 +48,10 @@
   width: 1.55rem;
 }
 
+.mobile-navigation-toggle {
+  display: none;
+}
+
 .admin-brand {
   display: flex;
   min-width: 0;
@@ -88,7 +92,7 @@
   gap: var(--space-2);
 }
 
-.admin-sidebar a {
+.admin-nav-item {
   position: relative;
   display: flex;
   min-height: 3.9rem;
@@ -105,7 +109,7 @@
     background 150ms ease;
 }
 
-.admin-sidebar a::before {
+.admin-nav-item::before {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -121,24 +125,33 @@
   background: #f0f4f6;
 }
 
-.admin-sidebar a.selected {
+.admin-nav-item.selected {
   color: var(--color-emerald-dark);
   background: #edf3f2;
   font-weight: 750;
 }
 
-.admin-sidebar a.selected::before {
+.admin-nav-item.selected::before {
   opacity: 1;
 }
 
-.admin-sidebar a svg {
+.admin-nav-item svg {
   width: 1.45rem;
   flex: 0 0 auto;
   color: #50647d;
 }
 
-.admin-sidebar a.selected svg {
+.admin-nav-item.selected svg {
   color: var(--color-emerald);
+}
+
+.future-navigation-item {
+  color: var(--color-muted);
+  cursor: not-allowed;
+}
+
+.future-navigation-item svg {
+  color: #8b9aad;
 }
 
 .private-label {
@@ -150,13 +163,13 @@
   line-height: 1.5;
 }
 
-.navigation-toggled .admin-sidebar a {
+.navigation-toggled .admin-nav-item {
   padding-right: 0;
   padding-left: 0;
   justify-content: center;
 }
 
-.navigation-toggled .admin-sidebar a span,
+.navigation-toggled .admin-nav-item > span,
 .navigation-toggled .private-label {
   display: none;
 }
@@ -316,7 +329,7 @@
     grid-template-columns: 16.5rem 1fr;
   }
 
-  .admin-sidebar a {
+  .admin-nav-item {
     padding-right: var(--space-3);
     padding-left: var(--space-3);
   }
@@ -339,6 +352,14 @@
     left: 0;
     height: 4.75rem;
     padding: 0 var(--space-4);
+  }
+
+  .desktop-navigation-toggle {
+    display: none;
+  }
+
+  .mobile-navigation-toggle {
+    display: inline-grid;
   }
 
   .admin-brand {
@@ -374,13 +395,13 @@
     transform: translateX(0);
   }
 
-  .navigation-toggled .admin-sidebar a {
+  .navigation-toggled .admin-nav-item {
     padding-right: var(--space-3);
     padding-left: var(--space-3);
     justify-content: flex-start;
   }
 
-  .navigation-toggled .admin-sidebar a span,
+  .navigation-toggled .admin-nav-item > span,
   .navigation-toggled .private-label {
     display: initial;
   }

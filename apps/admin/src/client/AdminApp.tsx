@@ -188,10 +188,21 @@ export function AdminApp() {
     <div className={`admin-shell${navigationToggled ? ' navigation-toggled' : ''}`}>
       <header className="admin-header">
         <button
-          className="menu-button"
+          className="menu-button desktop-navigation-toggle"
           type="button"
-          aria-label="Toggle navigation"
+          aria-label={navigationToggled ? 'Expand navigation' : 'Collapse navigation'}
           aria-controls="admin-navigation"
+          aria-expanded={!navigationToggled}
+          onClick={() => setNavigationToggled((current) => !current)}
+        >
+          <MenuIcon />
+        </button>
+        <button
+          className="menu-button mobile-navigation-toggle"
+          type="button"
+          aria-label={navigationToggled ? 'Close navigation' : 'Open navigation'}
+          aria-controls="admin-navigation"
+          aria-expanded={navigationToggled}
           onClick={() => setNavigationToggled((current) => !current)}
         >
           <MenuIcon />
@@ -205,20 +216,36 @@ export function AdminApp() {
 
       <aside className="admin-sidebar" id="admin-navigation" aria-label="Administration navigation">
         <nav>
-          {navigationItems.map((item, index) => (
-            <a
-              className={index === 0 ? 'selected' : undefined}
-              href={
-                index === 0 ? '#dashboard' : `#${item.label.toLowerCase().replaceAll(' ', '-')}`
-              }
-              aria-current={index === 0 ? 'page' : undefined}
-              key={item.label}
-              onClick={() => setNavigationToggled(false)}
-            >
-              <NavIcon type={item.icon} />
-              <span>{item.label}</span>
-            </a>
-          ))}
+          {navigationItems.map((item, index) => {
+            const content = (
+              <>
+                <NavIcon type={item.icon} />
+                <span>{item.label}</span>
+              </>
+            );
+
+            return index === 0 ? (
+              <a
+                className="admin-nav-item selected"
+                href="#dashboard"
+                aria-current="page"
+                key={item.label}
+                onClick={() => setNavigationToggled(false)}
+              >
+                {content}
+              </a>
+            ) : (
+              <span
+                className="admin-nav-item future-navigation-item"
+                aria-disabled="true"
+                aria-label={`${item.label}, available in Phase 5`}
+                title="Available in Phase 5"
+                key={item.label}
+              >
+                {content}
+              </span>
+            );
+          })}
         </nav>
         <p className="private-label">Private application · No public navigation</p>
       </aside>

@@ -205,12 +205,16 @@
 
 .api-link {
   display: inline-flex;
+  padding: 0;
   margin-top: var(--space-4);
   align-items: center;
   gap: var(--space-4);
+  border: 0;
   color: var(--color-emerald);
+  background: transparent;
   font-size: 1.05rem;
   font-weight: 750;
+  cursor: pointer;
   text-decoration: none;
 }
 

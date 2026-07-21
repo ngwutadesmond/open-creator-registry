@@ -19,4 +19,11 @@ describe('AdminApp', () => {
     expect(html).not.toContain('Total creators');
     expect(html).not.toContain('Recent activity');
   });
+
+  it('marks future administration sections as unavailable until Phase 5', () => {
+    const html = renderToStaticMarkup(<AdminApp />);
+
+    expect(html).toContain('Creators, available in Phase 5');
+    expect(html).not.toContain('href="#creators"');
+  });
 });

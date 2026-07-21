@@ -2,6 +2,8 @@ import { type FormEvent, useState } from 'react';
 
 import { registryClassifications } from '@open-creator-registry/contracts/classifications';
 
+import { apiDocumentationPhaseMessage, getRegistrySearchMessage } from './phase-messages';
+
 const classificationLabels = {
   hard_reserved: 'Hard reserved',
   soft_protected: 'Soft protected',
@@ -92,12 +94,11 @@ function RegistryIllustration() {
 
 export function PublicApp() {
   const [query, setQuery] = useState('');
-  const [submittedQuery, setSubmittedQuery] = useState<string | null>(null);
+  const [phaseMessage, setPhaseMessage] = useState('');
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const normalizedQuery = query.trim();
-    setSubmittedQuery(normalizedQuery || null);
+    setPhaseMessage(getRegistrySearchMessage(query));
   }
 
   return (
@@ -145,15 +146,19 @@ export function PublicApp() {
           </form>
 
           <p className="phase-message" aria-live="polite">
-            {submittedQuery
-              ? `“${submittedQuery}” is ready for registry search when the Phase 2 data layer is connected.`
-              : ''}
+            {phaseMessage}
           </p>
 
-          <a className="api-link" id="api" href="/docs" aria-label="Read the API documentation">
+          <button
+            className="api-link"
+            id="api"
+            type="button"
+            aria-label="Check API documentation status"
+            onClick={() => setPhaseMessage(apiDocumentationPhaseMessage)}
+          >
             <span>Read the API docs</span>
             <ArrowIcon />
-          </a>
+          </button>
         </section>
 
         <section className="hero-system" aria-label="Protection classifications">

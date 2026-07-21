@@ -21,4 +21,11 @@ describe('PublicApp', () => {
     expect(html).toContain('Monitored');
     expect(html).toContain('Not listed');
   });
+
+  it('does not route to API documentation before it is implemented', () => {
+    const html = renderToStaticMarkup(<PublicApp />);
+
+    expect(html).toContain('Check API documentation status');
+    expect(html).not.toContain('href="/docs"');
+  });
 });
