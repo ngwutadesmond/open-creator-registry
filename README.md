@@ -7,8 +7,8 @@ platform.
 The repository is being delivered in the seven verified phases described in [PLAN.md](./PLAN.md).
 Phases 1–2 provide the monorepo foundation, separate application shells, shared local D1
 persistence, and normalization. Phase 3 adds the complete read-oriented public API and generated API
-reference. Phase 4 adds the responsive public explorer, protection checker, creator/release views,
-submission flow, and API tester backed by those real endpoints.
+reference. Phase 4 adds the responsive public experience. Phase 5 adds the private administration
+API and interface, review queues, imports, approvals, audit history, and release publication.
 
 ## Applications
 
@@ -17,9 +17,7 @@ submission flow, and API tester backed by those real endpoints.
 
 The applications are intentionally separate deployable Workers. In production, the entire admin
 Worker URL must be protected with Cloudflare Access. Both Workers use the same `DB` binding and
-canonical local D1 state when run individually. The combined shell-smoke command uses isolated
-ignored state for its two simultaneous local workerd processes, as explained in
-[DATABASE.md](./DATABASE.md).
+canonical local D1 state when run individually or together.
 
 ## Packages
 
@@ -35,21 +33,20 @@ Prerequisites: Node.js 22+ and npm 10+.
 ```bash
 npm install
 npm run db:reset:local
-npm run dev:public
+cp apps/admin/.dev.vars.example apps/admin/.dev.vars
+npm run dev
 ```
 
-The public application runs at `http://localhost:5173`, and its API reference is at
-`http://localhost:5173/docs`. Stop it, then run `npm run dev:admin` to inspect the admin shell at
-`http://localhost:5174`. See [LOCAL_DEVELOPMENT.md](./LOCAL_DEVELOPMENT.md) for the reason local D1
-applications are run individually and [API_USAGE.md](./API_USAGE.md) for client examples.
+The public application runs at `http://localhost:5173`; the authenticated local admin app runs at
+`http://localhost:5174`. Their references are `/docs` and `/admin-docs` respectively.
 
 ## Project status
 
-This is an early phased implementation. The public Worker and Phase 4 frontend run locally against
-clearly labelled demonstration D1 data. Administration routes remain explicit
-`501 not_implemented` boundaries until Phase 5. No remote database or deployment is configured; do
-not use this version as a production registry service. See [PUBLIC_FRONTEND.md](./PUBLIC_FRONTEND.md)
-and [ACCESSIBILITY.md](./ACCESSIBILITY.md) for the client behavior and verification record.
+Phases 1–5 run locally against clearly labelled demonstration D1 data. Production admin
+authentication, remote D1, deployment, source connectors, and scheduled ingestion are not
+configured; do not use this version as a production registry service. See
+[ADMIN_AUTHENTICATION.md](./ADMIN_AUTHENTICATION.md), [ADMIN_FRONTEND.md](./ADMIN_FRONTEND.md), and
+[ACCESSIBILITY.md](./ACCESSIBILITY.md).
 
 ## Domain disclaimer
 

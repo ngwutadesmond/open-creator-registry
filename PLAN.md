@@ -81,6 +81,8 @@ Status: Complete and quality-gate reviewed on 2026-07-21.
 
 ## Phase 5 — administration, imports, audit, and releases
 
+Status: Complete and quality-gate reviewed on 2026-07-21.
+
 - Implement the private admin API and interface for creators, aliases, sources, reserved handles,
   candidates, submissions, imports, ingestion runs, releases, and audit logs.
 - Require an audit-log write for every administrative mutation and confirmations for destructive
@@ -88,7 +90,9 @@ Status: Complete and quality-gate reviewed on 2026-07-21.
 - Add JSON/CSV validation, duplicate detection, dry-run behavior, import summaries, and release
   publishing.
 - Add admin API/integration tests and Playwright coverage for all specified critical workflows.
-- Commit as `feat: implement registry administration`.
+- Add default-deny authentication abstraction, centralized RBAC, two-person critical/release
+  approvals, authenticated private OpenAPI/Scalar documentation, and responsive accessibility.
+- Commit as `feat: add registry administration system`.
 
 ## Phase 6 — scheduled ingestion and source connectors
 

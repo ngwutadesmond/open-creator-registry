@@ -26,9 +26,11 @@ npm run test
 npm run test:frontend
 npm run test:database
 npm run test:api
+npm run test:admin-api
 npm run test:e2e
 npm run build
 npm run types:worker:public
+npm run types:worker:admin
 npm run db:reset:local
 npm run db:migrate:local
 npm run db:migrations:list
@@ -63,6 +65,10 @@ deferred until Phase 7 and must be documented before use.
   keep explorer state in URL parameters, and never hardcode a result that the public API owns.
 - Public frontend routes must remain directly loadable and refresh-safe. Keep admin routes and code
   out of the public navigation and bundle.
+- Admin browser requests belong in `apps/admin/src/client/api`; never trust client-side permission
+  gating as authorization. Local identities come only from server-side `.dev.vars` configuration.
+- Critical hard-handle changes and release publication require a different-person approval and
+  stale/replay checks. Keep their application in guarded D1 batches.
 - Keep audit logs append-only and creator evidence relationships restrictive by default.
 - Use the injectable metadata provider for repository IDs/timestamps in deterministic tests.
 - Add dependencies only when the platform or a clear maintenance benefit justifies them.

@@ -1,23 +1,5 @@
-import { Hono } from 'hono';
+import { createAdminApp } from './api/routes';
 
-import type { DatabaseBinding } from '@open-creator-registry/database/binding';
-
-const app = new Hono<{ Bindings: DatabaseBinding }>();
-
-app.all('/api/admin/*', (context) =>
-  context.json(
-    {
-      data: null,
-      error: {
-        code: 'not_implemented',
-        message: 'The private administration API is delivered in Phase 5.',
-      },
-      meta: {
-        request_id: crypto.randomUUID(),
-      },
-    },
-    501,
-  ),
-);
+const app = createAdminApp();
 
 export default app;

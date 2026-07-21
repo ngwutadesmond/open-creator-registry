@@ -20,9 +20,24 @@ export type CreateReservedHandleInput = {
 };
 
 export type ReservedHandleListOptions = Pagination & {
+  query?: string;
+  creatorEntityId?: string;
+  creatorProtectionTier?: 'critical' | 'notable' | 'watchlist' | 'standard';
   classification?: RegistryClassification;
   status?: ReservationStatus;
 };
+
+export type UpdateReservedHandleInput = Partial<
+  Pick<
+    CreateReservedHandleInput,
+    | 'creatorEntityId'
+    | 'displayHandle'
+    | 'classification'
+    | 'confidenceScore'
+    | 'decisionSource'
+    | 'reason'
+  >
+>;
 
 export function createReservedHandleRepository(
   db: D1Database,
@@ -163,11 +178,26 @@ export function createReservedHandleRepository(
     const rows = await allRows<ReservedHandleRow>(
       db
         .prepare(
-          `SELECT * FROM reserved_handles
-           WHERE (? IS NULL OR classification = ?) AND (? IS NULL OR status = ?)
-           ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
+          `SELECT handle.* FROM reserved_handles handle
+           JOIN creator_entities creator ON creator.id = handle.creator_entity_id
+           WHERE (? IS NULL OR handle.normalized_handle LIKE ? ESCAPE '\\')
+             AND (? IS NULL OR handle.creator_entity_id = ?)
+             AND (? IS NULL OR creator.protection_tier = ?)
+             AND (? IS NULL OR handle.classification = ?)
+             AND (? IS NULL OR handle.status = ?)
+           ORDER BY handle.created_at DESC, handle.id DESC LIMIT ? OFFSET ?`,
         )
         .bind(
+          options.query
+            ? `%${normalizeHandle(options.query).replaceAll('%', '\\%').replaceAll('_', '\\_')}%`
+            : null,
+          options.query
+            ? `%${normalizeHandle(options.query).replaceAll('%', '\\%').replaceAll('_', '\\_')}%`
+            : null,
+          options.creatorEntityId ?? null,
+          options.creatorEntityId ?? null,
+          options.creatorProtectionTier ?? null,
+          options.creatorProtectionTier ?? null,
           options.classification ?? null,
           options.classification ?? null,
           options.status ?? null,
@@ -193,16 +223,62 @@ export function createReservedHandleRepository(
     return updated;
   }
 
+  async function update(id: string, input: UpdateReservedHandleInput): Promise<ReservedHandle> {
+    const current = await findById(id);
+    if (!current) throw createNotFoundError('reserved handle', id);
+    const displayHandle = input.displayHandle ?? current.displayHandle;
+    const normalizedHandle = normalizeHandle(displayHandle);
+    await runStatement(
+      db
+        .prepare(
+          `UPDATE reserved_handles SET creator_entity_id = ?, display_handle = ?,
+           normalized_handle = ?, confusable_skeleton = ?, classification = ?, confidence_score = ?,
+           decision_source = ?, reason = ?, updated_at = ? WHERE id = ?`,
+        )
+        .bind(
+          input.creatorEntityId ?? current.creatorEntityId,
+          displayHandle.trim(),
+          normalizedHandle,
+          createConfusableSkeleton(normalizedHandle),
+          input.classification ?? current.classification,
+          input.confidenceScore ?? current.confidenceScore,
+          input.decisionSource ?? current.decisionSource,
+          input.reason ?? current.reason,
+          metadata.now(),
+          id,
+        ),
+      'reservedHandle.update',
+    );
+    const updated = await findById(id);
+    if (!updated) throw createNotFoundError('reserved handle', id);
+    return updated;
+  }
+
   async function count(
     options: Omit<ReservedHandleListOptions, keyof Pagination> = {},
   ): Promise<number> {
     const row = await firstRow<{ count: number }>(
       db
         .prepare(
-          `SELECT COUNT(*) AS count FROM reserved_handles
-           WHERE (? IS NULL OR classification = ?) AND (? IS NULL OR status = ?)`,
+          `SELECT COUNT(*) AS count FROM reserved_handles handle
+           JOIN creator_entities creator ON creator.id = handle.creator_entity_id
+           WHERE (? IS NULL OR handle.normalized_handle LIKE ? ESCAPE '\\')
+             AND (? IS NULL OR handle.creator_entity_id = ?)
+             AND (? IS NULL OR creator.protection_tier = ?)
+             AND (? IS NULL OR handle.classification = ?)
+             AND (? IS NULL OR handle.status = ?)`,
         )
         .bind(
+          options.query
+            ? `%${normalizeHandle(options.query).replaceAll('%', '\\%').replaceAll('_', '\\_')}%`
+            : null,
+          options.query
+            ? `%${normalizeHandle(options.query).replaceAll('%', '\\%').replaceAll('_', '\\_')}%`
+            : null,
+          options.creatorEntityId ?? null,
+          options.creatorEntityId ?? null,
+          options.creatorProtectionTier ?? null,
+          options.creatorProtectionTier ?? null,
           options.classification ?? null,
           options.classification ?? null,
           options.status ?? null,
@@ -223,6 +299,7 @@ export function createReservedHandleRepository(
     listPublicByCreator,
     countPublicByCreator,
     list,
+    update,
     updateStatus,
     count,
   };

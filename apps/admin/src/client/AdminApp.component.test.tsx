@@ -1,0 +1,94 @@
+import '@testing-library/jest-dom/vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { AdminApp } from './AdminApp';
+
+const meta = {
+  request_id: '90000000-0000-4000-8000-000000000001',
+  timestamp: '2026-07-21T18:00:00.000Z',
+};
+const identity = {
+  subject: 'local:admin@example.test',
+  email: 'admin@example.test',
+  display_name: 'Local Registry Admin',
+  roles: ['super_admin'],
+  permissions: [
+    'dashboard:read',
+    'creators:create',
+    'creators:read',
+    'creators:update',
+    'handles:create',
+  ],
+  authentication_source: 'local_development',
+};
+
+describe('AdminApp', () => {
+  beforeEach(() => {
+    window.history.replaceState({}, '', '/');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input);
+        if (path.endsWith('/me')) return Response.json({ data: identity, meta });
+        if (path.endsWith('/dashboard'))
+          return Response.json({
+            data: {
+              metrics: {
+                approved_creators: 10,
+                active_handles: 12,
+                hard_handles: 5,
+                soft_handles: 4,
+                monitored_handles: 3,
+                pending_candidates: 0,
+                pending_submissions: 0,
+                pending_approvals: 0,
+              },
+              latest_release: null,
+              recent_runs: [],
+              recent_audits: [],
+              demonstration_data: true,
+            },
+            meta,
+          });
+        return Response.json(
+          { error: { code: 'not_found', message: 'Not found', details: [] }, meta },
+          { status: 404 },
+        );
+      }),
+    );
+  });
+
+  it('renders live database metrics inside the private administration shell', async () => {
+    render(<AdminApp />);
+    expect(
+      await screen.findByRole('heading', { name: 'Registry administration' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Local Registry Admin')).toBeInTheDocument();
+    expect(screen.getByText('Approved creators')).toBeInTheDocument();
+    expect(screen.getByText('10')).toBeInTheDocument();
+    expect(screen.getByText(/Production remains denied/)).toBeInTheDocument();
+    expect(screen.queryByText(/available in Phase 5/)).not.toBeInTheDocument();
+  });
+
+  it('exposes the administration navigation without linking to it from the public app', async () => {
+    render(<AdminApp />);
+    await waitFor(() =>
+      expect(
+        screen.getByRole('navigation', { name: 'Administration navigation' }),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.getByRole('link', { name: /Creators/ })).toHaveAttribute('href', '/creators');
+    expect(screen.getByRole('link', { name: /Approvals/ })).toHaveAttribute('href', '/approvals');
+    expect(screen.getAllByText(/Private application/)).toHaveLength(2);
+  });
+
+  it('does not request an undefined creator while rendering the creation route', async () => {
+    window.history.replaceState({}, '', '/creators/new');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    render(<AdminApp />);
+    expect(await screen.findByRole('heading', { name: 'Create creator' })).toBeInTheDocument();
+    const requests = vi.mocked(fetch).mock.calls.map(([input]) => String(input));
+    expect(requests.some((request) => request.includes('/creators/undefined'))).toBe(false);
+  });
+});

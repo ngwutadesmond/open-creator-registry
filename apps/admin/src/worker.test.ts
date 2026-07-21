@@ -17,16 +17,18 @@ function hasRequestId(value: unknown): value is { meta: { request_id: string } }
 }
 
 describe('admin Worker boundary', () => {
-  it('does not pretend that private Phase 5 routes are available', async () => {
-    const response = await app.request('/api/admin/dashboard');
+  it('fails closed when administrator authentication is not configured', async () => {
+    const response = await app.request('/api/admin/v1/dashboard', undefined, {
+      ENVIRONMENT: 'production',
+      AUTH_PROVIDER: 'unconfigured',
+      ADMIN_ALLOWED_ORIGINS: '',
+    });
     const body: unknown = await response.json();
 
-    expect(response.status).toBe(501);
+    expect(response.status).toBe(401);
     expect(body).toMatchObject({
-      data: null,
       error: {
-        code: 'not_implemented',
-        message: 'The private administration API is delivered in Phase 5.',
+        code: 'authentication_required',
       },
     });
     expect(hasRequestId(body)).toBe(true);

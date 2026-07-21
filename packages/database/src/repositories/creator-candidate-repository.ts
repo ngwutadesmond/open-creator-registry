@@ -19,6 +19,7 @@ export type CreateCreatorCandidateInput = {
 };
 
 export type CreatorCandidateListOptions = Pagination & {
+  query?: string;
   reviewStatus?: CandidateStatus;
   category?: string;
 };
@@ -74,10 +75,17 @@ export function createCreatorCandidateRepository(
       db
         .prepare(
           `SELECT * FROM creator_candidates
-           WHERE (? IS NULL OR review_status = ?) AND (? IS NULL OR category = ?)
+           WHERE (? IS NULL OR normalized_name LIKE ? ESCAPE '\\')
+             AND (? IS NULL OR review_status = ?) AND (? IS NULL OR category = ?)
            ORDER BY discovered_at DESC, id DESC LIMIT ? OFFSET ?`,
         )
         .bind(
+          options.query
+            ? `%${normalizeCreatorName(options.query).replaceAll('%', '\\%').replaceAll('_', '\\_')}%`
+            : null,
+          options.query
+            ? `%${normalizeCreatorName(options.query).replaceAll('%', '\\%').replaceAll('_', '\\_')}%`
+            : null,
           options.reviewStatus ?? null,
           options.reviewStatus ?? null,
           options.category ?? null,
@@ -88,6 +96,30 @@ export function createCreatorCandidateRepository(
       'creatorCandidate.list',
     );
     return { items: rows.map(mapCreatorCandidate), page, limit };
+  }
+
+  async function count(options: Omit<CreatorCandidateListOptions, keyof Pagination> = {}) {
+    const query = options.query
+      ? `%${normalizeCreatorName(options.query).replaceAll('%', '\\%').replaceAll('_', '\\_')}%`
+      : null;
+    const row = await firstRow<{ count: number }>(
+      db
+        .prepare(
+          `SELECT COUNT(*) AS count FROM creator_candidates
+           WHERE (? IS NULL OR normalized_name LIKE ? ESCAPE '\\')
+             AND (? IS NULL OR review_status = ?) AND (? IS NULL OR category = ?)`,
+        )
+        .bind(
+          query,
+          query,
+          options.reviewStatus ?? null,
+          options.reviewStatus ?? null,
+          options.category ?? null,
+          options.category ?? null,
+        ),
+      'creatorCandidate.count',
+    );
+    return row?.count ?? 0;
   }
 
   async function updateReviewStatus(
@@ -110,5 +142,5 @@ export function createCreatorCandidateRepository(
     return updated;
   }
 
-  return { create, findById, list, updateReviewStatus };
+  return { create, findById, list, count, updateReviewStatus };
 }

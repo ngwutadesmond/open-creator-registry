@@ -22,15 +22,22 @@ describe('D1 migrations and constraints', () => {
     expect(migrations.results.map((row) => row.name)).toEqual([
       '0001_creator_registry.sql',
       '0002_registry_operations.sql',
+      '0003_registry_administration.sql',
     ]);
     expect(tables.results.map((row) => row.name)).toEqual([
+      'admin_approval_decisions',
+      'admin_approval_requests',
+      'admin_mutation_guards',
       'audit_logs',
       'creator_aliases',
       'creator_candidates',
       'creator_entities',
       'creator_sources',
+      'import_batch_errors',
+      'import_batches',
       'ingestion_runs',
       'public_submissions',
+      'registry_release_snapshots',
       'registry_releases',
       'reserved_handles',
     ]);

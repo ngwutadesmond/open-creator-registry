@@ -91,6 +91,21 @@ export function createCreatorSourceRepository(
     return rows.map(mapCreatorSource);
   }
 
+  async function findByExternalIdentity(
+    sourceName: string,
+    sourceEntityId: string,
+  ): Promise<CreatorSource | null> {
+    const row = await firstRow<CreatorSourceRow>(
+      db
+        .prepare(
+          `SELECT * FROM creator_sources WHERE source_name = ? AND source_entity_id = ? LIMIT 1`,
+        )
+        .bind(sourceName, sourceEntityId),
+      'creatorSource.findByExternalIdentity',
+    );
+    return row ? mapCreatorSource(row) : null;
+  }
+
   async function update(id: string, input: UpdateCreatorSourceInput): Promise<CreatorSource> {
     const current = await findById(id);
     if (!current) throw createNotFoundError('creator source', id);
@@ -115,5 +130,21 @@ export function createCreatorSourceRepository(
     return updated;
   }
 
-  return { create, findById, listByCreator, listVerifiedByCreator, update };
+  async function deleteSource(id: string): Promise<void> {
+    const result = await runStatement(
+      db.prepare('DELETE FROM creator_sources WHERE id = ?').bind(id),
+      'creatorSource.delete',
+    );
+    if ((result.meta.changes ?? 0) === 0) throw createNotFoundError('creator source', id);
+  }
+
+  return {
+    create,
+    findById,
+    findByExternalIdentity,
+    listByCreator,
+    listVerifiedByCreator,
+    update,
+    delete: deleteSource,
+  };
 }

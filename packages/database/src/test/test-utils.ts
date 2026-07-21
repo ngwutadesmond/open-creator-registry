@@ -4,6 +4,12 @@ import { createCreatorRepository } from '../repositories/creator-repository';
 
 export async function clearDatabase(): Promise<void> {
   await env.DB.batch([
+    env.DB.prepare('DELETE FROM admin_approval_decisions'),
+    env.DB.prepare('DELETE FROM admin_approval_requests'),
+    env.DB.prepare('DELETE FROM admin_mutation_guards'),
+    env.DB.prepare('DELETE FROM import_batch_errors'),
+    env.DB.prepare('DELETE FROM import_batches'),
+    env.DB.prepare('DELETE FROM registry_release_snapshots'),
     env.DB.prepare('DELETE FROM audit_logs'),
     env.DB.prepare('DELETE FROM creator_aliases'),
     env.DB.prepare('DELETE FROM creator_sources'),

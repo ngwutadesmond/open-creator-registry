@@ -27,8 +27,8 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
-      command: 'npm run dev --workspace @open-creator-registry/admin -- --mode concurrent',
-      url: 'http://localhost:5174',
+      command: 'npm run dev:admin',
+      url: 'http://localhost:5174/api/admin/v1/health',
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
     },

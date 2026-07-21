@@ -3,6 +3,11 @@
   "name": "open-creator-registry-admin",
   "compatibility_date": "2026-07-21",
   "main": "src/worker.ts",
+  "vars": {
+    "ENVIRONMENT": "production",
+    "AUTH_PROVIDER": "unconfigured",
+    "ADMIN_ALLOWED_ORIGINS": "",
+  },
   // This identifier is local-only. Authenticated remote configuration belongs to Phase 7.
   "d1_databases": [
     {
@@ -15,6 +20,6 @@
   ],
   "assets": {
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/admin/*"],
+    "run_worker_first": ["/api/admin/*", "/admin-openapi.json", "/admin-docs"],
   },
 }

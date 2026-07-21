@@ -11,6 +11,11 @@ Documentation-only entries for `/openapi.json` and `/docs` are registered in the
 registry so the generated document describes every public route. Administration routes are not
 imported by the public Worker and must never appear in this specification.
 
+The admin Worker independently generates its authenticated specification from its own Zod route
+schemas at `/admin-openapi.json` and serves Scalar at `/admin-docs`. Those endpoints use the same
+default-deny identity boundary and role checks as the private API. See `ADMIN_API.md` and
+`ADMIN_AUTHENTICATION.md`; the public specification never imports or links them.
+
 ## Inspect locally
 
 ```bash

@@ -17,6 +17,10 @@ export type CreateCreatorAliasInput = {
   sourceId?: string | null;
 };
 
+export type UpdateCreatorAliasInput = Partial<
+  Pick<CreateCreatorAliasInput, 'alias' | 'language' | 'aliasType' | 'confidenceScore' | 'sourceId'>
+>;
+
 export function createCreatorAliasRepository(
   db: D1Database,
   metadata: RecordMetadataProvider = defaultRecordMetadataProvider,
@@ -81,6 +85,36 @@ export function createCreatorAliasRepository(
       'creatorAlias.findByNormalizedAlias',
     );
     return rows.map(mapCreatorAlias);
+  }
+
+  async function update(id: string, input: UpdateCreatorAliasInput): Promise<CreatorAlias> {
+    const current = await findById(id);
+    if (!current) throw createNotFoundError('creator alias', id);
+    const alias = input.alias ?? current.alias;
+    const normalizedAlias = normalizeHandle(alias);
+    await runStatement(
+      db
+        .prepare(
+          `UPDATE creator_aliases SET alias = ?, normalized_alias = ?, confusable_skeleton = ?,
+           language = ?, alias_type = ?, confidence_score = ?, source_id = ?, updated_at = ?
+           WHERE id = ?`,
+        )
+        .bind(
+          alias.trim(),
+          normalizedAlias,
+          createConfusableSkeleton(normalizedAlias),
+          input.language === undefined ? current.language : input.language,
+          input.aliasType ?? current.aliasType,
+          input.confidenceScore ?? current.confidenceScore,
+          input.sourceId === undefined ? current.sourceId : input.sourceId,
+          metadata.now(),
+          id,
+        ),
+      'creatorAlias.update',
+    );
+    const updated = await findById(id);
+    if (!updated) throw createNotFoundError('creator alias', id);
+    return updated;
   }
 
   async function findProtectionCandidates(handles: string[]): Promise<CreatorAlias[]> {
@@ -156,6 +190,7 @@ export function createCreatorAliasRepository(
     findProtectionCandidates,
     listPublicByCreator,
     countPublicByCreator,
+    update,
     delete: deleteAlias,
   };
 }

@@ -161,5 +161,23 @@ export function createIngestionRunRepository(
     return { items: rows.map(mapIngestionRun), page, limit };
   }
 
-  return { create, markRunning, markCompleted, markFailed, findById, list };
+  async function count(options: Omit<IngestionRunListOptions, keyof Pagination> = {}) {
+    const row = await firstRow<{ count: number }>(
+      db
+        .prepare(
+          `SELECT COUNT(*) AS count FROM ingestion_runs
+           WHERE (? IS NULL OR status = ?) AND (? IS NULL OR source_name = ?)`,
+        )
+        .bind(
+          options.status ?? null,
+          options.status ?? null,
+          options.sourceName ?? null,
+          options.sourceName ?? null,
+        ),
+      'ingestionRun.count',
+    );
+    return row?.count ?? 0;
+  }
+
+  return { create, markRunning, markCompleted, markFailed, findById, list, count };
 }

@@ -57,7 +57,7 @@ test('checks hard-reserved and not-listed handles against seeded D1', async ({ p
 
 test('searches, filters, opens a creator, and preserves browser history', async ({ page }) => {
   await page.goto('/creators');
-  await expect(page.getByText('10 public records')).toBeVisible();
+  await expect(page.getByText(/\d+ public records/)).toBeVisible();
   await page
     .getByRole('searchbox', { name: /creator, alias, handle, or source identifier/i })
     .fill('Aurora');
@@ -142,9 +142,10 @@ test('shows truthful releases, exercises the API tester, and opens Scalar docs',
   page,
 }) => {
   await page.goto('/releases');
-  await expect(page.getByText('Unversioned development state')).toBeVisible();
-  await expect(page.getByText('No Registry release has been published yet.')).toBeVisible();
-  await expect(page.getByText('No published releases')).toBeVisible();
+  await expect(
+    page.getByText(/Unversioned development state|phase-5-browser-release/).first(),
+  ).toBeVisible();
+  await expect(page.getByText(/Demonstration data/i).first()).toBeVisible();
 
   await page.goto('/api-tester');
   await page.getByRole('button', { name: 'Send request' }).click();
@@ -177,15 +178,17 @@ test('keeps mobile navigation and creator filters usable at 390 and 320 pixels',
   await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 320);
 });
 
-test('keeps the administration Worker separate and truthful', async ({ page, request }) => {
+test('keeps the administration Worker separate, authenticated, and private', async ({
+  page,
+  request,
+}) => {
   await page.goto('http://localhost:5174');
   await expect(page.getByRole('heading', { name: 'Registry administration' })).toBeVisible();
-  await expect(page.getByText(/connected in Phase 5/i)).toBeVisible();
   await expect(page.getByText(/private application · no public navigation/i).first()).toBeVisible();
 
-  const response = await request.get('http://localhost:5174/api/admin/dashboard');
-  expect(response.status()).toBe(501);
+  const response = await request.get('http://localhost:5174/api/admin/v1/dashboard');
+  expect(response.status()).toBe(200);
   await expect(response.json()).resolves.toMatchObject({
-    error: { code: 'not_implemented' },
+    data: { demonstration_data: true },
   });
 });

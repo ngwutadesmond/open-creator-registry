@@ -4,7 +4,15 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/coverage/**', '**/.wrangler/**'] },
+  {
+    ignores: [
+      '**/dist/**',
+      '**/coverage/**',
+      '**/.wrangler/**',
+      '**/playwright-report/**',
+      '**/test-results/**',
+    ],
+  },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   {
@@ -17,6 +25,8 @@ export default tseslint.config(
             'vitest.database.config.ts',
             'vitest.api.config.ts',
             'vitest.frontend.config.ts',
+            'vitest.admin-api.config.ts',
+            'scripts/*.mjs',
           ],
         },
         tsconfigRootDir: import.meta.dirname,
@@ -35,7 +45,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['apps/public/**/*.component.test.tsx'],
+    files: ['apps/{public,admin}/**/*.component.test.tsx'],
     rules: {
       '@typescript-eslint/no-base-to-string': 'off',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
@@ -46,6 +56,12 @@ export default tseslint.config(
     files: ['eslint.config.js'],
     rules: {
       '@typescript-eslint/no-unsafe-assignment': 'off',
+    },
+  },
+  {
+    files: ['scripts/*.mjs'],
+    languageOptions: {
+      globals: { AbortSignal: 'readonly', fetch: 'readonly', process: 'readonly' },
     },
   },
   {

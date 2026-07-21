@@ -1,3 +1,10 @@
+import type {
+  ApprovalActionType,
+  ApprovalDecision,
+  ApprovalRequestStatus,
+  ImportBatchStatus,
+  ImportFormat,
+} from '@open-creator-registry/contracts/admin';
 import type { RegistryClassification } from '@open-creator-registry/contracts/classifications';
 import type {
   AliasType,
@@ -134,6 +141,80 @@ export type AuditLog = {
   newValue: JsonValue | null;
   metadata: JsonValue | null;
   createdAt: string;
+};
+
+export type AdminApprovalRequest = {
+  id: string;
+  actionType: ApprovalActionType;
+  entityType: string;
+  entityId: string | null;
+  requestedBy: string;
+  requestedPayload: JsonValue;
+  reason: string;
+  status: ApprovalRequestStatus;
+  requiredApprovals: number;
+  approvalCount: number;
+  targetRevision: string | null;
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt: string | null;
+  appliedAt: string | null;
+};
+
+export type AdminApprovalDecision = {
+  id: string;
+  approvalRequestId: string;
+  administratorIdentifier: string;
+  decision: ApprovalDecision;
+  reason: string;
+  createdAt: string;
+};
+
+export type ImportBatch = {
+  id: string;
+  format: ImportFormat;
+  fileName: string;
+  checksum: string;
+  status: ImportBatchStatus;
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  duplicateRows: number;
+  warningRows: number;
+  validatedPayload: JsonValue;
+  summary: JsonValue | null;
+  createdBy: string;
+  committedBy: string | null;
+  createdAt: string;
+  committedAt: string | null;
+  completedAt: string | null;
+  updatedAt: string;
+};
+
+export type ImportBatchError = {
+  id: string;
+  importBatchId: string;
+  rowNumber: number;
+  errorCode: string;
+  errorMessage: string;
+  fieldName: string | null;
+  rawValue: string | null;
+  createdAt: string;
+};
+
+export type RegistryReleaseSnapshot = {
+  id: string;
+  registryReleaseId: string;
+  snapshot: JsonValue;
+  creatorCount: number;
+  activeHandleCount: number;
+  hardReservedCount: number;
+  softProtectedCount: number;
+  monitoredCount: number;
+  checksum: string;
+  createdBy: string;
+  generatedAt: string;
 };
 
 export type Pagination = {

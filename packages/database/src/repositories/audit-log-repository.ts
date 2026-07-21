@@ -17,6 +17,10 @@ export type AppendAuditLogInput = {
 export type AuditLogListOptions = Pagination & {
   action?: string;
   actorIdentifier?: string;
+  entityType?: string;
+  entityId?: string;
+  createdFrom?: string;
+  createdTo?: string;
 };
 
 export function createAuditLogRepository(
@@ -74,6 +78,14 @@ export function createAuditLogRepository(
     return rows.map(mapAuditLog);
   }
 
+  async function findById(id: string): Promise<AuditLog | null> {
+    const row = await firstRow<AuditLogRow>(
+      db.prepare('SELECT * FROM audit_logs WHERE id = ? LIMIT 1').bind(id),
+      'auditLog.findById',
+    );
+    return row ? mapAuditLog(row) : null;
+  }
+
   async function list(options: AuditLogListOptions = {}): Promise<PaginatedResult<AuditLog>> {
     const { page, limit, offset } = resolvePagination(options);
     const rows = await allRows<AuditLogRow>(
@@ -81,6 +93,10 @@ export function createAuditLogRepository(
         .prepare(
           `SELECT * FROM audit_logs WHERE (? IS NULL OR action = ?)
            AND (? IS NULL OR actor_identifier = ?)
+           AND (? IS NULL OR entity_type = ?)
+           AND (? IS NULL OR entity_id = ?)
+           AND (? IS NULL OR created_at >= ?)
+           AND (? IS NULL OR created_at <= ?)
            ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
         )
         .bind(
@@ -88,6 +104,14 @@ export function createAuditLogRepository(
           options.action ?? null,
           options.actorIdentifier ?? null,
           options.actorIdentifier ?? null,
+          options.entityType ?? null,
+          options.entityType ?? null,
+          options.entityId ?? null,
+          options.entityId ?? null,
+          options.createdFrom ?? null,
+          options.createdFrom ?? null,
+          options.createdTo ?? null,
+          options.createdTo ?? null,
           limit,
           offset,
         ),
@@ -96,5 +120,35 @@ export function createAuditLogRepository(
     return { items: rows.map(mapAuditLog), page, limit };
   }
 
-  return { append, findByEntity, list };
+  async function count(options: Omit<AuditLogListOptions, keyof Pagination> = {}): Promise<number> {
+    const row = await firstRow<{ count: number }>(
+      db
+        .prepare(
+          `SELECT COUNT(*) AS count FROM audit_logs WHERE (? IS NULL OR action = ?)
+         AND (? IS NULL OR actor_identifier = ?)
+         AND (? IS NULL OR entity_type = ?)
+         AND (? IS NULL OR entity_id = ?)
+         AND (? IS NULL OR created_at >= ?)
+         AND (? IS NULL OR created_at <= ?)`,
+        )
+        .bind(
+          options.action ?? null,
+          options.action ?? null,
+          options.actorIdentifier ?? null,
+          options.actorIdentifier ?? null,
+          options.entityType ?? null,
+          options.entityType ?? null,
+          options.entityId ?? null,
+          options.entityId ?? null,
+          options.createdFrom ?? null,
+          options.createdFrom ?? null,
+          options.createdTo ?? null,
+          options.createdTo ?? null,
+        ),
+      'auditLog.count',
+    );
+    return row?.count ?? 0;
+  }
+
+  return { append, findById, findByEntity, list, count };
 }

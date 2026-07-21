@@ -14,13 +14,19 @@ const wranglerConfig = path.resolve(repositoryRoot, 'wrangler.database.jsonc');
 const localDatabaseName = 'open-creator-registry-local';
 const localDatabaseId = 'local-open-creator-registry';
 const expectedTables = [
+  'admin_approval_decisions',
+  'admin_approval_requests',
+  'admin_mutation_guards',
   'audit_logs',
   'creator_aliases',
   'creator_candidates',
   'creator_entities',
   'creator_sources',
+  'import_batch_errors',
+  'import_batches',
   'ingestion_runs',
   'public_submissions',
+  'registry_release_snapshots',
   'registry_releases',
   'reserved_handles',
 ] as const;

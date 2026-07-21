@@ -8,26 +8,24 @@ Worker is run on its own. Local development uses the clearly local identifier
 `local-open-creator-registry`; it is not a production database ID and cannot be treated as
 deployment configuration.
 
-Two independent workerd processes cannot safely own the same persisted local SQLite state at the
-same time. The root `npm run dev` shell-smoke command therefore starts the two application shells
-with isolated ignored state under `.wrangler/state/public-shell` and
-`.wrangler/state/admin-shell`. This is for rendered shell inspection, not seeded API testing. Run
-`npm run dev:public` individually when checking the Phase 3 API against the canonical seeded local
-database. Production will bind both Workers to one remote D1 database after that database is
-created in Phase 7.
+The root `npm run dev` starts both separate Workers against the canonical ignored local state.
+Phase 5 Playwright workflows verify that admin mutations become visible through the public Worker
+under public visibility rules. Production will bind both Workers to one remote D1 database after
+that database is created in Phase 7.
 
 No Cloudflare account or login is needed for the commands in this document. Phase 7 will add a
 separate authenticated remote configuration after the owner creates a real D1 database. There are
-intentionally no remote migration, seed, or reset scripts in Phase 3.
+intentionally no remote migration, seed, or reset scripts in Phase 5.
 
 ## Migrations
 
 Wrangler applies migrations in filename order from `packages/database/migrations`:
 
-| Migration                      | Purpose                                                       |
-| ------------------------------ | ------------------------------------------------------------- |
-| `0001_creator_registry.sql`    | Creators, evidence sources, aliases, and reserved handles     |
-| `0002_registry_operations.sql` | Candidates, submissions, releases, ingestion runs, audit logs |
+| Migration                          | Purpose                                                           |
+| ---------------------------------- | ----------------------------------------------------------------- |
+| `0001_creator_registry.sql`        | Creators, evidence sources, aliases, and reserved handles         |
+| `0002_registry_operations.sql`     | Candidates, submissions, releases, ingestion runs, audit logs     |
+| `0003_registry_administration.sql` | Approvals, imports, release snapshots, and atomic mutation guards |
 
 Wrangler records applied files in `d1_migrations`. Never edit an applied migration; add the next
 numbered SQL file instead.
@@ -103,6 +101,15 @@ provides the persistence contract.
 Append-only mutation evidence. The repository exposes `append`, `findByEntity`, and `list`; it has no
 update or delete method. Entity/time and global-time indexes support investigations. Previous,
 new, and metadata values are nullable JSON text.
+
+### Administration workflow tables
+
+`admin_approval_requests` stores expiring intended changes, requester, target revision, state, and
+approval count. `admin_approval_decisions` prevents duplicate decisions by one actor.
+`import_batches` and `import_batch_errors` preserve bounded dry-run payloads, checksums, outcomes,
+and row issues. `registry_release_snapshots` stores deterministic calculated state and counts.
+`admin_mutation_guards` is an internal check-constrained table used inside D1 batches so stale or
+replayed critical operations abort atomically; successful operations remove their guard.
 
 ## Retention and foreign keys
 

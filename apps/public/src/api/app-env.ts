@@ -1,5 +1,11 @@
+export type PublicRuntimeBindings = {
+  DB: D1Database;
+  ENVIRONMENT: string;
+  ALLOWED_ORIGINS: string;
+};
+
 export type PublicAppEnv = {
-  Bindings: PublicBindings;
+  Bindings: PublicRuntimeBindings;
   Variables: {
     cspNonce: string;
     requestId: string;

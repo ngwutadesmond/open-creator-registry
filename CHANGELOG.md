@@ -5,6 +5,38 @@ after its first public release.
 
 ## Unreleased
 
+### Phase 5 added
+
+- Default-deny administration authentication abstraction, deterministic server-configured local
+  identities, centralized role/permission contracts, and route authorization.
+- Private versioned Hono API and responsive React administration interface for dashboard metrics,
+  creators, aliases, sources, reserved handles, candidates, submissions, imports, ingestion runs,
+  releases, approvals, audit logs, and settings.
+- Two-person, expiring, stale-safe critical handle and release approvals with guarded atomic D1
+  application and replay/self-approval denial.
+- JSON/CSV dry-run imports with shared normalization, duplicate/confusable/common-name signals,
+  stored checksums, bounded commits, idempotency, summaries, and critical-change routing.
+- Deterministic release snapshots, diffs, checksums, approval-gated publication, superseding, and
+  withdrawal with clear demonstration-data semantics.
+- Separate authenticated admin OpenAPI and Scalar reference, seven focused operations/security
+  documents, real D1 admin integration coverage, frontend component tests, and five admin
+  Playwright workflows within the 12-workflow browser suite.
+- Migration `0003_registry_administration.sql`, bringing local D1 to 15 domain/workflow tables and
+  58 indexes with no foreign-key violations.
+- Post-build sanitization that removes Cloudflare's local-preview variable file and fails closed if
+  a `.dev.vars*` file remains in either Worker artifact.
+- Deterministic combined local startup that waits for the public Worker before starting the admin
+  Worker, avoiding simultaneous Miniflare recovery against their shared local D1 state.
+
+### Phase 5 verified
+
+- Clean migrations, seed idempotency, zero-warning lint, strict TypeScript, public/admin API and D1
+  tests, production builds, dependency audit, cross-Worker local D1 visibility, desktop/mobile
+  render inspection, axe checks, deep links, and zero mobile overflow.
+- The complete automated gate passes 116 Vitest tests and 12 real-browser Playwright workflows.
+- No remote database, Cloudflare login, external connector, scheduled ingestion, or deployment was
+  created. Cloudflare Access JWT verification remains an explicit Phase 7 prerequisite.
+
 ### Phase 4 added
 
 - Responsive public home, handle checker, creator explorer/detail, release history, public

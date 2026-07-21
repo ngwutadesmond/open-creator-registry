@@ -1,2 +1,12 @@
-# Phase 2 local D1 development requires no secrets.
-# Future optional connector variables will be documented here when their implementation phase lands.
+# Copy the administrator values below to apps/admin/.dev.vars for local Phase 5 development.
+# These identities are deterministic test-only examples. Never use production staff identities here.
+ENVIRONMENT=local
+AUTH_PROVIDER=local_development
+ADMIN_ALLOWED_ORIGINS=http://localhost:5174
+DEV_ADMIN_ACTIVE=primary
+DEV_ADMIN_EMAIL=admin-one@example.test
+DEV_ADMIN_NAME=Admin One
+DEV_ADMIN_ROLES=super_admin,publisher,editor,reviewer,admin_viewer
+DEV_ADMIN_SECONDARY_EMAIL=admin-two@example.test
+DEV_ADMIN_SECONDARY_NAME=Admin Two
+DEV_ADMIN_SECONDARY_ROLES=super_admin,publisher,editor,reviewer,admin_viewer

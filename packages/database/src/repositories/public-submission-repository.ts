@@ -111,6 +111,19 @@ export function createPublicSubmissionRepository(
     return { items: rows.map(mapPublicSubmission), page, limit };
   }
 
+  async function count(options: Omit<PublicSubmissionListOptions, keyof Pagination> = {}) {
+    const row = await firstRow<{ count: number }>(
+      db
+        .prepare(
+          `SELECT COUNT(*) AS count FROM public_submissions
+           WHERE (? IS NULL OR submission_status = ?)`,
+        )
+        .bind(options.submissionStatus ?? null, options.submissionStatus ?? null),
+      'publicSubmission.count',
+    );
+    return row?.count ?? 0;
+  }
+
   async function updateStatus(
     id: string,
     submissionStatus: SubmissionStatus,
@@ -131,5 +144,5 @@ export function createPublicSubmissionRepository(
     return updated;
   }
 
-  return { create, findById, findPendingDuplicate, list, updateStatus };
+  return { create, findById, findPendingDuplicate, list, count, updateStatus };
 }

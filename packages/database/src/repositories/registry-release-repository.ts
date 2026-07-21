@@ -148,6 +148,26 @@ export function createRegistryReleaseRepository(
     return published;
   }
 
+  async function withdraw(id: string): Promise<RegistryRelease> {
+    const result = await runStatement(
+      db
+        .prepare(
+          `UPDATE registry_releases SET release_status = 'withdrawn', updated_at = ?
+           WHERE id = ? AND release_status IN ('draft', 'published')`,
+        )
+        .bind(metadata.now(), id),
+      'registryRelease.withdraw',
+    );
+    if ((result.meta.changes ?? 0) === 0) {
+      const current = await findById(id);
+      if (!current) throw createNotFoundError('registry release', id);
+      throw createInvalidInputError('Only a draft or published release can be withdrawn.');
+    }
+    const withdrawn = await findById(id);
+    if (!withdrawn) throw createNotFoundError('registry release', id);
+    return withdrawn;
+  }
+
   return {
     createDraft,
     findById,
@@ -157,5 +177,6 @@ export function createRegistryReleaseRepository(
     listPublic,
     countPublic,
     publish,
+    withdraw,
   };
 }

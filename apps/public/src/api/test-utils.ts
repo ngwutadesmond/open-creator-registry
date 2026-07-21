@@ -10,7 +10,7 @@ export const testBindings = {
   DB: env.DB,
   ENVIRONMENT: 'local',
   ALLOWED_ORIGINS: 'http://localhost:5173',
-} satisfies PublicBindings;
+} satisfies import('./app-env').PublicRuntimeBindings;
 
 export const deterministicRequestMetadata: RequestMetadataProvider = {
   createCspNonce: () => '00112233445566778899aabbccddeeff',

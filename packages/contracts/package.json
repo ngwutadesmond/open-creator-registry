@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./admin": "./src/admin.ts",
     "./classifications": "./src/classifications.ts",
     "./domain": "./src/domain.ts"
   },

@@ -10,7 +10,7 @@ Do not include real credentials or personal data in a report.
 No response-time or bounty commitment exists yet. The owner should acknowledge a credible report,
 coordinate a fix and disclosure window, and credit the reporter when requested and safe.
 
-## Phase 4 security boundary
+## Phase 5 security boundary
 
 - The public API is unauthenticated by design and exposes only approved creators, verified sources
   and aliases, active public handles, and public release history.
@@ -18,8 +18,19 @@ coordinate a fix and disclosure window, and credit the reporter when requested a
   reservation reasons and decision-source fields are never mapped into responses.
 - `not_listed` records are absence classifications and cannot surface as active protected handles,
   make a creator publicly searchable, or inflate active-handle counts.
-- The separate admin Worker remains an unimplemented `501` boundary. Phase 5 adds application-level
-  validation; Phase 7 protects its entire hostname with Cloudflare Access.
+- The separate admin Worker defaults to `401` unless an explicit authentication provider is
+  configured. Local identities come only from ignored server variables; client identity headers
+  are ignored. Central RBAC is enforced before route handlers.
+- Production Cloudflare Access JWT verification is not yet implemented. Phase 7 must protect the
+  entire hostname and add application-level assertion validation before deployment.
+- Critical hard-handle changes and publication use different-person approval, expiry, stale-target
+  checks, replay denial, and guarded atomic D1 batches.
+- Admin bodies are JSON-only and bounded; imports add 256 KiB/500-row limits, schema validation,
+  checksums, and commit-time integrity validation. URLs are validated but never fetched.
+- Admin CORS is an origin allowlist with credentials. It is not authentication. Responses are
+  `no-store` and set clickjacking, MIME, referrer, permissions, transport, and CSP headers.
+- Audit history is append-only through its repository/API surface. It stores safe mutation values,
+  authenticated actor identifiers, and request IDs, never secrets or tokens.
 - Zod validates untrusted parameters and bodies. POST bodies are JSON-only and limited to 32 KiB.
 - D1 access is repository-owned and uses prepared statements. Sort fields and directions are
   explicit allowlists.
@@ -46,7 +57,12 @@ coordinate a fix and disclosure window, and credit the reporter when requested a
 
 - Never commit `.dev.vars`, Wrangler state, D1 files, account IDs, production database IDs, tokens,
   access assertions, or other credentials.
+- Cloudflare's Vite integration creates a `.dev.vars` copy for local preview when local variables
+  exist. Both workspace build scripts run `scripts/sanitize-cloudflare-build.mjs` after Vite and
+  fail if any `.dev.vars*` file remains in a Worker output tree.
 - Treat every value embedded in a Vite client bundle as public.
+- Keep real roles, administrator addresses, Access assertions, and cookies out of source and test
+  artifacts. Local example identities must remain clearly non-production.
 - Use `npm ci` from the committed lockfile in automation and run `npm audit --omit=dev` before a
   release.
 - Configure a real `ALLOWED_ORIGINS` list for each deployed public environment.

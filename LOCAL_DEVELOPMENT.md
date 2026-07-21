@@ -4,7 +4,7 @@
 
 - Node.js 22 or newer (`.nvmrc` contains the project version)
 - npm 10 or newer
-- No Cloudflare account or credentials are required for Phase 4 local development
+- No Cloudflare account or credentials are required for Phase 5 local development
 
 ## Install
 
@@ -19,14 +19,23 @@ making it invoke itself would recurse. The root command installs every workspace
 
 ## Run both applications
 
+Configure the two deterministic, non-production local identities first:
+
+```bash
+cp apps/admin/.dev.vars.example apps/admin/.dev.vars
+```
+
+Review the copied values if another local developer is sharing the machine. Do not use real
+administrator identities and never commit `.dev.vars`.
+
 ```bash
 npm run dev
 ```
 
 | Application | URL                     | Worker/API prefix |
 | ----------- | ----------------------- | ----------------- |
-| Public      | `http://localhost:5173` | `/api/*`          |
-| Admin       | `http://localhost:5174` | `/api/admin/*`    |
+| Public      | `http://localhost:5173` | `/api/v1/*`       |
+| Admin       | `http://localhost:5174` | `/api/admin/v1/*` |
 
 Run one application when focusing on a single surface:
 
@@ -35,15 +44,11 @@ npm run dev:public
 npm run dev:admin
 ```
 
-The public Worker exposes the Phase 3 API and Phase 4 frontend. The administration Worker still
-returns `501 not_implemented`; its private API belongs to Phase 5.
-
-`npm run dev` uses separate ignored persistence directories for the two simultaneous local workerd
-processes. This avoids local SQLite file-lock contention and is suitable for inspecting both
-application shells. To use the canonical migrated and seeded D1 state with the public API, stop the
-combined command and run only `npm run dev:public`; either individual command uses
-`.wrangler/state/v3/d1`. The deployed Workers will share one actual D1 database after Phase 7
-configuration.
+Both Workers use the same canonical local D1 state. A mutation in the admin app is visible to the
+public Worker when public-visibility rules allow it. `Ctrl+C` stops both. Individual commands are
+useful while focusing on one surface. The combined launcher intentionally waits for the public
+health endpoint before starting the admin Worker so Miniflare does not try to recover the shared
+local D1 database from two simultaneous startups.
 
 ## Set up the local database
 
@@ -77,8 +82,25 @@ scripts and either individually started Vite Worker use `.wrangler/state/v3/d1` 
 `DB` binding.
 
 There are no remote D1 commands. Do not add a real database ID or log in to Cloudflare during
-Phase 3. Remote creation, binding, migrations, and deployment are documented and performed in
+Phase 5. Remote creation, binding, migrations, and deployment are documented and performed in
 Phase 7.
+
+## Exercise the administration application
+
+After reset and local identity setup:
+
+```bash
+npm run dev:admin
+```
+
+Open `http://localhost:5174`. Private API docs are at
+`http://localhost:5174/admin-docs`; the JSON specification is `/admin-openapi.json`. Open
+**Settings** to switch between the configured primary and secondary identities for two-person
+approval testing. Production remains denied; the local switch endpoint cannot accept an arbitrary
+email or role.
+
+For real cross-Worker workflows, run `npm run dev` and open both ports. The public Worker must not
+expose `/api/admin/*` or `/admin-docs`.
 
 ## Exercise the public API
 
@@ -114,12 +136,13 @@ npm run test:unit
 npm run test:frontend
 npm run test:database
 npm run test:api
+npm run test:admin-api
 npm run test:e2e
 npm run build
 ```
 
-`test:e2e` resets canonical local D1 state, starts the public Worker and the separate admin shell,
-and runs the critical public workflows in Chromium. Install Playwright's pinned local browser once
+`test:e2e` resets canonical local D1 state, starts both separate Workers against it, and runs the
+critical public and administration workflows in Chromium. Install Playwright's pinned local browser once
 after `npm install` if it is not already cached:
 
 ```bash
@@ -134,26 +157,31 @@ Playwright output is written to ignored `test-results/` and `playwright-report/`
 - `test:unit` runs framework, contract, and normalization tests in Node.
 - `test:database` runs the actual SQL migrations and repositories in Cloudflare's Vitest pool with
   isolated Miniflare-backed D1 storage. It does not mock D1 behavior.
-- `test:api` runs the public Worker through Cloudflare's Vitest pool against actual migrated D1.
-- `test` runs all three suites. Playwright is added with public workflows in Phase 4 rather than
-  installed before it is needed.
+- `test:api` and `test:admin-api` run the separate Workers through Cloudflare's Vitest pool against
+  actual migrated D1.
+- `test` runs unit, frontend, database, public API, and admin API suites. Playwright remains a
+  separate destructive clean-state command.
 - `build` produces both Cloudflare Worker/Vite bundles.
 
 Regenerate committed public Worker binding types only after Wrangler bindings change:
 
 ```bash
 npm run types:worker:public
+npm run types:worker:admin
 ```
 
 ## Environment files
 
-Do not create credentials for Phase 3. Local D1 needs no `.dev.vars`. When connector configuration
-is added in a later phase, copy `.dev.vars.example` to `.dev.vars`; never commit `.dev.vars`.
+Local D1 needs no secret. The admin Worker needs the ignored `apps/admin/.dev.vars` described above.
+Root and app templates are safe examples only. Never commit any `.dev.vars` file.
 
 ## Troubleshooting
 
 - If a port is busy, stop the conflicting process. Fixed ports keep documentation and future
   Playwright configuration deterministic.
+- If the admin app says access is denied, confirm `apps/admin/.dev.vars` exists, contains
+  `ENVIRONMENT=local` and `AUTH_PROVIDER=local_development`, then restart `npm run dev:admin`.
+- If the wrong local administrator is active, use Settings or clear the `ocr_dev_admin` cookie.
 - If an endpoint reports `database_unavailable`, stop the Worker, run `npm run db:reset:local`, and
   restart `npm run dev:public`.
 - If the interactive reference is blank while the API works, check the browser console and network
@@ -164,4 +192,6 @@ is added in a later phase, copy `.dev.vars.example` to `.dev.vars`; never commit
   they make installs reproducible.
 - If local data is inconsistent after a migration under active development, run
   `npm run db:reset:local`. This removes local demonstration data only; it has no remote capability.
+- If either Worker reports D1 unavailable, stop both, reset D1, and restart. Do not delete files
+  outside this repository or add a `--remote` flag.
 - See `DATABASE.md` for schema policy and `NORMALIZATION.md` for exact matching rules.

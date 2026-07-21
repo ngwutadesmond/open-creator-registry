@@ -7,8 +7,9 @@ export default defineConfig({
       reporter: ['text', 'html'],
     },
     exclude: [
-      'apps/public/**/*.component.test.tsx',
+      'apps/**/*.component.test.tsx',
       'apps/public/**/*.integration.test.ts',
+      'apps/admin/**/*.integration.test.ts',
       'packages/database/**/*.integration.test.ts',
     ],
     include: ['apps/**/*.test.{ts,tsx}', 'packages/**/*.test.ts'],

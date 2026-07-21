@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "dev": "concurrently --names public,admin --prefix-colors cyan,green \"npm run dev --workspace @open-creator-registry/public -- --mode concurrent\" \"npm run dev --workspace @open-creator-registry/admin -- --mode concurrent\"",
+    "dev": "node scripts/run-local-workers.mjs",
     "dev:public": "npm run dev --workspace @open-creator-registry/public",
     "dev:admin": "npm run dev --workspace @open-creator-registry/admin",
     "db:inspect:local": "tsx packages/database/scripts/local-d1.ts inspect",
@@ -22,14 +22,16 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint . --max-warnings 0",
-    "test": "npm run test:unit && npm run test:frontend && npm run test:database && npm run test:api",
+    "test": "npm run test:unit && npm run test:frontend && npm run test:database && npm run test:api && npm run test:admin-api",
+    "test:admin-api": "vitest run --config vitest.admin-api.config.ts",
     "test:api": "vitest run --config vitest.api.config.ts",
     "test:database": "vitest run --config vitest.database.config.ts",
     "test:e2e": "npm run db:reset:local && playwright test",
     "test:frontend": "vitest run --config vitest.frontend.config.ts",
     "test:unit": "vitest run --config vitest.config.ts",
     "typecheck": "npm run typecheck --workspaces --if-present && tsc --noEmit",
-    "types:worker:public": "npm run types:worker --workspace @open-creator-registry/public"
+    "types:worker:public": "npm run types:worker --workspace @open-creator-registry/public",
+    "types:worker:admin": "npm run types:worker --workspace @open-creator-registry/admin"
   },
   "devDependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",
