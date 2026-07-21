@@ -24,7 +24,9 @@ npm run lint
 npm run typecheck
 npm run test
 npm run test:database
+npm run test:api
 npm run build
+npm run types:worker:public
 npm run db:reset:local
 npm run db:migrate:local
 npm run db:migrations:list
@@ -45,11 +47,16 @@ use.
   handling.
 - Start independent asynchronous work together and await it together; avoid request waterfalls.
 - Keep Cloudflare Worker compatibility in mind: do not depend on heavyweight Node-only servers.
-- Use Zod schemas as executable boundaries and derive OpenAPI from the actual route schemas.
+- Use Zod schemas as executable boundaries and derive OpenAPI from the actual route schemas. Keep
+  Phase 3 request, response, and OpenAPI schemas synchronized in `apps/public/src/api/schemas.ts`.
 - Use D1 prepared statements for every value. Never concatenate untrusted SQL fragments.
 - Import repositories from `@open-creator-registry/database/repositories/*`; never put SQL in a
   Worker route or React component.
 - Use `@open-creator-registry/normalization` for every handle/name comparison or write.
+- Keep public route handlers thin: HTTP in routes, policy in services, SQL in repositories, and
+  field selection in public mappers. Handle checks must remain local and set-based.
+- Public API errors use stable envelopes and request IDs. Do not log submission bodies, SQL text,
+  secrets, or stack traces.
 - Keep audit logs append-only and creator evidence relationships restrictive by default.
 - Use the injectable metadata provider for repository IDs/timestamps in deterministic tests.
 - Add dependencies only when the platform or a clear maintenance benefit justifies them.

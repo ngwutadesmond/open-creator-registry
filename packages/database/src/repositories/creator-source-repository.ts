@@ -77,6 +77,20 @@ export function createCreatorSourceRepository(
     return rows.map(mapCreatorSource);
   }
 
+  async function listVerifiedByCreator(creatorEntityId: string): Promise<CreatorSource[]> {
+    const rows = await allRows<CreatorSourceRow>(
+      db
+        .prepare(
+          `SELECT * FROM creator_sources
+           WHERE creator_entity_id = ? AND verification_status = 'verified'
+           ORDER BY created_at, id`,
+        )
+        .bind(creatorEntityId),
+      'creatorSource.listVerifiedByCreator',
+    );
+    return rows.map(mapCreatorSource);
+  }
+
   async function update(id: string, input: UpdateCreatorSourceInput): Promise<CreatorSource> {
     const current = await findById(id);
     if (!current) throw createNotFoundError('creator source', id);
@@ -101,5 +115,5 @@ export function createCreatorSourceRepository(
     return updated;
   }
 
-  return { create, findById, listByCreator, update };
+  return { create, findById, listByCreator, listVerifiedByCreator, update };
 }

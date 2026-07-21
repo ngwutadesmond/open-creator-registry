@@ -2,7 +2,7 @@ import { type FormEvent, useState } from 'react';
 
 import { registryClassifications } from '@open-creator-registry/contracts/classifications';
 
-import { apiDocumentationPhaseMessage, getRegistrySearchMessage } from './phase-messages';
+import { getRegistrySearchMessage } from './phase-messages';
 
 const classificationLabels = {
   hard_reserved: 'Hard reserved',
@@ -149,16 +149,15 @@ export function PublicApp() {
             {phaseMessage}
           </p>
 
-          <button
+          <a
             className="api-link"
             id="api"
-            type="button"
-            aria-label="Check API documentation status"
-            onClick={() => setPhaseMessage(apiDocumentationPhaseMessage)}
+            href="/docs"
+            aria-label="Read the interactive API documentation"
           >
             <span>Read the API docs</span>
             <ArrowIcon />
-          </button>
+          </a>
         </section>
 
         <section className="hero-system" aria-label="Protection classifications">

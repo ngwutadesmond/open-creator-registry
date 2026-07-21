@@ -44,3 +44,14 @@ export const ingestionStatuses = [
   'failed',
 ] as const;
 export type IngestionStatus = (typeof ingestionStatuses)[number];
+
+export const handleMatchTypes = [
+  'exact_handle',
+  'official_handle_alias',
+  'protected_variant',
+  'alias',
+  'confusable_skeleton',
+  'monitored_variant',
+  'none',
+] as const;
+export type HandleMatchType = (typeof handleMatchTypes)[number];

@@ -9,16 +9,16 @@ Worker is run on its own. Local development uses the clearly local identifier
 deployment configuration.
 
 Two independent workerd processes cannot safely own the same persisted local SQLite state at the
-same time. The root `npm run dev` shell-smoke command therefore starts the two Phase 1 interfaces
+same time. The root `npm run dev` shell-smoke command therefore starts the two application shells
 with isolated ignored state under `.wrangler/state/public-shell` and
-`.wrangler/state/admin-shell`. No Phase 2 UI reads the database, so this prevents file-lock
-contention without changing behavior. Run `npm run dev:public` or `npm run dev:admin` individually
-when checking the canonical seeded local database. Production will bind both Workers to one remote
-D1 database after that database is created in Phase 7.
+`.wrangler/state/admin-shell`. This is for rendered shell inspection, not seeded API testing. Run
+`npm run dev:public` individually when checking the Phase 3 API against the canonical seeded local
+database. Production will bind both Workers to one remote D1 database after that database is
+created in Phase 7.
 
 No Cloudflare account or login is needed for the commands in this document. Phase 7 will add a
 separate authenticated remote configuration after the owner creates a real D1 database. There are
-intentionally no remote migration, seed, or reset scripts in Phase 2.
+intentionally no remote migration, seed, or reset scripts in Phase 3.
 
 ## Migrations
 
@@ -85,6 +85,12 @@ The submission-status/created-time index supports the review queue.
 Versioned registry decision points. Versions are unique, record counts cannot be negative, and
 release status is checked. The status/published-time index selects the latest published release.
 Publishing uses one D1 `batch()` call to supersede a prior release and publish the draft atomically.
+Both updates re-check the target draft inside the batch, so a stale preflight read cannot supersede
+the current release without also publishing its target. D1 executes competing batches
+sequentially; near-concurrent publications therefore resolve to one current published release and
+the later successful batch supersedes the earlier one. Re-publishing a non-draft fails
+deterministically. Integration tests deliberately abort the second batch statement and prove that
+the previous current release remains published while the target remains a draft.
 
 ### `ingestion_runs`
 
@@ -134,6 +140,14 @@ metadata provider.
 - Creator search uses bound values across normalized names, aliases, active handles, and verified
   external source identifiers. Released handles and unverified sources do not create public-search
   associations.
+- Public handle candidates use bounded JSON-array parameters through SQLite `json_each`, indexed
+  normalized/skeleton columns, verified evidence, and approved creator relationships. Batch service
+  code hydrates matched creators once rather than issuing one query per handle.
+- Public release queries expose only published and superseded published history; drafts and
+  withdrawn records remain private.
+- Pending-submission duplicate detection examines a bounded recent pending set and compares
+  normalized names, canonical handles, country lists, and URLs. A duplicate returns a stable
+  conflict rather than creating a second pending record.
 - Find methods return `null` for absence. Mutations targeting a missing record throw a stable
   `not_found` error.
 - Unique, constraint, validation, and unexpected D1 failures map to stable application error codes.

@@ -6,6 +6,7 @@ import {
   creatorProtectionTiers,
   creatorReviewStatuses,
   ingestionStatuses,
+  handleMatchTypes,
   registryReleaseStatuses,
   reservationStatuses,
   sourceVerificationStatuses,
@@ -23,5 +24,14 @@ describe('domain enumerations', () => {
     expect(submissionStatuses).toContain('under_review');
     expect(registryReleaseStatuses).toContain('superseded');
     expect(ingestionStatuses).toContain('completed_with_errors');
+    expect(handleMatchTypes).toEqual([
+      'exact_handle',
+      'official_handle_alias',
+      'protected_variant',
+      'alias',
+      'confusable_skeleton',
+      'monitored_variant',
+      'none',
+    ]);
   });
 });

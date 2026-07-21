@@ -86,11 +86,18 @@ describe('creator repository', () => {
   it('searches creator names, aliases, active handles, and verified source identifiers', async () => {
     const creators = createCreatorRepository(env.DB);
     const creator = await createTestCreator({ canonicalName: 'Distinctive Registry Person' });
+    const source = await createCreatorSourceRepository(env.DB).create({
+      creatorEntityId: creator.id,
+      sourceName: 'integration_catalog',
+      sourceEntityId: 'verified-source-42',
+      verificationStatus: 'verified',
+    });
     await createCreatorAliasRepository(env.DB).create({
       creatorEntityId: creator.id,
       alias: 'Hidden Stage Name',
       aliasType: 'stage_name',
       confidenceScore: 95,
+      sourceId: source.id,
     });
     await createReservedHandleRepository(env.DB).create({
       creatorEntityId: creator.id,
@@ -100,13 +107,6 @@ describe('creator repository', () => {
       decisionSource: 'integration_test',
       reason: 'Active handle used to verify creator repository search.',
     });
-    await createCreatorSourceRepository(env.DB).create({
-      creatorEntityId: creator.id,
-      sourceName: 'integration_catalog',
-      sourceEntityId: 'verified-source-42',
-      verificationStatus: 'verified',
-    });
-
     for (const query of [
       'registry person',
       'hidden-stage',
@@ -281,6 +281,64 @@ describe('release, ingestion, and audit repositories', () => {
       releaseStatus: 'published',
     });
     expect(await firstRepository.findById(first.id)).toMatchObject({ releaseStatus: 'superseded' });
+    await expect(secondRepository.publish(second.id)).rejects.toMatchObject({
+      code: 'invalid_input',
+    });
+    await expect(
+      secondRepository.publish('50000000-0000-4000-8000-000000000999'),
+    ).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('rolls back the entire release publication batch when publication fails', async () => {
+    const firstRepository = createRegistryReleaseRepository(
+      env.DB,
+      createDeterministicMetadataProvider({
+        ids: ['50000000-0000-4000-8000-000000000011'],
+        timestamp: '2026-03-01T00:00:00.000Z',
+      }),
+    );
+    const first = await firstRepository.createDraft({
+      version: '2026.03.1',
+      recordCount: 12,
+      checksum: 'checksum-current',
+    });
+    await firstRepository.publish(first.id);
+
+    const secondRepository = createRegistryReleaseRepository(
+      env.DB,
+      createDeterministicMetadataProvider({
+        ids: ['50000000-0000-4000-8000-000000000012'],
+        timestamp: '2026-04-01T00:00:00.000Z',
+      }),
+    );
+    const second = await secondRepository.createDraft({
+      version: '2026.04.1',
+      recordCount: 14,
+      checksum: 'checksum-next',
+    });
+
+    await env.DB.prepare(
+      `CREATE TRIGGER reject_test_release_publication
+       BEFORE UPDATE OF release_status ON registry_releases
+       WHEN OLD.id = '${second.id}' AND NEW.release_status = 'published'
+       BEGIN
+         SELECT RAISE(ABORT, 'deliberate publication failure');
+       END`,
+    ).run();
+
+    try {
+      await expect(secondRepository.publish(second.id)).rejects.toMatchObject({
+        code: 'database_failure',
+      });
+    } finally {
+      await env.DB.prepare('DROP TRIGGER reject_test_release_publication').run();
+    }
+
+    expect(await firstRepository.findById(first.id)).toMatchObject({
+      releaseStatus: 'published',
+    });
+    expect(await secondRepository.findById(second.id)).toMatchObject({ releaseStatus: 'draft' });
+    expect(await secondRepository.findLatestPublished()).toMatchObject({ id: first.id });
   });
 
   it('records ingestion status transitions and rejects negative counters', async () => {

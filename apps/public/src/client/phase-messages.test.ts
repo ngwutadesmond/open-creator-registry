@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { apiDocumentationPhaseMessage, getRegistrySearchMessage } from './phase-messages';
+import { getRegistrySearchMessage } from './phase-messages';
 
 describe('phased public messages', () => {
   it('requires a non-empty registry search', () => {
@@ -11,11 +11,7 @@ describe('phased public messages', () => {
 
   it('describes the API and explorer boundary for a valid search', () => {
     expect(getRegistrySearchMessage('  Example Creator  ')).toBe(
-      '“Example Creator” can be searched after the public API and explorer are connected in Phases 3 and 4.',
+      '“Example Creator” can be searched here when the public explorer is connected in Phase 4. The API is available now.',
     );
-  });
-
-  it('states when API documentation becomes available', () => {
-    expect(apiDocumentationPhaseMessage).toContain('Phase 3');
   });
 });

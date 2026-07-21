@@ -3,6 +3,7 @@ import type { ReservationStatus } from '@open-creator-registry/contracts/domain'
 import { createConfusableSkeleton, normalizeHandle } from '@open-creator-registry/normalization';
 
 import { createNotFoundError } from '../errors';
+import { serializeJson } from '../json';
 import type { PaginatedResult, Pagination, ReservedHandle } from '../models';
 import { defaultRecordMetadataProvider, type RecordMetadataProvider } from '../runtime';
 import { mapReservedHandle, type ReservedHandleRow } from './row-mappers';
@@ -91,6 +92,58 @@ export function createReservedHandleRepository(
     return rows.map(mapReservedHandle);
   }
 
+  async function findProtectionCandidates(handles: string[]): Promise<ReservedHandle[]> {
+    if (handles.length === 0) return [];
+    const normalizedHandles = [...new Set(handles.map((handle) => normalizeHandle(handle)))];
+    const skeletons = [...new Set(normalizedHandles.map(createConfusableSkeleton))];
+    const rows = await allRows<ReservedHandleRow>(
+      db
+        .prepare(
+          `SELECT handle.* FROM reserved_handles handle
+           JOIN creator_entities creator ON creator.id = handle.creator_entity_id
+           WHERE creator.review_status = 'approved' AND handle.status <> 'released' AND (
+             handle.normalized_handle IN (SELECT value FROM json_each(?))
+             OR handle.confusable_skeleton IN (SELECT value FROM json_each(?))
+           )
+           ORDER BY handle.created_at, handle.id`,
+        )
+        .bind(serializeJson(normalizedHandles), serializeJson(skeletons)),
+      'reservedHandle.findProtectionCandidates',
+    );
+    return rows.map(mapReservedHandle);
+  }
+
+  async function listPublicByCreator(
+    creatorEntityId: string,
+    pagination: Pagination = {},
+  ): Promise<PaginatedResult<ReservedHandle>> {
+    const { page, limit, offset } = resolvePagination(pagination);
+    const rows = await allRows<ReservedHandleRow>(
+      db
+        .prepare(
+          `SELECT * FROM reserved_handles
+           WHERE creator_entity_id = ? AND status = 'active' AND classification <> 'not_listed'
+           ORDER BY created_at, id LIMIT ? OFFSET ?`,
+        )
+        .bind(creatorEntityId, limit, offset),
+      'reservedHandle.listPublicByCreator',
+    );
+    return { items: rows.map(mapReservedHandle), page, limit };
+  }
+
+  async function countPublicByCreator(creatorEntityId: string): Promise<number> {
+    const row = await firstRow<{ count: number }>(
+      db
+        .prepare(
+          `SELECT COUNT(*) AS count FROM reserved_handles
+           WHERE creator_entity_id = ? AND status = 'active' AND classification <> 'not_listed'`,
+        )
+        .bind(creatorEntityId),
+      'reservedHandle.countPublicByCreator',
+    );
+    return row?.count ?? 0;
+  }
+
   async function listByCreator(creatorEntityId: string): Promise<ReservedHandle[]> {
     const rows = await allRows<ReservedHandleRow>(
       db
@@ -165,7 +218,10 @@ export function createReservedHandleRepository(
     findById,
     findExact,
     findByConfusableSkeleton,
+    findProtectionCandidates,
     listByCreator,
+    listPublicByCreator,
+    countPublicByCreator,
     list,
     updateStatus,
     count,

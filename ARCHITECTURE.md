@@ -6,15 +6,15 @@ Open Creator Registry is an npm-workspaces monorepo with two separately deployab
 Workers and small shared packages.
 
 ```text
-                         one Cloudflare D1 database (Phase 2)
+                         one Cloudflare D1 database
                                       │
                      ┌────────────────┴────────────────┐
                      │                                 │
         Public Worker + React app          Admin Worker + React app
             public internet                    Cloudflare Access
                      │                                 │
-          read-only API, explorer             private mutations, review,
-          docs, public submissions              imports, releases, audit
+       public API, docs, submissions          private mutations, review,
+          explorer in Phase 4                   imports, releases, audit
                      └────────────────┬────────────────┘
                                       │
                      shared contracts and normalization
@@ -42,8 +42,26 @@ Each application uses the Cloudflare Vite plugin. Vite serves the React client i
 builds the client and Worker together for Cloudflare. Requests under each application's API prefix
 run through Hono. Asset handling falls back to the Vite-built single-page application.
 
-Phase 1 deliberately returns a truthful `not_implemented` response for API requests. Versioned
-public routes are implemented in Phase 3 and private routes in Phase 5.
+The public Worker routes `/api/v1/*`, `/openapi.json`, and `/docs` through the Phase 3 Hono API.
+Other asset requests fall through to the React shell. Private administration routes remain a
+truthful `not_implemented` response until Phase 5.
+
+## Public request layering
+
+```text
+Hono route -> Zod/OpenAPI validation -> focused service -> D1 repository -> public mapper
+```
+
+Routes own HTTP semantics, services own matching and public application policy, repositories own
+prepared SQL, and mappers explicitly select public fields. Handle checking performs bounded,
+set-based lookups for all normalized handles and confusable skeletons, then hydrates matched creators
+in one bounded query. It never calls an external service. The batch route preserves request order
+without issuing one query per input.
+
+The matching service applies exact hard, exact soft, exact monitored, official alias, protected
+variant, confusable, then ordinary alias precedence. Suspended/disputed reservations remain at least
+soft-protected; released reservations are excluded while other evidence is still considered.
+Conflicting creator identities set `ambiguous` and suppress creator attribution.
 
 ## Data ownership and consistency
 
@@ -55,8 +73,9 @@ Workers will bind one remote D1 database in Phase 7. Repository modules own SQL 
 statements; route and UI code do not compose SQL.
 
 Administrative mutations use D1 batch operations where atomicity is required and will create an
-audit record when Phase 5 adds mutation routes. Public responses will expose only reviewed, active,
-policy-approved fields.
+audit record when Phase 5 adds mutation routes. Public responses expose only approved creators,
+verified source-backed aliases/sources, active public handles, and public release history. Public
+submissions write only a pending review record and cannot mutate live protection decisions.
 
 ## Shared contracts
 
@@ -75,17 +94,20 @@ details.
 
 ## Security boundaries
 
-- Public API inputs are untrusted and will be validated with Zod before repository access.
+- Public API inputs are untrusted and are validated with Zod before repository access.
 - Administrative authentication is enforced by Cloudflare Access at the whole Worker hostname.
 - The admin Worker must still validate the Access identity assertion before trusting an actor
   identifier; deployment-layer protection is not a substitute for application validation.
 - D1 operations use prepared statements; untrusted values are never concatenated into SQL.
 - Secrets belong in `.dev.vars` locally and Worker secrets remotely. `.dev.vars` is ignored.
 - Public responses must never include private administrator data or raw internal errors.
+- The public Worker uses a strict origin allowlist, bounded bodies/pages/batches, short cache
+  lifetimes, security headers, and an injectable rate-limit boundary. Distributed enforcement and
+  bot protection require real Phase 7 Cloudflare configuration.
 
 ## Version and availability semantics
 
-A registry release identifies a published dataset decision point. A handle-check response will state
+A registry release identifies a published dataset decision point. A handle-check response states
 which release/version and update time informed it. Registry downtime or a `not_listed` response must
 never be treated as permission to assign a suspicious username; the consuming platform keeps its
 own availability check, cache, and critical-name fallback.

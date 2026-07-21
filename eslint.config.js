@@ -15,6 +15,7 @@ export default tseslint.config(
             'eslint.config.js',
             'vitest.config.ts',
             'vitest.database.config.ts',
+            'vitest.api.config.ts',
           ],
         },
         tsconfigRootDir: import.meta.dirname,

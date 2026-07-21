@@ -5,8 +5,9 @@ creator handle should be protected. It does **not** determine whether that handl
 platform.
 
 The repository is being delivered in the seven verified phases described in [PLAN.md](./PLAN.md).
-Phase 1 provides the monorepo foundation and independently runnable public and administration
-application shells. Phase 2 adds the shared local D1 persistence and normalization foundation.
+Phases 1–2 provide the monorepo foundation, separate application shells, shared local D1
+persistence, and normalization. Phase 3 adds the complete read-oriented public API, pending public
+submissions, generated OpenAPI specification, and interactive API reference.
 
 ## Applications
 
@@ -33,19 +34,20 @@ Prerequisites: Node.js 22+ and npm 10+.
 ```bash
 npm install
 npm run db:reset:local
-npm run dev
+npm run dev:public
 ```
 
-The public shell runs at `http://localhost:5173` and the admin shell at
-`http://localhost:5174`. See [LOCAL_DEVELOPMENT.md](./LOCAL_DEVELOPMENT.md) for individual commands
-and verification steps.
+The public application runs at `http://localhost:5173`, and its API reference is at
+`http://localhost:5173/docs`. Stop it, then run `npm run dev:admin` to inspect the admin shell at
+`http://localhost:5174`. See [LOCAL_DEVELOPMENT.md](./LOCAL_DEVELOPMENT.md) for the reason local D1
+applications are run individually and [API_USAGE.md](./API_USAGE.md) for client examples.
 
 ## Project status
 
-This is an early phased implementation. D1 persistence is available locally, while the Phase 1
-interfaces truthfully state that real API and administration workflows are not connected yet.
-Those routes remain `501` until Phases 3 and 5. Do not use this version as a production registry
-service.
+This is an early phased implementation. The public Worker exposes the Phase 3 API locally against
+demonstration D1 data. The public database-backed explorer remains Phase 4, and administration
+routes remain explicit `501 not_implemented` boundaries until Phase 5. No remote database or
+deployment is configured; do not use this version as a production registry service.
 
 ## Domain disclaimer
 

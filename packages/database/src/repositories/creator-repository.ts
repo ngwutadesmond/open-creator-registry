@@ -26,6 +26,7 @@ export type UpdateCreatorInput = Partial<CreateCreatorInput>;
 
 export type CreatorListOptions = Pagination & {
   query?: string;
+  source?: string;
   primaryCategory?: string;
   country?: string;
   protectionTier?: CreatorProtectionTier;
@@ -55,6 +56,33 @@ export function createCreatorRepository(
       'creator.findById',
     );
     return row ? mapCreatorEntity(row) : null;
+  }
+
+  async function findPublicById(id: string): Promise<CreatorEntity | null> {
+    const row = await firstRow<CreatorEntityRow>(
+      db
+        .prepare(
+          "SELECT * FROM creator_entities WHERE id = ? AND review_status = 'approved' LIMIT 1",
+        )
+        .bind(id),
+      'creator.findPublicById',
+    );
+    return row ? mapCreatorEntity(row) : null;
+  }
+
+  async function findByIds(ids: string[]): Promise<CreatorEntity[]> {
+    if (ids.length === 0) return [];
+    const rows = await allRows<CreatorEntityRow>(
+      db
+        .prepare(
+          `SELECT * FROM creator_entities
+           WHERE id IN (SELECT value FROM json_each(?))
+           ORDER BY created_at, id`,
+        )
+        .bind(serializeJson(ids)),
+      'creator.findByIds',
+    );
+    return rows.map(mapCreatorEntity);
   }
 
   async function create(input: CreateCreatorInput): Promise<CreatorEntity> {
@@ -119,6 +147,8 @@ export function createCreatorRepository(
       options.protectionTier ?? null,
       options.reviewStatus ?? null,
       options.reviewStatus ?? null,
+      options.source ?? null,
+      options.source ?? null,
     ] as const;
   }
 
@@ -136,12 +166,15 @@ export function createCreatorRepository(
              OR e.normalized_name LIKE ? ESCAPE '\\'
              OR EXISTS (
                SELECT 1 FROM creator_aliases alias
+               JOIN creator_sources alias_source ON alias_source.id = alias.source_id
                WHERE alias.creator_entity_id = e.id
+                 AND alias_source.verification_status = 'verified'
                  AND alias.normalized_alias LIKE ? ESCAPE '\\'
              )
              OR EXISTS (
                SELECT 1 FROM reserved_handles handle
                WHERE handle.creator_entity_id = e.id AND handle.status = 'active'
+                 AND handle.classification <> 'not_listed'
                  AND handle.normalized_handle LIKE ? ESCAPE '\\'
              )
              OR EXISTS (
@@ -156,6 +189,12 @@ export function createCreatorRepository(
              ))
              AND (? IS NULL OR e.protection_tier = ?)
              AND (? IS NULL OR e.review_status = ?)
+             AND (? IS NULL OR EXISTS (
+               SELECT 1 FROM creator_sources source_filter
+               WHERE source_filter.creator_entity_id = e.id
+                 AND source_filter.verification_status = 'verified'
+                 AND source_filter.source_name = ?
+             ))
            ORDER BY ${orderColumn} ${orderDirection}, id ${orderDirection}
            LIMIT ? OFFSET ?`,
         )
@@ -216,12 +255,15 @@ export function createCreatorRepository(
              OR e.normalized_name LIKE ? ESCAPE '\\'
              OR EXISTS (
                SELECT 1 FROM creator_aliases alias
+               JOIN creator_sources alias_source ON alias_source.id = alias.source_id
                WHERE alias.creator_entity_id = e.id
+                 AND alias_source.verification_status = 'verified'
                  AND alias.normalized_alias LIKE ? ESCAPE '\\'
              )
              OR EXISTS (
                SELECT 1 FROM reserved_handles handle
                WHERE handle.creator_entity_id = e.id AND handle.status = 'active'
+                 AND handle.classification <> 'not_listed'
                  AND handle.normalized_handle LIKE ? ESCAPE '\\'
              )
              OR EXISTS (
@@ -235,7 +277,13 @@ export function createCreatorRepository(
                SELECT 1 FROM json_each(e.country_codes) country WHERE country.value = ?
              ))
              AND (? IS NULL OR e.protection_tier = ?)
-             AND (? IS NULL OR e.review_status = ?)`,
+             AND (? IS NULL OR e.review_status = ?)
+             AND (? IS NULL OR EXISTS (
+               SELECT 1 FROM creator_sources source_filter
+               WHERE source_filter.creator_entity_id = e.id
+                 AND source_filter.verification_status = 'verified'
+                 AND source_filter.source_name = ?
+             ))`,
         )
         .bind(...createFilterBinding(options)),
       'creator.count',
@@ -243,5 +291,5 @@ export function createCreatorRepository(
     return row?.count ?? 0;
   }
 
-  return { create, findById, findByNormalizedName, list, update, count };
+  return { create, findById, findPublicById, findByIds, findByNormalizedName, list, update, count };
 }

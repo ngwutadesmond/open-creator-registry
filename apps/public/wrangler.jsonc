@@ -3,6 +3,10 @@
   "name": "open-creator-registry-public",
   "compatibility_date": "2026-07-21",
   "main": "src/worker.ts",
+  "vars": {
+    "ENVIRONMENT": "local",
+    "ALLOWED_ORIGINS": "http://localhost:5173",
+  },
   // This identifier is local-only. Authenticated remote configuration belongs to Phase 7.
   "d1_databases": [
     {
@@ -15,6 +19,6 @@
   ],
   "assets": {
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"],
+    "run_worker_first": ["/api/*", "/openapi.json", "/docs"],
   },
 }

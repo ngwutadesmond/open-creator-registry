@@ -2,10 +2,11 @@ import type { AliasType } from '@open-creator-registry/contracts/domain';
 import { createConfusableSkeleton, normalizeHandle } from '@open-creator-registry/normalization';
 
 import { createNotFoundError } from '../errors';
-import type { CreatorAlias } from '../models';
+import { serializeJson } from '../json';
+import type { CreatorAlias, PaginatedResult, Pagination } from '../models';
 import { defaultRecordMetadataProvider, type RecordMetadataProvider } from '../runtime';
 import { mapCreatorAlias, type CreatorAliasRow } from './row-mappers';
-import { allRows, firstRow, runStatement } from './shared';
+import { allRows, firstRow, resolvePagination, runStatement } from './shared';
 
 export type CreateCreatorAliasInput = {
   creatorEntityId: string;
@@ -82,6 +83,63 @@ export function createCreatorAliasRepository(
     return rows.map(mapCreatorAlias);
   }
 
+  async function findProtectionCandidates(handles: string[]): Promise<CreatorAlias[]> {
+    if (handles.length === 0) return [];
+    const normalizedHandles = [...new Set(handles.map((handle) => normalizeHandle(handle)))];
+    const skeletons = [...new Set(normalizedHandles.map(createConfusableSkeleton))];
+    const rows = await allRows<CreatorAliasRow>(
+      db
+        .prepare(
+          `SELECT alias.* FROM creator_aliases alias
+           JOIN creator_sources source ON source.id = alias.source_id
+           JOIN creator_entities creator ON creator.id = alias.creator_entity_id
+           WHERE source.verification_status = 'verified'
+             AND creator.review_status = 'approved'
+             AND (
+               alias.normalized_alias IN (SELECT value FROM json_each(?))
+               OR alias.confusable_skeleton IN (SELECT value FROM json_each(?))
+             )
+           ORDER BY alias.created_at, alias.id`,
+        )
+        .bind(serializeJson(normalizedHandles), serializeJson(skeletons)),
+      'creatorAlias.findProtectionCandidates',
+    );
+    return rows.map(mapCreatorAlias);
+  }
+
+  async function listPublicByCreator(
+    creatorEntityId: string,
+    pagination: Pagination = {},
+  ): Promise<PaginatedResult<CreatorAlias>> {
+    const { page, limit, offset } = resolvePagination(pagination);
+    const rows = await allRows<CreatorAliasRow>(
+      db
+        .prepare(
+          `SELECT alias.* FROM creator_aliases alias
+           JOIN creator_sources source ON source.id = alias.source_id
+           WHERE alias.creator_entity_id = ? AND source.verification_status = 'verified'
+           ORDER BY alias.created_at, alias.id LIMIT ? OFFSET ?`,
+        )
+        .bind(creatorEntityId, limit, offset),
+      'creatorAlias.listPublicByCreator',
+    );
+    return { items: rows.map(mapCreatorAlias), page, limit };
+  }
+
+  async function countPublicByCreator(creatorEntityId: string): Promise<number> {
+    const row = await firstRow<{ count: number }>(
+      db
+        .prepare(
+          `SELECT COUNT(*) AS count FROM creator_aliases alias
+           JOIN creator_sources source ON source.id = alias.source_id
+           WHERE alias.creator_entity_id = ? AND source.verification_status = 'verified'`,
+        )
+        .bind(creatorEntityId),
+      'creatorAlias.countPublicByCreator',
+    );
+    return row?.count ?? 0;
+  }
+
   async function deleteAlias(id: string): Promise<void> {
     const result = await runStatement(
       db.prepare('DELETE FROM creator_aliases WHERE id = ?').bind(id),
@@ -90,5 +148,14 @@ export function createCreatorAliasRepository(
     if ((result.meta.changes ?? 0) === 0) throw createNotFoundError('creator alias', id);
   }
 
-  return { create, findById, listByCreator, findByNormalizedAlias, delete: deleteAlias };
+  return {
+    create,
+    findById,
+    listByCreator,
+    findByNormalizedAlias,
+    findProtectionCandidates,
+    listPublicByCreator,
+    countPublicByCreator,
+    delete: deleteAlias,
+  };
 }

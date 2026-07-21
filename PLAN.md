@@ -52,13 +52,17 @@ Status: Complete and quality-gate reviewed on 2026-07-21.
 
 ## Phase 3 — public API and generated documentation
 
+Status: Complete and quality-gate reviewed on 2026-07-21.
+
 - Implement versioned public Hono routes, consistent envelopes, request IDs, validation errors,
   pagination, safe error handling, CORS, security headers, size limits, and rate-limit abstraction.
 - Generate OpenAPI from the same Zod route schemas via `@hono/zod-openapi`.
 - Serve `/openapi.json` and interactive `/docs` with classification, version, authentication,
   caching, rate-limit, error, and integration semantics.
 - Add unit and D1-backed integration tests for all public endpoint cases listed in the project brief.
-- Commit as `feat: implement public registry API`.
+- Verify all public routes over real local HTTP, the Scalar request tester, and public/docs/admin
+  desktop and mobile renders with clean browser consoles.
+- Commit as `feat: add public registry api and documentation`.
 
 ## Phase 4 — public registry experience
 

@@ -4,7 +4,7 @@
 
 - Node.js 22 or newer (`.nvmrc` contains the project version)
 - npm 10 or newer
-- No Cloudflare account or credentials are required for Phase 2 local development
+- No Cloudflare account or credentials are required for Phase 3 local development
 
 ## Install
 
@@ -35,13 +35,13 @@ npm run dev:public
 npm run dev:admin
 ```
 
-The Phase 1 Worker routes return `501 not_implemented`. This is deliberate: the public API is Phase
-3 and the admin API is Phase 5. No response in Phase 1 represents live registry data.
+The public Worker now exposes the Phase 3 API. The administration Worker still returns
+`501 not_implemented`; its private API belongs to Phase 5.
 
 `npm run dev` uses separate ignored persistence directories for the two simultaneous local workerd
-processes. This avoids local SQLite file-lock contention and is suitable for inspecting the Phase 1
-interfaces. To develop against the canonical seeded D1 state, stop the combined command and run
-only `npm run dev:public` or `npm run dev:admin`; either individual command uses
+processes. This avoids local SQLite file-lock contention and is suitable for inspecting both
+application shells. To use the canonical migrated and seeded D1 state with the public API, stop the
+combined command and run only `npm run dev:public`; either individual command uses
 `.wrangler/state/v3/d1`. The deployed Workers will share one actual D1 database after Phase 7
 configuration.
 
@@ -76,7 +76,31 @@ The seed is idempotent; running `db:seed:local` repeatedly does not duplicate re
 scripts and either individually started Vite Worker use `.wrangler/state/v3/d1` through the shared
 `DB` binding.
 
-There are no remote D1 commands. Do not add a real database ID or log in to Cloudflare during Phase 2. Remote creation, binding, migrations, and deployment are documented and performed in Phase 7.
+There are no remote D1 commands. Do not add a real database ID or log in to Cloudflare during
+Phase 3. Remote creation, binding, migrations, and deployment are documented and performed in
+Phase 7.
+
+## Exercise the public API
+
+Start the seeded public Worker:
+
+```bash
+npm run db:reset:local
+npm run db:seed:local
+npm run dev:public
+```
+
+Leave that terminal running. In a second terminal, test the health and handle endpoints:
+
+```bash
+curl -i http://localhost:5173/api/v1/health
+curl --get http://localhost:5173/api/v1/handles/check \
+  --data-urlencode 'handle=@demo.aurora-vale'
+```
+
+Open `http://localhost:5173/docs` for the interactive API reference or
+`http://localhost:5173/openapi.json` for the generated specification. Press `Ctrl+C` in the first
+terminal when finished. More examples are in `API_USAGE.md`.
 
 ## Quality commands
 
@@ -88,6 +112,7 @@ npm run typecheck
 npm run test
 npm run test:unit
 npm run test:database
+npm run test:api
 npm run build
 ```
 
@@ -97,19 +122,30 @@ npm run build
 - `test:unit` runs framework, contract, and normalization tests in Node.
 - `test:database` runs the actual SQL migrations and repositories in Cloudflare's Vitest pool with
   isolated Miniflare-backed D1 storage. It does not mock D1 behavior.
-- `test` runs both suites. Playwright is added with public workflows in Phase 4 rather than
+- `test:api` runs the public Worker through Cloudflare's Vitest pool against actual migrated D1.
+- `test` runs all three suites. Playwright is added with public workflows in Phase 4 rather than
   installed before it is needed.
 - `build` produces both Cloudflare Worker/Vite bundles.
 
+Regenerate committed public Worker binding types only after Wrangler bindings change:
+
+```bash
+npm run types:worker:public
+```
+
 ## Environment files
 
-Do not create credentials for Phase 2. Local D1 needs no `.dev.vars`. When connector configuration
+Do not create credentials for Phase 3. Local D1 needs no `.dev.vars`. When connector configuration
 is added in a later phase, copy `.dev.vars.example` to `.dev.vars`; never commit `.dev.vars`.
 
 ## Troubleshooting
 
 - If a port is busy, stop the conflicting process. Fixed ports keep documentation and future
   Playwright configuration deterministic.
+- If an endpoint reports `database_unavailable`, stop the Worker, run `npm run db:reset:local`, and
+  restart `npm run dev:public`.
+- If the interactive reference is blank while the API works, check the browser console and network
+  panel. `/docs` currently needs access to the exact pinned Scalar bundle on `cdn.jsdelivr.net`.
 - If types appear stale after changing a workspace export, restart Vite and rerun
   `npm run typecheck`.
 - Remove neither `package-lock.json` nor workspace package declarations when updating dependencies;

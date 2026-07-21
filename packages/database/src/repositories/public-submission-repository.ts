@@ -1,5 +1,5 @@
 import type { SubmissionStatus } from '@open-creator-registry/contracts/domain';
-import { normalizeHandle } from '@open-creator-registry/normalization';
+import { normalizeCreatorName, normalizeHandle } from '@open-creator-registry/normalization';
 
 import { createNotFoundError } from '../errors';
 import { serializeJson } from '../json';
@@ -63,6 +63,38 @@ export function createPublicSubmissionRepository(
     return created;
   }
 
+  async function findPendingDuplicate(
+    input: CreatePublicSubmissionInput,
+  ): Promise<PublicSubmission | null> {
+    const rows = await allRows<PublicSubmissionRow>(
+      db.prepare(
+        `SELECT * FROM public_submissions
+           WHERE submission_status IN ('pending', 'under_review')
+           ORDER BY created_at DESC, id DESC LIMIT 20`,
+      ),
+      'publicSubmission.findPendingDuplicate',
+    );
+    const requestedHandles = input.requestedHandles.map((handle) => normalizeHandle(handle)).sort();
+    const publicSources = input.publicSources.map((source) => source.trim()).sort();
+    const creatorName = normalizeCreatorName(input.creatorName);
+
+    for (const row of rows) {
+      const submission = mapPublicSubmission(row);
+      if (normalizeCreatorName(submission.creatorName) !== creatorName) continue;
+      const existingHandles = submission.requestedHandles
+        .map((handle) => normalizeHandle(handle))
+        .sort();
+      const existingSources = submission.publicSources.map((source) => source.trim()).sort();
+      if (
+        JSON.stringify(existingHandles) === JSON.stringify(requestedHandles) &&
+        JSON.stringify(existingSources) === JSON.stringify(publicSources)
+      ) {
+        return submission;
+      }
+    }
+    return null;
+  }
+
   async function list(
     options: PublicSubmissionListOptions = {},
   ): Promise<PaginatedResult<PublicSubmission>> {
@@ -99,5 +131,5 @@ export function createPublicSubmissionRepository(
     return updated;
   }
 
-  return { create, findById, list, updateStatus };
+  return { create, findById, findPendingDuplicate, list, updateStatus };
 }

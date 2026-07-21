@@ -73,6 +73,46 @@ export function createRegistryReleaseRepository(
     return { items: rows.map(mapRegistryRelease), page, limit };
   }
 
+  async function count(options: Omit<RegistryReleaseListOptions, keyof Pagination> = {}) {
+    const row = await firstRow<{ count: number }>(
+      db
+        .prepare(
+          'SELECT COUNT(*) AS count FROM registry_releases WHERE (? IS NULL OR release_status = ?)',
+        )
+        .bind(options.releaseStatus ?? null, options.releaseStatus ?? null),
+      'registryRelease.count',
+    );
+    return row?.count ?? 0;
+  }
+
+  async function listPublic(
+    pagination: Pagination = {},
+  ): Promise<PaginatedResult<RegistryRelease>> {
+    const { page, limit, offset } = resolvePagination(pagination);
+    const rows = await allRows<RegistryReleaseRow>(
+      db
+        .prepare(
+          `SELECT * FROM registry_releases
+           WHERE release_status IN ('published', 'superseded') AND published_at IS NOT NULL
+           ORDER BY published_at DESC, created_at DESC, id DESC LIMIT ? OFFSET ?`,
+        )
+        .bind(limit, offset),
+      'registryRelease.listPublic',
+    );
+    return { items: rows.map(mapRegistryRelease), page, limit };
+  }
+
+  async function countPublic(): Promise<number> {
+    const row = await firstRow<{ count: number }>(
+      db.prepare(
+        `SELECT COUNT(*) AS count FROM registry_releases
+         WHERE release_status IN ('published', 'superseded') AND published_at IS NOT NULL`,
+      ),
+      'registryRelease.countPublic',
+    );
+    return row?.count ?? 0;
+  }
+
   async function publish(id: string): Promise<RegistryRelease> {
     const current = await findById(id);
     if (!current) throw createNotFoundError('registry release', id);
@@ -108,5 +148,14 @@ export function createRegistryReleaseRepository(
     return published;
   }
 
-  return { createDraft, findById, findLatestPublished, list, publish };
+  return {
+    createDraft,
+    findById,
+    findLatestPublished,
+    list,
+    count,
+    listPublic,
+    countPublic,
+    publish,
+  };
 }
