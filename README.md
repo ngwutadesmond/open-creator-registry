@@ -14,8 +14,10 @@ application shells. Phase 2 adds the shared local D1 persistence and normalizati
 - `apps/admin`: private React administration application and private Hono Worker boundary
 
 The applications are intentionally separate deployable Workers. In production, the entire admin
-Worker URL must be protected with Cloudflare Access. Both Workers receive the same local D1 database
-through the `DB` binding.
+Worker URL must be protected with Cloudflare Access. Both Workers use the same `DB` binding and
+canonical local D1 state when run individually. The combined shell-smoke command uses isolated
+ignored state for its two simultaneous local workerd processes, as explained in
+[DATABASE.md](./DATABASE.md).
 
 ## Packages
 

@@ -82,6 +82,65 @@ describe('creator repository', () => {
     const matches = await createCreatorRepository(env.DB).findByNormalizedName('demo creator name');
     expect(matches).toHaveLength(1);
   });
+
+  it('searches creator names, aliases, active handles, and verified source identifiers', async () => {
+    const creators = createCreatorRepository(env.DB);
+    const creator = await createTestCreator({ canonicalName: 'Distinctive Registry Person' });
+    await createCreatorAliasRepository(env.DB).create({
+      creatorEntityId: creator.id,
+      alias: 'Hidden Stage Name',
+      aliasType: 'stage_name',
+      confidenceScore: 95,
+    });
+    await createReservedHandleRepository(env.DB).create({
+      creatorEntityId: creator.id,
+      displayHandle: '@distinctive.official',
+      classification: 'hard_reserved',
+      confidenceScore: 100,
+      decisionSource: 'integration_test',
+      reason: 'Active handle used to verify creator repository search.',
+    });
+    await createCreatorSourceRepository(env.DB).create({
+      creatorEntityId: creator.id,
+      sourceName: 'integration_catalog',
+      sourceEntityId: 'verified-source-42',
+      verificationStatus: 'verified',
+    });
+
+    for (const query of [
+      'registry person',
+      'hidden-stage',
+      '@distinctive_official',
+      'verified-source-42',
+    ]) {
+      expect((await creators.list({ query })).items.map((item) => item.id)).toEqual([creator.id]);
+      expect(await creators.count({ query })).toBe(1);
+    }
+  });
+
+  it('does not expose released handles or unverified source identifiers through creator search', async () => {
+    const creators = createCreatorRepository(env.DB);
+    const creator = await createTestCreator({ canonicalName: 'Search Boundary Person' });
+    await createReservedHandleRepository(env.DB).create({
+      creatorEntityId: creator.id,
+      displayHandle: 'released_search_handle',
+      classification: 'hard_reserved',
+      confidenceScore: 100,
+      decisionSource: 'integration_test',
+      reason: 'Released handle used to verify the public-search repository boundary.',
+      status: 'released',
+    });
+    await createCreatorSourceRepository(env.DB).create({
+      creatorEntityId: creator.id,
+      sourceName: 'integration_catalog',
+      sourceEntityId: 'pending-source-42',
+      verificationStatus: 'pending',
+    });
+
+    expect((await creators.list({ query: 'released_search_handle' })).items).toEqual([]);
+    expect((await creators.list({ query: 'pending-source-42' })).items).toEqual([]);
+    expect((await creators.list({ query: '%' })).items).toEqual([]);
+  });
 });
 
 describe('alias and reserved-handle repositories', () => {

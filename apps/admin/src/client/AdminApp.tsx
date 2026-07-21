@@ -264,10 +264,7 @@ export function AdminApp() {
         <section className="workspace-state" aria-labelledby="workspace-heading">
           <WorkspaceIllustration />
           <h2 id="workspace-heading">Administration workspace ready</h2>
-          <p>
-            Database-backed metrics and review queues will appear after the D1 repository layer is
-            connected.
-          </p>
+          <p>Database-backed metrics and review queues will be connected in Phase 5.</p>
           <button
             type="button"
             aria-expanded={architectureOpen}

@@ -131,6 +131,9 @@ metadata provider.
 - SQL lives only under `packages/database/src/repositories` or controlled seed/migration modules.
 - Every runtime value is bound through a D1 prepared statement.
 - Sort fields are TypeScript allowlists; callers cannot provide arbitrary SQL fragments.
+- Creator search uses bound values across normalized names, aliases, active handles, and verified
+  external source identifiers. Released handles and unverified sources do not create public-search
+  associations.
 - Find methods return `null` for absence. Mutations targeting a missing record throw a stable
   `not_found` error.
 - Unique, constraint, validation, and unexpected D1 failures map to stable application error codes.

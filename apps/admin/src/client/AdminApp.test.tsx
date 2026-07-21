@@ -12,10 +12,12 @@ describe('AdminApp', () => {
     expect(html).toContain('Private application');
   });
 
-  it('does not invent database metrics before the repository layer exists', () => {
+  it('does not invent database metrics before Phase 5 connects the interface', () => {
     const html = renderToStaticMarkup(<AdminApp />);
 
-    expect(html).toContain('Database-backed metrics and review queues will appear');
+    expect(html).toContain(
+      'Database-backed metrics and review queues will be connected in Phase 5',
+    );
     expect(html).not.toContain('Total creators');
     expect(html).not.toContain('Recent activity');
   });

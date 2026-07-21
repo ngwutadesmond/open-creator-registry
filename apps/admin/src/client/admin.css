@@ -388,11 +388,16 @@
     overflow-y: auto;
     box-shadow: var(--shadow-float);
     transform: translateX(-105%);
-    transition: transform 180ms ease;
+    visibility: hidden;
+    transition:
+      transform 180ms ease,
+      visibility 0s linear 180ms;
   }
 
   .navigation-toggled .admin-sidebar {
     transform: translateX(0);
+    visibility: visible;
+    transition-delay: 0s;
   }
 
   .navigation-toggled .admin-nav-item {
@@ -409,20 +414,25 @@
   .sidebar-scrim {
     position: fixed;
     z-index: 25;
-    inset: 4.75rem 0 0;
+    inset: 4.75rem 0 0 min(20rem, 86vw);
     display: block;
-    width: 100%;
+    width: auto;
     height: auto;
     background: rgb(11 25 51 / 42%);
     cursor: pointer;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 180ms ease;
+    visibility: hidden;
+    transition:
+      opacity 180ms ease,
+      visibility 0s linear 180ms;
   }
 
   .navigation-toggled .sidebar-scrim {
     opacity: 1;
     pointer-events: auto;
+    visibility: visible;
+    transition-delay: 0s;
   }
 
   .admin-main {

@@ -8,5 +8,5 @@ export function getRegistrySearchMessage(query: string): string {
     return 'Enter a creator name, alias, or handle to search the registry.';
   }
 
-  return `“${normalizedQuery}” is ready for registry search when the Phase 2 data layer is connected.`;
+  return `“${normalizedQuery}” can be searched after the public API and explorer are connected in Phases 3 and 4.`;
 }

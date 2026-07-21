@@ -42,6 +42,15 @@ after its first public release.
 
 ### Fixed
 
+- Completed the creator repository's prepared, pagination-compatible search across names, aliases,
+  active handles, and verified external source identifiers while excluding released handles and
+  unverified sources.
+- Added the documented credential-free `.dev.vars.example` and clarified the combined local
+  Worker persistence boundary in the README.
+- Replaced stale Phase 1 interface copy so public search accurately points to Phases 3–4 and
+  database-backed administration accurately remains deferred to Phase 5.
+- Removed the closed mobile administration drawer and invisible scrim from keyboard and assistive
+  technology navigation while preserving the off-canvas transition.
 - Removed an ambiguous duplicate root `devDependencies` key that hid the direct Wrangler dependency.
 - Added validation feedback for empty public searches and replaced the premature `/docs` route with
   an honest Phase 3 status control.

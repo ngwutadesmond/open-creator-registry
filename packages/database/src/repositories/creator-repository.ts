@@ -2,7 +2,7 @@ import type {
   CreatorProtectionTier,
   CreatorReviewStatus,
 } from '@open-creator-registry/contracts/domain';
-import { normalizeCreatorName } from '@open-creator-registry/normalization';
+import { normalizeCreatorName, validateHandle } from '@open-creator-registry/normalization';
 
 import { createNotFoundError } from '../errors';
 import { serializeJson } from '../json';
@@ -25,6 +25,7 @@ export type CreateCreatorInput = {
 export type UpdateCreatorInput = Partial<CreateCreatorInput>;
 
 export type CreatorListOptions = Pagination & {
+  query?: string;
   primaryCategory?: string;
   country?: string;
   protectionTier?: CreatorProtectionTier;
@@ -39,6 +40,10 @@ const creatorOrderColumns = {
   notoriety_score: 'notoriety_score',
   updated_at: 'updated_at',
 } as const;
+
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/gu, '\\$&');
+}
 
 export function createCreatorRepository(
   db: D1Database,
@@ -95,7 +100,17 @@ export function createCreatorRepository(
   }
 
   function createFilterBinding(options: CreatorListOptions) {
+    const query = options.query?.trim() || null;
+    const normalizedName = query ? normalizeCreatorName(query) : null;
+    const handleValidation = query ? validateHandle(query) : null;
+    const normalizedHandle = handleValidation?.valid ? handleValidation.normalized : null;
+
     return [
+      query,
+      normalizedName ? `%${escapeLikePattern(normalizedName)}%` : null,
+      normalizedHandle ? `%${escapeLikePattern(normalizedHandle)}%` : null,
+      normalizedHandle ? `%${escapeLikePattern(normalizedHandle)}%` : null,
+      query,
       options.primaryCategory ?? null,
       options.primaryCategory ?? null,
       options.country?.toUpperCase() ?? null,
@@ -117,7 +132,25 @@ export function createCreatorRepository(
       db
         .prepare(
           `SELECT * FROM creator_entities e
-           WHERE (? IS NULL OR e.primary_category = ?)
+           WHERE (? IS NULL
+             OR e.normalized_name LIKE ? ESCAPE '\\'
+             OR EXISTS (
+               SELECT 1 FROM creator_aliases alias
+               WHERE alias.creator_entity_id = e.id
+                 AND alias.normalized_alias LIKE ? ESCAPE '\\'
+             )
+             OR EXISTS (
+               SELECT 1 FROM reserved_handles handle
+               WHERE handle.creator_entity_id = e.id AND handle.status = 'active'
+                 AND handle.normalized_handle LIKE ? ESCAPE '\\'
+             )
+             OR EXISTS (
+               SELECT 1 FROM creator_sources source
+               WHERE source.creator_entity_id = e.id AND source.verification_status = 'verified'
+                 AND source.source_entity_id = ?
+             )
+           )
+             AND (? IS NULL OR e.primary_category = ?)
              AND (? IS NULL OR EXISTS (
                SELECT 1 FROM json_each(e.country_codes) country WHERE country.value = ?
              ))
@@ -179,7 +212,25 @@ export function createCreatorRepository(
       db
         .prepare(
           `SELECT COUNT(*) AS count FROM creator_entities e
-           WHERE (? IS NULL OR e.primary_category = ?)
+           WHERE (? IS NULL
+             OR e.normalized_name LIKE ? ESCAPE '\\'
+             OR EXISTS (
+               SELECT 1 FROM creator_aliases alias
+               WHERE alias.creator_entity_id = e.id
+                 AND alias.normalized_alias LIKE ? ESCAPE '\\'
+             )
+             OR EXISTS (
+               SELECT 1 FROM reserved_handles handle
+               WHERE handle.creator_entity_id = e.id AND handle.status = 'active'
+                 AND handle.normalized_handle LIKE ? ESCAPE '\\'
+             )
+             OR EXISTS (
+               SELECT 1 FROM creator_sources source
+               WHERE source.creator_entity_id = e.id AND source.verification_status = 'verified'
+                 AND source.source_entity_id = ?
+             )
+           )
+             AND (? IS NULL OR e.primary_category = ?)
              AND (? IS NULL OR EXISTS (
                SELECT 1 FROM json_each(e.country_codes) country WHERE country.value = ?
              ))
