@@ -1,0 +1,12 @@
+{
+  "name": "@open-creator-registry/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./classifications": "./src/classifications.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}

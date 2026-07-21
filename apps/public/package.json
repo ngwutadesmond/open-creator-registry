@@ -1,0 +1,19 @@
+{
+  "name": "@open-creator-registry/public",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "WRANGLER_WRITE_LOGS=false vite build",
+    "dev": "WRANGLER_WRITE_LOGS=false vite --port 5173 --strictPort",
+    "preview": "vite preview --port 4173 --strictPort",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@open-creator-registry/contracts": "*",
+    "@open-creator-registry/ui": "*",
+    "hono": "^4.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

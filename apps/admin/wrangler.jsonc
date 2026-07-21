@@ -1,0 +1,10 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "open-creator-registry-admin",
+  "compatibility_date": "2026-07-21",
+  "main": "src/worker.ts",
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/admin/*"],
+  },
+}

@@ -1,0 +1,440 @@
+#root {
+  min-height: 100vh;
+}
+
+.admin-shell {
+  display: grid;
+  min-height: 100vh;
+  color: var(--color-ink);
+  background: var(--color-surface);
+  grid-template-columns: 21rem 1fr;
+  grid-template-rows: 5.5rem 1fr;
+  grid-template-areas:
+    'header header'
+    'sidebar main';
+}
+
+.admin-shell.navigation-toggled {
+  grid-template-columns: 5.5rem 1fr;
+}
+
+.admin-header {
+  z-index: 20;
+  display: flex;
+  grid-area: header;
+  min-width: 0;
+  padding: 0 var(--space-8);
+  align-items: center;
+  gap: var(--space-5);
+  border-bottom: 1px solid var(--color-rule);
+  background: #ffffff;
+}
+
+.menu-button {
+  display: inline-grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+}
+
+.menu-button:hover {
+  background: var(--color-surface-cool);
+}
+
+.menu-button svg {
+  width: 1.55rem;
+}
+
+.admin-brand {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.admin-brand strong {
+  font-size: 1.35rem;
+  letter-spacing: -0.035em;
+  white-space: nowrap;
+}
+
+.admin-brand > span {
+  width: 1px;
+  height: 2rem;
+  background: var(--color-rule);
+}
+
+.admin-brand p {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: 1.05rem;
+}
+
+.admin-sidebar {
+  display: flex;
+  grid-area: sidebar;
+  min-height: 0;
+  padding: var(--space-8) var(--space-4) var(--space-5);
+  flex-direction: column;
+  border-right: 1px solid var(--color-rule);
+  background: #fbfcfd;
+}
+
+.admin-sidebar nav {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.admin-sidebar a {
+  position: relative;
+  display: flex;
+  min-height: 3.9rem;
+  padding: 0 var(--space-5);
+  align-items: center;
+  gap: var(--space-4);
+  border-radius: var(--radius-sm);
+  color: var(--color-ink);
+  font-size: 0.98rem;
+  font-weight: 590;
+  text-decoration: none;
+  transition:
+    color 150ms ease,
+    background 150ms ease;
+}
+
+.admin-sidebar a::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -1rem;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  content: '';
+  background: var(--color-emerald);
+  opacity: 0;
+}
+
+.admin-sidebar a:hover {
+  background: #f0f4f6;
+}
+
+.admin-sidebar a.selected {
+  color: var(--color-emerald-dark);
+  background: #edf3f2;
+  font-weight: 750;
+}
+
+.admin-sidebar a.selected::before {
+  opacity: 1;
+}
+
+.admin-sidebar a svg {
+  width: 1.45rem;
+  flex: 0 0 auto;
+  color: #50647d;
+}
+
+.admin-sidebar a.selected svg {
+  color: var(--color-emerald);
+}
+
+.private-label {
+  padding: var(--space-5) var(--space-2) 0;
+  margin: auto 0 0;
+  border-top: 1px solid var(--color-rule);
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.navigation-toggled .admin-sidebar a {
+  padding-right: 0;
+  padding-left: 0;
+  justify-content: center;
+}
+
+.navigation-toggled .admin-sidebar a span,
+.navigation-toggled .private-label {
+  display: none;
+}
+
+.admin-main {
+  display: flex;
+  grid-area: main;
+  width: 100%;
+  min-width: 0;
+  max-width: 92rem;
+  padding: clamp(3rem, 4.7vw, 4.5rem) clamp(2rem, 4vw, 4rem) var(--space-8);
+  flex-direction: column;
+}
+
+.admin-heading h1 {
+  margin: 0;
+  font-size: clamp(2.1rem, 2.7vw, 2.6rem);
+  line-height: 1.1;
+  letter-spacing: -0.045em;
+}
+
+.admin-heading p {
+  margin: var(--space-3) 0 0;
+  color: var(--color-ink-soft);
+  font-size: 1.08rem;
+  line-height: 1.5;
+}
+
+.access-notice {
+  display: flex;
+  min-height: 5.6rem;
+  padding: var(--space-5) var(--space-6);
+  margin-top: var(--space-8);
+  align-items: center;
+  gap: var(--space-5);
+  border: 1px solid var(--color-emerald);
+  border-radius: var(--radius-sm);
+  color: var(--color-emerald-dark);
+  background: #f4faf7;
+  font-size: 1rem;
+}
+
+.access-notice svg {
+  width: 2.1rem;
+  flex: 0 0 auto;
+}
+
+.workspace-state {
+  display: flex;
+  width: 100%;
+  max-width: 46rem;
+  min-height: 30rem;
+  padding: var(--space-12) var(--space-6);
+  margin: auto;
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.workspace-illustration {
+  width: min(17rem, 70vw);
+  margin-bottom: var(--space-4);
+}
+
+.workspace-illustration .document,
+.workspace-illustration .fold,
+.workspace-illustration .line,
+.workspace-illustration .shield,
+.workspace-illustration .check,
+.workspace-illustration .base-line {
+  fill: none;
+  stroke: #7890aa;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.workspace-illustration .shield-ring {
+  fill: #ffffff;
+  stroke: #7890aa;
+  stroke-width: 1.8;
+}
+
+.workspace-illustration .check {
+  stroke: var(--color-emerald);
+  stroke-width: 2.2;
+}
+
+.workspace-state h2 {
+  margin: 0;
+  font-size: 1.45rem;
+  letter-spacing: -0.025em;
+}
+
+.workspace-state > p {
+  max-width: 34rem;
+  margin: var(--space-3) 0 var(--space-6);
+  color: var(--color-ink-soft);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.workspace-state > button {
+  display: inline-flex;
+  min-height: 3.55rem;
+  padding: 0 var(--space-8);
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  border-radius: var(--radius-sm);
+  color: #ffffff;
+  background: var(--color-emerald);
+  font-weight: 750;
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    transform 150ms ease;
+}
+
+.workspace-state > button:hover {
+  background: var(--color-emerald-dark);
+  transform: translateY(-1px);
+}
+
+.architecture-summary {
+  max-width: 36rem;
+  padding: var(--space-5);
+  margin-top: var(--space-5);
+  border-top: 1px solid var(--color-rule);
+  color: var(--color-ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.admin-status {
+  display: flex;
+  min-height: 4.5rem;
+  padding-top: var(--space-5);
+  align-items: center;
+  gap: var(--space-3);
+  border-top: 1px solid var(--color-rule);
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.admin-status svg {
+  width: 1.4rem;
+}
+
+.sidebar-scrim {
+  display: none;
+}
+
+@media (max-width: 64rem) {
+  .admin-shell {
+    grid-template-columns: 16.5rem 1fr;
+  }
+
+  .admin-sidebar a {
+    padding-right: var(--space-3);
+    padding-left: var(--space-3);
+  }
+
+  .admin-shell.navigation-toggled {
+    grid-template-columns: 5.5rem 1fr;
+  }
+}
+
+@media (max-width: 48rem) {
+  .admin-shell {
+    display: block;
+    padding-top: 4.75rem;
+  }
+
+  .admin-header {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 4.75rem;
+    padding: 0 var(--space-4);
+  }
+
+  .admin-brand {
+    gap: var(--space-3);
+  }
+
+  .admin-brand strong {
+    font-size: 1rem;
+  }
+
+  .admin-brand p {
+    font-size: 0.83rem;
+  }
+
+  .admin-brand > span {
+    height: 1.5rem;
+  }
+
+  .admin-sidebar {
+    position: fixed;
+    z-index: 30;
+    top: 4.75rem;
+    bottom: 0;
+    left: 0;
+    width: min(20rem, 86vw);
+    overflow-y: auto;
+    box-shadow: var(--shadow-float);
+    transform: translateX(-105%);
+    transition: transform 180ms ease;
+  }
+
+  .navigation-toggled .admin-sidebar {
+    transform: translateX(0);
+  }
+
+  .navigation-toggled .admin-sidebar a {
+    padding-right: var(--space-3);
+    padding-left: var(--space-3);
+    justify-content: flex-start;
+  }
+
+  .navigation-toggled .admin-sidebar a span,
+  .navigation-toggled .private-label {
+    display: initial;
+  }
+
+  .sidebar-scrim {
+    position: fixed;
+    z-index: 25;
+    inset: 4.75rem 0 0;
+    display: block;
+    width: 100%;
+    height: auto;
+    background: rgb(11 25 51 / 42%);
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 180ms ease;
+  }
+
+  .navigation-toggled .sidebar-scrim {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .admin-main {
+    min-height: calc(100vh - 4.75rem);
+    padding: var(--space-10) var(--space-5) var(--space-6);
+  }
+
+  .access-notice {
+    align-items: flex-start;
+  }
+
+  .workspace-state {
+    min-height: 28rem;
+    padding-right: 0;
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 29rem) {
+  .admin-brand > span,
+  .admin-brand p {
+    display: none;
+  }
+
+  .admin-heading h1 {
+    font-size: 2rem;
+  }
+
+  .access-notice {
+    padding: var(--space-4);
+  }
+
+  .workspace-illustration {
+    width: 13rem;
+  }
+}
