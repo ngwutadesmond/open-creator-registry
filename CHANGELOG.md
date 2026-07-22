@@ -5,6 +5,12 @@ after its first public release.
 
 ## Unreleased
 
+### Phase 7 Gate B public profile endpoint fixed
+
+- Added the documented public creator-profile endpoint with generated OpenAPI coverage, public-only
+  visibility filtering, safe caching, method handling, and staging smoke verification after live
+  Gate B testing found that the profile collection URL returned `404`.
+
 ### Phase 7 Gate B staging UI fixed
 
 - Replaced hard-coded local-development identity and local-D1 claims with authentication-aware and

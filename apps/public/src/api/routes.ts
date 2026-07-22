@@ -35,6 +35,7 @@ import {
   creatorIdParamsSchema,
   creatorListQuerySchema,
   creatorListResponseSchema,
+  creatorProfilesResponseSchema,
   errorEnvelopeSchema,
   handleCheckQuerySchema,
   handleCheckResponseSchema,
@@ -194,6 +195,25 @@ const creatorAliasesRoute = createRoute({
     200: {
       description: 'A page of aliases backed by verified public sources.',
       content: jsonContent(creatorAliasesResponseSchema),
+    },
+    404: {
+      description: 'The creator does not exist or is not publicly visible.',
+      content: jsonContent(errorEnvelopeSchema),
+    },
+    ...commonErrorResponses,
+  },
+});
+
+const creatorProfilesRoute = createRoute({
+  method: 'get',
+  path: '/api/v1/creators/{creatorId}/profiles',
+  tags: ['Creators'],
+  summary: 'List one creator’s verified public external profiles',
+  request: { params: creatorIdParamsSchema },
+  responses: {
+    200: {
+      description: 'Verified external profiles explicitly approved for public visibility.',
+      content: jsonContent(creatorProfilesResponseSchema),
     },
     404: {
       description: 'The creator does not exist or is not publicly visible.',
@@ -511,6 +531,15 @@ export function createPublicApp(dependencies: PublicAppDependencies = {}) {
     );
   });
 
+  app.openapi(creatorProfilesRoute, async (context) => {
+    const { creatorId } = context.req.valid('param');
+    const profiles = await createPublicRegistryService(context.env.DB).listCreatorProfiles(
+      creatorId,
+    );
+    context.header('Cache-Control', 'public, max-age=60, s-maxage=300');
+    return context.json(successEnvelope(context, profiles), 200);
+  });
+
   app.openapi(registryMetaRoute, async (context) => {
     const data = await createPublicRegistryService(context.env.DB).getRegistryMetadata(
       context.env.ENVIRONMENT === 'local',
@@ -630,9 +659,8 @@ export function createPublicApp(dependencies: PublicAppDependencies = {}) {
 
   app.all('*', (context) => {
     const pathname = new URL(context.req.url).pathname;
-    const dynamicCreatorPath = /^\/api\/v1\/creators\/[^/]+(?:\/(?:handles|aliases))?$/u.test(
-      pathname,
-    );
+    const dynamicCreatorPath =
+      /^\/api\/v1\/creators\/[^/]+(?:\/(?:handles|aliases|profiles))?$/u.test(pathname);
     const allowed = methodPolicy.get(pathname) ?? (dynamicCreatorPath ? 'GET' : null);
     if (allowed) {
       context.header('Allow', allowed);

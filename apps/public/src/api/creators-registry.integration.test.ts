@@ -14,6 +14,7 @@ import {
   creatorDetailResponseSchema,
   creatorHandlesResponseSchema,
   creatorListResponseSchema,
+  creatorProfilesResponseSchema,
   registryMetaResponseSchema,
   registryReleasesResponseSchema,
 } from './schemas';
@@ -159,8 +160,19 @@ describe('public creator routes', () => {
     expect(aliases.data).toHaveLength(1);
     expect(aliases.pagination.total).toBe(2);
 
+    const profilesResponse = await requestApi(`/api/v1/creators/${creatorId}/profiles`);
+    const profiles = creatorProfilesResponseSchema.parse(await profilesResponse.json());
+    expect(profilesResponse.headers.get('Cache-Control')).toBe('public, max-age=60, s-maxage=300');
+    expect(profiles.data).toHaveLength(2);
+    expect(profiles.data.map((profile) => profile.platform)).not.toContain('twitch');
+    expect(JSON.stringify(profiles)).not.toContain('PRIVATE_PROFILE_PROVENANCE');
+
     const unknown = await requestApi('/api/v1/creators/90000000-0000-4000-8000-000000000999');
     expect(unknown.status).toBe(404);
+    const unknownProfiles = await requestApi(
+      '/api/v1/creators/90000000-0000-4000-8000-000000000999/profiles',
+    );
+    expect(unknownProfiles.status).toBe(404);
   });
 });
 

@@ -289,6 +289,13 @@ export const creatorAliasesResponseSchema = z
   })
   .openapi('CreatorAliasesResponse');
 
+export const creatorProfilesResponseSchema = z
+  .object({
+    data: z.array(publicExternalProfileSchema),
+    meta: requestMetaSchema,
+  })
+  .openapi('CreatorProfilesResponse');
+
 export const healthDataSchema = z
   .object({
     service: z.literal('Open Creator Registry API'),

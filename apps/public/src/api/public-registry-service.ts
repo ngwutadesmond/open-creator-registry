@@ -111,6 +111,13 @@ export function createPublicRegistryService(db: D1Database) {
     return { ...result, total, items: result.items.map(mapPublicAlias) };
   }
 
+  async function listCreatorProfiles(id: string) {
+    const creator = await creators.findPublicById(id);
+    if (!creator) throw createNotFoundError('creator', id);
+    const items = await externalProfiles.listPublicByCreator(id);
+    return items.map(mapPublicExternalProfile);
+  }
+
   async function getRegistryMetadata(demonstrationData: boolean) {
     const [snapshot, latestRelease] = await Promise.all([
       registry.getSnapshot(),
@@ -163,6 +170,7 @@ export function createPublicRegistryService(db: D1Database) {
     getCreatorDetail,
     listCreatorHandles,
     listCreatorAliases,
+    listCreatorProfiles,
     getRegistryMetadata,
     listPublishedReleases,
     createSubmission,

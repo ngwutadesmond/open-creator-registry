@@ -23,6 +23,7 @@ describe('generated public OpenAPI document', () => {
       '/api/v1/creators/{creatorId}',
       '/api/v1/creators/{creatorId}/handles',
       '/api/v1/creators/{creatorId}/aliases',
+      '/api/v1/creators/{creatorId}/profiles',
       '/api/v1/registry/meta',
       '/api/v1/registry/releases',
       '/api/v1/submissions',

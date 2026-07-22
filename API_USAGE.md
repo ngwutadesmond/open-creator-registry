@@ -133,6 +133,7 @@ curl --get 'http://localhost:5173/api/v1/creators' \
 curl 'http://localhost:5173/api/v1/creators/10000000-0000-4000-8000-000000000001'
 curl 'http://localhost:5173/api/v1/creators/10000000-0000-4000-8000-000000000001/handles'
 curl 'http://localhost:5173/api/v1/creators/10000000-0000-4000-8000-000000000001/aliases'
+curl 'http://localhost:5173/api/v1/creators/10000000-0000-4000-8000-000000000001/profiles'
 ```
 
 Paginated responses include `page`, `limit`, `total`, `total_pages`, `has_next_page`, and
@@ -289,6 +290,10 @@ $result = $response->json('data');
 public reviewed associations only and contain platform, optional account ID/handle/name/URL,
 verification status, primary flag, and last-confirmed time. Source-linked associations are not
 identity or account-control proof. Connector configuration and private provenance are never public.
+
+`GET /api/v1/creators/{creatorId}/profiles` returns the same public-only external-profile policy as
+the detail response without exposing creator sources, private profiles, suppressed associations, or
+administration metadata.
 
 ## Caching and rate limits
 

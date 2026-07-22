@@ -27,7 +27,10 @@ await check(
 const creators = await check('public creator browse', `${publicUrl}/api/v1/creators?limit=1`);
 const creatorsBody = await creators.json();
 const creatorId = creatorsBody?.data?.[0]?.id;
-if (creatorId) await check('public creator detail', `${publicUrl}/api/v1/creators/${creatorId}`);
+if (creatorId) {
+  await check('public creator detail', `${publicUrl}/api/v1/creators/${creatorId}`);
+  await check('public creator profiles', `${publicUrl}/api/v1/creators/${creatorId}/profiles`);
+}
 await check('public OpenAPI', `${publicUrl}/openapi.json`);
 await check('public documentation', `${publicUrl}/docs`);
 await check('public 404', `${publicUrl}/api/v1/not-a-route`, {}, [404]);
