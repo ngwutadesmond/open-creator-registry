@@ -2,6 +2,7 @@ import { env } from 'cloudflare:workers';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createWikidataFixtureFetch } from '@open-creator-registry/ingestion/fixtures';
+import { defaultConnectorContext } from '@open-creator-registry/ingestion/contracts';
 import { createIngestionOrchestrator } from '@open-creator-registry/ingestion/orchestrator';
 import { createDefaultConnectorRegistry } from '@open-creator-registry/ingestion/registry';
 import { runScheduledIngestion } from '@open-creator-registry/ingestion/scheduled';
@@ -17,6 +18,7 @@ import { clearDatabase, createTestCreator } from './test-utils';
 beforeEach(clearDatabase);
 
 const connectorContext = {
+  ...defaultConnectorContext,
   fetch: createWikidataFixtureFetch(),
   now: () => new Date().toISOString(),
   sleep: () => Promise.resolve(),

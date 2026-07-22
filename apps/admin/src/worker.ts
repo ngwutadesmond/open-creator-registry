@@ -28,6 +28,7 @@ export default {
       connectorContext:
         env.WIKIDATA_FIXTURE_MODE === 'enabled'
           ? {
+              ...defaultConnectorContext,
               fetch: createWikidataFixtureFetch(),
               now: () => new Date().toISOString(),
               sleep: () => Promise.resolve(),

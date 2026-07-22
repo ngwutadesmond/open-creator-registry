@@ -27,6 +27,13 @@ after its first public release.
   deployment, secret creation, Access configuration, Cron creation, or external connector request.
   Gate B staging requires separate owner approval; production remains a later gate.
 
+### Phase 7 Gate A fixed
+
+- Replaced the Wikidata connector's opaque native timeout signal with an explicitly cancellable
+  request timer and caller-abort forwarding that are cleaned up after every attempt. Deterministic
+  fake-timer tests now cover bounded timeout errors, explicit cancellation without retry, and timer
+  and listener cleanup after success and failure.
+
 ### Phase 7 Gate A verified
 
 - A clean local reset applied all five migrations, produced 21 tables and 86 indexes with no
@@ -35,9 +42,9 @@ after its first public release.
 - Formatting, zero-warning ESLint, strict all-workspace TypeScript, generated Worker bindings,
   staging/production configuration validation, both OpenAPI documents, both production builds,
   bundle boundary/secret inspection, and the production dependency audit pass.
-- The aggregate suite passes 160 tests: 57 unit, 23 frontend, 30 real D1, 31 public API, and 19
+- The aggregate suite passes 162 tests: 59 unit, 23 frontend, 30 real D1, 31 public API, and 19
   administration API tests. Focused coverage additionally confirms 10 Cloudflare Access JWT cases,
-  eight ingestion cases, the scheduled-handler scenario, and 14 Chromium workflows.
+  10 ingestion cases, the scheduled-handler scenario, and 14 Chromium workflows.
 - Browser inspection covered 18 public/private surfaces at 1536×1024, 1280×800, 1024×768,
   768×1024, 390×844, and 320×844 (108 rendered checks) with no page-level overflow, render alert,
   console/request/CSP error, clipped control, or unlabelled application table scroller. The audit

@@ -56,6 +56,7 @@ export type SourceConnectorContext = {
   fetch: typeof fetch;
   now(): string;
   sleep(milliseconds: number, signal?: AbortSignal): Promise<void>;
+  scheduleTimeout(callback: () => void, milliseconds: number): () => void;
   random(): number;
   userAgent?: string;
   signal?: AbortSignal;
@@ -123,16 +124,22 @@ export const defaultConnectorContext: SourceConnectorContext = {
   now: () => new Date().toISOString(),
   sleep: async (milliseconds, signal) => {
     await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(resolve, milliseconds);
-      signal?.addEventListener(
-        'abort',
-        () => {
-          clearTimeout(timeout);
-          reject(new DOMException('The operation was aborted.', 'AbortError'));
-        },
-        { once: true },
-      );
+      const onAbort = () => {
+        clearTimeout(timeout);
+        signal?.removeEventListener('abort', onAbort);
+        reject(new DOMException('The operation was aborted.', 'AbortError'));
+      };
+      const timeout = setTimeout(() => {
+        signal?.removeEventListener('abort', onAbort);
+        resolve();
+      }, milliseconds);
+      if (signal?.aborted) onAbort();
+      else signal?.addEventListener('abort', onAbort, { once: true });
     });
+  },
+  scheduleTimeout: (callback, milliseconds) => {
+    const timeout = setTimeout(callback, milliseconds);
+    return () => clearTimeout(timeout);
   },
   random: Math.random,
   userAgent: 'OpenCreatorRegistry/0.1 (local-development; connector disabled by default)',

@@ -1,8 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { SourceConfiguration } from '@open-creator-registry/database/models';
 
 import { createWikidataFixtureFetch, wikidataFixture } from './fixtures';
+import { defaultConnectorContext } from './contracts';
 import { SourceConnectorRegistry } from './registry';
 import { buildWikidataQuery, wikidataConnector } from './wikidata';
 
@@ -35,12 +36,42 @@ const configuration: SourceConfiguration = {
 
 function context(fetchImplementation: typeof fetch = createWikidataFixtureFetch()) {
   return {
+    ...defaultConnectorContext,
     fetch: fetchImplementation,
     now: () => '2026-07-21T00:00:00.000Z',
     sleep: vi.fn(() => Promise.resolve()),
     random: () => 0,
   };
 }
+
+function createBlockedFetch() {
+  const signals: AbortSignal[] = [];
+  const fetchImplementation = vi.fn<typeof fetch>(
+    (request) =>
+      new Promise<Response>((_resolve, reject) => {
+        const signal = request instanceof Request ? request.signal : undefined;
+        if (!signal) {
+          reject(new Error('Expected an abortable Request.'));
+          return;
+        }
+        signals.push(signal);
+        const rejectAbort = () =>
+          reject(
+            signal.reason instanceof Error
+              ? signal.reason
+              : new DOMException('The operation was aborted.', 'AbortError'),
+          );
+        if (signal.aborted) rejectAbort();
+        else signal.addEventListener('abort', rejectAbort, { once: true });
+      }),
+  );
+  return { fetchImplementation, signals };
+}
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 describe('connector registry', () => {
   it('registers one connector and rejects duplicates and unknown names', () => {
@@ -184,36 +215,82 @@ describe('Wikidata connector', () => {
     expect(permanentFetch).toHaveBeenCalledOnce();
   });
 
-  it('bounds timeouts and propagates an explicit abort', async () => {
-    const blockedFetch: typeof fetch = (request) =>
-      new Promise<Response>((_resolve, reject) => {
-        const signal = request instanceof Request ? request.signal : undefined;
-        if (signal?.aborted) {
-          reject(new DOMException('Aborted', 'AbortError'));
-          return;
-        }
-        signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), {
-          once: true,
-        });
-      });
-    await expect(
-      wikidataConnector.fetchPage({
-        configuration: { ...configuration, timeoutMs: 100, retryCount: 0 },
-        checkpoint: null,
-        pageSize: 10,
-        context: context(blockedFetch),
-      }),
-    ).rejects.toMatchObject({ code: 'SOURCE_TIMEOUT' });
+  it('aborts a blocked request at the configured timeout without using wall-clock time', async () => {
+    vi.useFakeTimers();
+    const blocked = createBlockedFetch();
+    const request = wikidataConnector.fetchPage({
+      configuration: { ...configuration, timeoutMs: 100, retryCount: 0 },
+      checkpoint: null,
+      pageSize: 10,
+      context: context(blocked.fetchImplementation),
+    });
+    const rejection = expect(request).rejects.toMatchObject({
+      name: 'IngestionError',
+      code: 'SOURCE_TIMEOUT',
+      message: 'The source request timed out.',
+    });
 
+    expect(blocked.fetchImplementation).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(1);
+    await vi.advanceTimersByTimeAsync(100);
+    await rejection;
+
+    expect(blocked.signals).toHaveLength(1);
+    expect(blocked.signals[0]).toMatchObject({ aborted: true });
+    expect(blocked.signals[0]?.reason).toMatchObject({ name: 'TimeoutError' });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('propagates caller cancellation, removes its listener, and does not retry', async () => {
+    vi.useFakeTimers();
+    const blocked = createBlockedFetch();
     const controller = new AbortController();
+    const addEventListener = vi.spyOn(controller.signal, 'addEventListener');
+    const removeEventListener = vi.spyOn(controller.signal, 'removeEventListener');
+    const request = wikidataConnector.fetchPage({
+      configuration: { ...configuration, retryCount: 2 },
+      checkpoint: null,
+      pageSize: 10,
+      context: { ...context(blocked.fetchImplementation), signal: controller.signal },
+    });
+    const rejection = expect(request).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(blocked.fetchImplementation).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(1);
     controller.abort();
+    await rejection;
+
+    expect(blocked.fetchImplementation).toHaveBeenCalledOnce();
+    expect(addEventListener).toHaveBeenCalledWith('abort', expect.any(Function), { once: true });
+    expect(removeEventListener).toHaveBeenCalledWith('abort', expect.any(Function));
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('cancels request timeouts and abort listeners after success and fetch errors', async () => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    const addEventListener = vi.spyOn(controller.signal, 'addEventListener');
+    const removeEventListener = vi.spyOn(controller.signal, 'removeEventListener');
+    await wikidataConnector.fetchPage({
+      configuration,
+      checkpoint: null,
+      pageSize: 10,
+      context: { ...context(), signal: controller.signal },
+    });
+    expect(addEventListener).toHaveBeenCalledWith('abort', expect.any(Function), { once: true });
+    expect(removeEventListener).toHaveBeenCalledWith('abort', expect.any(Function));
+    expect(vi.getTimerCount()).toBe(0);
+
+    const failedFetch = vi.fn<typeof fetch>(() => Promise.reject(new TypeError('network failure')));
     await expect(
       wikidataConnector.fetchPage({
-        configuration,
+        configuration: { ...configuration, retryCount: 0 },
         checkpoint: null,
         pageSize: 10,
-        context: { ...context(blockedFetch), signal: controller.signal },
+        context: context(failedFetch),
       }),
-    ).rejects.toMatchObject({ name: 'AbortError' });
+    ).rejects.toMatchObject({ code: 'SOURCE_NETWORK_ERROR' });
+    expect(failedFetch).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

@@ -324,6 +324,7 @@ function externalProfileInput(
 function connectorContext(context: Context<AdminAppEnv>) {
   return context.env.WIKIDATA_FIXTURE_MODE === 'enabled'
     ? {
+        ...defaultConnectorContext,
         fetch: createWikidataFixtureFetch(),
         now: () => metadataTimestamp(context),
         sleep: () => Promise.resolve(),

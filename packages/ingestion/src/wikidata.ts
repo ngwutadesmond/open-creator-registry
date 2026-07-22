@@ -182,27 +182,42 @@ async function fetchWithRetry(input: {
 }): Promise<{ response: Response; retryCount: number }> {
   let retries = 0;
   for (;;) {
-    const timeout = AbortSignal.timeout(input.timeoutMs);
-    const signal = input.context.signal
-      ? AbortSignal.any([timeout, input.context.signal])
-      : timeout;
+    const requestController = new AbortController();
+    const callerSignal = input.context.signal;
+    let timedOut = false;
+    const abortFromCaller = () =>
+      requestController.abort(
+        callerSignal?.reason ?? new DOMException('The operation was aborted.', 'AbortError'),
+      );
+    if (callerSignal?.aborted) abortFromCaller();
+    else callerSignal?.addEventListener('abort', abortFromCaller, { once: true });
+    const cancelTimeout = input.context.scheduleTimeout(() => {
+      timedOut = true;
+      requestController.abort(new DOMException('The source request timed out.', 'TimeoutError'));
+    }, input.timeoutMs);
+
+    let outcome: { response: Response } | { error: unknown };
     try {
-      const response = await input.context.fetch(new Request(input.request, { signal }));
-      const retryable = response.status === 429 || response.status >= 500;
-      if (!retryable || retries >= input.retryCount) return { response, retryCount: retries };
-      const retryAfter = parseRetryAfter(response.headers.get('retry-after'), input.context.now());
-      const exponential = Math.min(5000, 250 * 2 ** retries);
-      const jitter = Math.floor(input.context.random() * 100);
-      retries += 1;
-      await input.context.sleep(retryAfter ?? exponential + jitter, input.context.signal);
+      outcome = {
+        response: await input.context.fetch(
+          new Request(input.request, { signal: requestController.signal }),
+        ),
+      };
     } catch (error) {
-      if (input.context.signal?.aborted) throw error;
-      if (timeout.aborted) {
+      outcome = { error };
+    } finally {
+      cancelTimeout();
+      callerSignal?.removeEventListener('abort', abortFromCaller);
+    }
+
+    if ('error' in outcome) {
+      if (callerSignal?.aborted && !timedOut) throw outcome.error;
+      if (timedOut) {
         if (retries >= input.retryCount) {
           throw new IngestionError('SOURCE_TIMEOUT', 'The source request timed out.', true);
         }
         retries += 1;
-        await input.context.sleep(Math.min(5000, 250 * 2 ** (retries - 1)), input.context.signal);
+        await input.context.sleep(Math.min(5000, 250 * 2 ** (retries - 1)), callerSignal);
         continue;
       }
       if (retries >= input.retryCount) {
@@ -210,8 +225,18 @@ async function fetchWithRetry(input: {
       }
       const delay = Math.min(5000, 250 * 2 ** retries) + Math.floor(input.context.random() * 100);
       retries += 1;
-      await input.context.sleep(delay, input.context.signal);
+      await input.context.sleep(delay, callerSignal);
+      continue;
     }
+
+    const { response } = outcome;
+    const retryable = response.status === 429 || response.status >= 500;
+    if (!retryable || retries >= input.retryCount) return { response, retryCount: retries };
+    const retryAfter = parseRetryAfter(response.headers.get('retry-after'), input.context.now());
+    const exponential = Math.min(5000, 250 * 2 ** retries);
+    const jitter = Math.floor(input.context.random() * 100);
+    retries += 1;
+    await input.context.sleep(retryAfter ?? exponential + jitter, callerSignal);
   }
 }
 
