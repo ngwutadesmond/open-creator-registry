@@ -2,31 +2,38 @@ import { spawn } from 'node:child_process';
 
 import {
   argument,
-  environmentManifest,
+  readJsonManifest,
   repositoryRoot,
   requireChoice,
   supportedEnvironments,
 } from './configuration.mjs';
+import { createDeploymentPlan, validateDeploymentManifest } from './deployment-configuration.mjs';
 
 const actions = ['list-migrations', 'apply-migrations', 'validate', 'inspect', 'seed-staging'];
 const action = requireChoice(argument('action'), actions, 'action');
 const environment = requireChoice(argument('environment'), supportedEnvironments, 'environment');
-const manifest = await environmentManifest(environment);
-const database = manifest.public.database;
+const plan = createDeploymentPlan({
+  repositoryRoot,
+  environment,
+  target: 'public',
+  phase: 'deploy',
+  dryRun: false,
+});
+const manifest = await readJsonManifest(plan.sourceManifestPath);
+validateDeploymentManifest({
+  manifest,
+  manifestPath: plan.sourceManifestPath,
+  environment,
+  target: 'public',
+});
+const database = manifest.d1_databases.find((binding) => binding.binding === 'DB');
 const confirmation = argument('confirm');
-
-if (String(database.database_id).includes('REPLACE_WITH_')) {
-  throw new Error('The remote D1 database ID has not been recorded in both Worker configurations.');
-}
-if (manifest.public.database.database_id !== manifest.admin.database.database_id) {
-  throw new Error('Public and admin Workers do not reference the same environment D1 database.');
-}
 
 function run(args) {
   return new Promise((resolve, reject) => {
     const child = spawn('npx', ['wrangler', ...args], {
       cwd: repositoryRoot,
-      env: process.env,
+      env: { ...process.env, WRANGLER_WRITE_LOGS: 'false' },
       stdio: 'inherit',
       shell: false,
     });
@@ -37,18 +44,11 @@ function run(args) {
   });
 }
 
-const common = [
-  database.database_name,
-  '--remote',
-  '--config',
-  manifest.public.configPath,
-  '--env',
-  environment,
-];
+const common = [database.database_name, '--remote', '--config', plan.sourceManifestPath];
 
 console.log(`Environment: ${environment}`);
 console.log(`Database name: ${database.database_name}`);
-console.log(`Database ID: ${database.database_id}`);
+console.log(`Manifest: ${plan.sourceManifestPath}`);
 
 if (action === 'list-migrations') {
   await run(['d1', 'migrations', 'list', ...common]);
@@ -74,7 +74,18 @@ if (action === 'list-migrations') {
       'execute',
       ...common,
       '--command',
-      "SELECT name FROM sqlite_schema WHERE type = 'table' ORDER BY name; PRAGMA foreign_key_check; SELECT name FROM d1_migrations ORDER BY id; SELECT COUNT(*) AS source_configuration_count FROM source_configurations;",
+      `SELECT COUNT(*) AS table_count FROM sqlite_schema
+       WHERE type = 'table' AND name NOT LIKE '_cf_%'
+         AND name NOT IN ('d1_migrations', 'sqlite_sequence');
+       SELECT COUNT(*) AS index_count FROM sqlite_schema WHERE type = 'index';
+       PRAGMA foreign_key_check;
+       SELECT name FROM d1_migrations ORDER BY id;
+       SELECT COUNT(*) AS source_configuration_count FROM source_configurations;
+       SELECT
+         (SELECT COUNT(*) FROM creator_entities) AS creator_count,
+         (SELECT COUNT(*) FROM reserved_handles) AS reserved_handle_count,
+         (SELECT COUNT(*) FROM registry_releases) AS release_count,
+         (SELECT COUNT(*) FROM public_submissions) AS submission_count;`,
     ]);
   }
 }

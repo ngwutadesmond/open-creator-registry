@@ -5,6 +5,17 @@ after its first public release.
 
 ## Unreleased
 
+### Phase 7 Gate B validation fixed
+
+- Split Cloudflare validation into account-neutral structural, public deployment, default-deny
+  administration bootstrap, and complete administration final modes without weakening Worker/D1,
+  rate-limit, assets, observability, Cron, Wikidata, or authentication checks.
+- Materialize exactly one account-specific target/phase into an ignored mode-`0600` manifest;
+  tracked Wrangler templates remain unchanged, and dry-run/real deployment select the same
+  validated manifest and exact Worker/D1 boundary.
+- Added 24 deterministic deployment-tooling tests and separate public/admin bootstrap/admin final
+  commands. The manual workflow now deploys one typed target/phase per exact confirmation.
+
 ### Phase 7 Gate A added
 
 - Separate local, staging, and production Wrangler environments for public/admin Workers with

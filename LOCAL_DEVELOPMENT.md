@@ -86,6 +86,17 @@ Guarded remote D1 commands are reserved for separately approved staging/producti
 add a real database ID, log in to Cloudflare, or run them during local development or Gate A. See
 `DEPLOYMENT.md`; normal local work continues to use only the commands above.
 
+Account-neutral deployment structure can be checked without credentials:
+
+```bash
+npm run cloudflare:config:staging
+npm run test:deployment
+```
+
+Structural output intentionally reports placeholders and `deployment_ready: false`. Target
+materialization writes only ignored `.generated/cloudflare` manifests and belongs to an approved
+remote gate, not ordinary local development.
+
 ## Fixture-backed Wikidata ingestion
 
 Normal tests never use the network. To exercise the deterministic fixture, edit only the ignored

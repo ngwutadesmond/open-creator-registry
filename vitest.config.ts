@@ -12,6 +12,10 @@ export default defineConfig({
       'apps/admin/**/*.integration.test.ts',
       'packages/database/**/*.integration.test.ts',
     ],
-    include: ['apps/**/*.test.{ts,tsx}', 'packages/**/*.test.ts'],
+    include: [
+      'apps/**/*.test.{ts,tsx}',
+      'packages/**/*.test.ts',
+      'scripts/cloudflare/**/*.test.mjs',
+    ],
   },
 });

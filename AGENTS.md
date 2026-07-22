@@ -41,13 +41,17 @@ npm run db:inspect:local
 npm run ingestion:serve:local
 npm run ingestion:trigger:local
 npm run test:openapi
+npm run test:deployment
 npm run cloudflare:config:gate-a
+npm run cloudflare:config:staging
 npm run cloudflare:seed:render
 ```
 
 Database and seed commands are local-only and documented in `LOCAL_DEVELOPMENT.md` and `DATABASE.md`.
 Playwright is local-only and documented in `LOCAL_DEVELOPMENT.md`. Remote deployment/migration
 commands are operator-only, prohibited during Gate A, and documented in `DEPLOYMENT.md`.
+Tracked Wrangler files are account-neutral templates. Remote gates materialize one target-specific
+manifest under ignored `.generated/cloudflare`; never write account values into a tracked template.
 
 ## Conventions
 

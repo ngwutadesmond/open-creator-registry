@@ -9,7 +9,7 @@ To inspect a bookmark without changing data, run from the repository root:
 
 ```bash
 WRANGLER_WRITE_LOGS=false npx wrangler d1 time-travel info DATABASE_NAME \
-  --config apps/public/wrangler.jsonc --env ENVIRONMENT
+  --config .generated/cloudflare/ENVIRONMENT/public/deploy/wrangler.json
 ```
 
 Expected output identifies the current bookmark and a possible restore command. Do not restore
@@ -21,7 +21,8 @@ the exact environment/database/bookmark, and a second-person readback:
 
 ```bash
 WRANGLER_WRITE_LOGS=false npx wrangler d1 time-travel restore DATABASE_NAME \
-  --bookmark BOOKMARK --config apps/public/wrangler.jsonc --env ENVIRONMENT
+  --bookmark BOOKMARK \
+  --config .generated/cloudflare/ENVIRONMENT/public/deploy/wrangler.json
 ```
 
 Read Wrangler's destructive prompt and confirm only after recording the pre-restore bookmark.

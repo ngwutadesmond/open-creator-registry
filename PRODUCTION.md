@@ -8,12 +8,13 @@ Required evidence includes the accepted staging commit/version, complete local a
 current recovery bookmark, reviewed diff/config/secrets, least-privilege Access policies, change
 window, rollback owner, incident contact, and confirmation that no demonstration seed will run.
 
-Create production D1 separately, record its UUID outside Git in both production Worker configs,
-validate placeholders, list migrations, record Time Travel, apply with the guarded production
-confirmation, validate schema, then deploy the public Worker followed by the Access-protected admin
-Worker. Never seed production. Production records must be sourced from reviewed administrative
-entry/import processes and remain subject to provenance, privacy, audit, approval, dispute, and
-release policies.
+Create production D1 separately and record its UUID outside Git. Never write it into tracked Worker
+templates. Materialize and validate the ignored public production manifest, list migrations, record
+Time Travel, apply with the guarded production confirmation, validate schema, then deploy the
+public Worker. Materialize the separate admin bootstrap/final manifests and deploy the
+Access-protected admin Worker through the same staged lifecycle used in staging. Never seed
+production. Production records must be sourced from reviewed administrative entry/import processes
+and remain subject to provenance, privacy, audit, approval, dispute, and release policies.
 
 Keep Cron empty for the initial release. Enable no connector until source licensing, contact user
 agent, scope, dry-run results, alerting, lease recovery, rate limits, and an operator are approved.

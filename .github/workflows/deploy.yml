@@ -10,8 +10,23 @@ on:
         options:
           - staging
           - production
+      target:
+        description: Deploy exactly one Worker.
+        required: true
+        type: choice
+        options:
+          - public
+          - admin
+      phase:
+        description: Public requires deploy; admin bootstrap remains default-deny and final requires Access.
+        required: true
+        type: choice
+        options:
+          - deploy
+          - bootstrap
+          - final
       confirmation:
-        description: Enter deploy-staging or deploy-production.
+        description: Enter deploy-ENVIRONMENT-TARGET-PHASE exactly.
         required: true
         type: string
 
@@ -20,7 +35,12 @@ permissions:
 
 jobs:
   deploy:
-    if: ${{ inputs.confirmation == format('deploy-{0}', inputs.environment) }}
+    if: >-
+      ${{
+        inputs.confirmation == format('deploy-{0}-{1}-{2}', inputs.environment, inputs.target, inputs.phase) &&
+        ((inputs.target == 'public' && inputs.phase == 'deploy') ||
+         (inputs.target == 'admin' && inputs.phase != 'deploy'))
+      }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
@@ -34,17 +54,30 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test
-      - name: Materialize protected deployment configuration
-        run: npm run cloudflare:config:materialize -- --environment ${{ inputs.environment }}
+      - run: npm run cloudflare:config:${{ inputs.environment }}
+      - name: Materialize one protected deployment configuration
+        run: >-
+          npm run cloudflare:config:materialize --
+          --environment ${{ inputs.environment }}
+          --target ${{ inputs.target }}
+          --phase ${{ inputs.phase }}
         env:
           OCR_D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
           OCR_ACCOUNT_SUBDOMAIN: ${{ vars.ACCOUNT_SUBDOMAIN }}
           OCR_ACCESS_TEAM_NAME: ${{ vars.CLOUDFLARE_ACCESS_TEAM_NAME }}
           OCR_ACCESS_AUD: ${{ secrets.CLOUDFLARE_ACCESS_AUD }}
           OCR_PROJECT_CONTACT_URL: ${{ vars.PROJECT_CONTACT_URL }}
-      - run: npm run cloudflare:config:${{ inputs.environment }}
-      - run: npm run deploy:public:${{ inputs.environment }}
-      - run: npm run deploy:admin:${{ inputs.environment }}
+          OCR_ADMIN_ALLOWED_EMAILS_CONFIGURED: ${{ secrets.ADMIN_ALLOWED_EMAILS != '' }}
+          OCR_ADMIN_ROLE_MAPPINGS_CONFIGURED: ${{ secrets.ADMIN_ROLE_MAPPINGS != '' }}
+      - name: Validate and deploy exactly one Worker
+        run: >-
+          node scripts/cloudflare/deploy.mjs
+          --application ${{ inputs.target }}
+          --environment ${{ inputs.environment }}
+          --phase ${{ inputs.phase }}
+        env:
+          OCR_ADMIN_ALLOWED_EMAILS_CONFIGURED: ${{ secrets.ADMIN_ALLOWED_EMAILS != '' }}
+          OCR_ADMIN_ROLE_MAPPINGS_CONFIGURED: ${{ secrets.ADMIN_ROLE_MAPPINGS != '' }}
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

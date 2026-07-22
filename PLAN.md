@@ -109,9 +109,10 @@ Status: Complete and quality-gate reviewed on 2026-07-21.
 
 ## Phase 7 — deployment, automation, security, and final QA
 
-Status: Gate A local preparation and quality gate completed on 2026-07-22. No Cloudflare
-authentication, remote resource, migration, Access application, secret, Cron Trigger, or deployment
-was created. Gate B staging requires separate owner approval.
+Status: Gate A local preparation and its deterministic CI correction completed on 2026-07-22. Gate
+B is approved for staging only. Its validation-sequencing correction is implemented and locally
+validated before any Wrangler authentication or remote resource action; staging provisioning must
+still wait for the correction commit, push, and green CI.
 
 - Finalize separate Worker configurations that share one D1 binding.
 - Add least-privilege GitHub Actions deployment workflows and Dependabot.
@@ -122,7 +123,10 @@ was created. Gate B staging requires separate owner approval.
 - Perform real deployments only when the owner supplies/authenticates the required Cloudflare
   account; never claim an unperformed deployment.
 - Commit Gate A as `feat: prepare cloudflare deployment and production security`.
-- Stop after Gate A; staging and production operations are later approval gates.
+- Validate Gate B through structural, public-ready, default-deny admin bootstrap, and complete admin
+  final phases using ignored target-specific manifests.
+- Provision and accept staging only after the sequencing correction is committed, pushed, and green.
+- Stop after Gate B; production is a later approval gate.
 
 ## Cross-phase quality gate
 

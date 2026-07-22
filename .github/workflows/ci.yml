@@ -21,6 +21,7 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test
+      - run: npm run test:deployment
       - run: npm run test:openapi
       - run: npm run db:reset:local
       - run: npm run db:validate

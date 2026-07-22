@@ -22,13 +22,18 @@ After the staging admin Worker has a URL, an authorised operator must:
    is intentionally not an application administrator.
 7. Create the application, open **Additional settings**, and copy its Application Audience (AUD)
    tag. Record the team domain and AUD outside Git.
-8. Replace the staging team-domain/AUD placeholders in the local admin Wrangler config. Upload
-   `ADMIN_ALLOWED_EMAILS` and `ADMIN_ROLE_MAPPINGS` as Worker secrets.
+8. Keep the tracked template unchanged. Materialize the team-domain/AUD into the ignored admin
+   final manifest and upload `ADMIN_ALLOWED_EMAILS` and `ADMIN_ROLE_MAPPINGS` as Worker secrets.
 9. Deploy/redeploy the admin Worker, then verify an unauthenticated request is denied by Access and
    an allowed human session reaches the Worker.
 
 Repeat with a distinct Access application, audience, policies, and administrator review for
 production. Never reuse the staging AUD.
+
+The initial admin bootstrap deployment intentionally has empty team-domain/audience values. The
+Worker keeps `AUTH_PROVIDER=cloudflare_access`, has no local/header fallback, and fails closed until
+the final manifest and secrets are configured. Bootstrap establishes the hostname only; it is not
+an authenticated staging acceptance state.
 
 ## Secret formats
 

@@ -79,8 +79,11 @@ coordinate a fix and disclosure window, and credit the reporter when requested a
 - Use `npm ci` from the committed lockfile in automation and run `npm audit --omit=dev` before a
   release.
 - Configure a real `ALLOWED_ORIGINS` list for each deployed public environment.
-- Configure Cloudflare TLS, Access, log retention/alerts, and D1 recovery during later remote gates.
-  Gate A configuration is deployment-ready but is not evidence that any remote control is active.
+- Configure Cloudflare TLS, Access, log retention/alerts, and D1 recovery during approved remote
+  gates. Structural validation permits known account-neutral placeholders and is not deployment
+  approval. Public readiness is independent of admin Access. Admin bootstrap keeps
+  `cloudflare_access` with empty Access values and fails closed; final readiness requires complete
+  Access configuration and administrator secret presence.
 - Registry downtime must not grant a suspicious handle. Consuming platforms need a bounded cache,
   a critical-name fallback, and manual review behavior.
 

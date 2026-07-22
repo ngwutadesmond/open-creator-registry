@@ -16,6 +16,9 @@ reserve handles, or publish releases.
 Phase 7 Gate A adds local-only deployment preparation: isolated staging/production configuration,
 Access JWT validation, rate-limit bindings, self-hosted API documentation assets, observability,
 guarded migration/deployment/smoke tooling, CI, and operator runbooks. It creates no remote resource.
+The Gate B sequencing correction adds structural, public-ready, admin-bootstrap, and admin-final
+validation so account-neutral templates can be retained and each staging target can be
+materialized and deployed independently.
 
 ## Applications
 
@@ -53,7 +56,9 @@ The public application runs at `http://localhost:5173`; the authenticated local 
 Phases 1–6 and Phase 7 Gate A run locally against clearly labelled demonstration D1 data.
 Production-like administration authentication fails closed and can validate configured Cloudflare
 Access assertions, but no remote D1, Access application, secret, deployment, source connector, or
-schedule has been configured. Do not use this version as a production registry service. Begin with
+schedule had been configured when the Gate B sequencing correction was prepared. Structural
+validation is not deployment readiness. Do not use this version as a production registry service.
+Begin with
 [DEPLOYMENT.md](./DEPLOYMENT.md),
 [CLOUDFLARE_RESOURCE_MANIFEST.md](./CLOUDFLARE_RESOURCE_MANIFEST.md), and
 [ADMIN_AUTHENTICATION.md](./ADMIN_AUTHENTICATION.md).

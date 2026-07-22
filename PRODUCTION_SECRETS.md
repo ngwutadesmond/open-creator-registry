@@ -9,7 +9,8 @@ the approved operator/CI secret manager.
 Both staging and production require committed, reviewed values for `ENVIRONMENT`, `WORKER_NAME`,
 `ALLOWED_ORIGINS`, `APPLICATION_URL`, and `API_DOCUMENTATION_SERVER`. They also require the `DB`,
 `ASSETS`, `PUBLIC_HANDLE_CHECK_RATE_LIMITER`, `PUBLIC_BATCH_CHECK_RATE_LIMITER`, and
-`PUBLIC_SUBMISSION_RATE_LIMITER` bindings. The D1 UUID is configuration-sensitive and uncommitted.
+`PUBLIC_SUBMISSION_RATE_LIMITER` bindings. The D1 UUID is configuration-sensitive and materialized
+only into an ignored target manifest.
 The public Worker has no application secret.
 
 ## Administration Worker variables
@@ -28,6 +29,11 @@ The admin Worker secrets are:
 Set them interactively with `wrangler secret put` as shown in `DEPLOYMENT.md`. Never use `--var` for
 these values.
 
+Admin bootstrap contains neither secret and keeps Access team/audience empty, so it remains
+default-deny. Final readiness uses `OCR_ADMIN_ALLOWED_EMAILS_CONFIGURED=true` and
+`OCR_ADMIN_ROLE_MAPPINGS_CONFIGURED=true` only as non-secret operator attestations after
+`wrangler secret list` confirms both names. The flags never substitute for uploading the secrets.
+
 ## Operator and CI secrets
 
 - `CLOUDFLARE_API_TOKEN`: narrowly scoped deployment token; prefer separate staging/production
@@ -42,6 +48,11 @@ these values.
   stored only in the operator shell/approved secret manager.
 - `PUBLIC_WORKER_URL` and `ADMIN_WORKER_URL`: environment URLs used by smoke scripts; not secrets,
   but still environment-owned configuration.
+
+Local materialization uses the equivalent names `OCR_D1_DATABASE_ID`, `OCR_ACCOUNT_SUBDOMAIN`,
+`OCR_PROJECT_CONTACT_URL`, `OCR_ACCESS_TEAM_NAME`, and `OCR_ACCESS_AUD`. Keep them in the current
+operator shell or approved secret manager; generated manifests stay under ignored
+`.generated/cloudflare` and use file mode `0600`.
 
 Do not create a generic `API_TOKEN`, reuse an interactive OAuth credential in CI, or grant D1,
 Workers, Access, or account permissions not required by the operation. Rotate/revoke a value after

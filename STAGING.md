@@ -5,10 +5,19 @@ Staging is the only permitted Gate B target and requires explicit owner approval
 `open-creator-registry-staging`, and binding `DB`. It must never share a D1 UUID, Access audience,
 administrator secret, or rate-limit namespace with production.
 
-Before provisioning, require a clean Gate A commit, complete local gate, approved Cloudflare
-account, recorded operator/change window, recovery plan, and reviewed placeholder replacement.
-Follow `DEPLOYMENT.md` in order. Stop if `npm run cloudflare:config:staging` does not report
-`deployable: true`.
+Before provisioning, require a clean reviewed commit, green CI, complete local gate, approved
+Cloudflare account, recorded operator/change window, and recovery plan. Follow `DEPLOYMENT.md` in
+order. `npm run cloudflare:config:staging` is structural only: it must report
+`structurally_valid: true`, known unresolved values, and `deployment_ready: false`. Stop on any
+unexpected name, binding, placeholder, production selection, enabled Cron/Wikidata, or auth mode.
+
+The staging lifecycle is: structural preflight; Wrangler login/account confirmation; D1 creation;
+ignored public-manifest materialization; migrations; public validation/dry-run/deploy; ignored admin
+bootstrap materialization; default-deny admin dry-run/deploy; Access application and secret setup;
+ignored admin final materialization; final validation/dry-run/deploy; smoke and log verification;
+optional bounded Wikidata validation. Public readiness never depends on admin Access values.
+Bootstrap readiness permits them to be empty only because application authentication remains
+default-deny. Final readiness requires them and administrator secret presence.
 
 Staging may contain only the repository's clearly labelled fictional demonstration seed or
 reviewed test records with no private personal data. Run `npm run cloudflare:seed:render` locally

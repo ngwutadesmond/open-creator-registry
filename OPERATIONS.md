@@ -17,9 +17,11 @@ commit, Worker version IDs, D1 name/UUID in the private operations record, pre-c
 bookmark, start/end time, smoke result, and rollback decision. Remote migrations and deployments
 are distinct confirmations. Do not put private identifiers in Git.
 
-The GitHub deployment workflow is manual-only, has a typed environment plus exact confirmation,
-and does not run migrations. Protect staging and production GitHub environments with reviewers.
-Production must not reuse the staging API token.
+The GitHub deployment workflow is manual-only, has typed environment/target/phase inputs plus an
+exact `deploy-ENVIRONMENT-TARGET-PHASE` confirmation, and deploys one generated manifest. Public,
+admin bootstrap, and admin final are separate workflow invocations; the workflow does not run
+migrations. Protect staging and production GitHub environments with reviewers. Production must not
+reuse the staging API token.
 
 ## Scheduled ingestion
 

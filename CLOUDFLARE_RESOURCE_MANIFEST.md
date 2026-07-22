@@ -13,6 +13,11 @@ Staging and production have separate databases. Within one environment, both Wor
 the same D1 UUID and bind it only as `DB`. D1 UUIDs and account IDs are operator records and must
 not be committed.
 
+Tracked `apps/*/wrangler.jsonc` files remain account-neutral. Runtime materialization creates one
+ignored manifest per target and admin phase under `.generated/cloudflare/ENVIRONMENT/...`. Public,
+admin bootstrap, and admin final validation/deployment select only their exact manifest and Worker;
+there is no fallback to another target or production.
+
 Each deployed Worker also declares an `ASSETS` binding and environment-specific rate-limit
 bindings. Numeric rate-limit namespace IDs are unique by environment and binding; reusing one would
 share counters. Staging and production enable Workers Logs at full head sampling for initial

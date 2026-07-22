@@ -10,6 +10,9 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     cloudflare({
+      ...(process.env.OCR_WRANGLER_CONFIG_PATH
+        ? { configPath: process.env.OCR_WRANGLER_CONFIG_PATH }
+        : {}),
       persistState: {
         path:
           mode === 'concurrent' ? '../../.wrangler/state/public-shell' : '../../.wrangler/state',

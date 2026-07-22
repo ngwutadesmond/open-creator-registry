@@ -34,6 +34,33 @@ export async function readApplicationConfig(application) {
   return { config, configPath, source };
 }
 
+export async function applicationConfigurations() {
+  const configurations = {};
+  for (const application of supportedApplications) {
+    configurations[application] = await readApplicationConfig(application);
+  }
+  return configurations;
+}
+
+export async function readJsonManifest(manifestPath) {
+  let source;
+  try {
+    source = await readFile(manifestPath, 'utf8');
+  } catch (error) {
+    if (error && typeof error === 'object' && error.code === 'ENOENT') {
+      throw new Error(`Generated deployment manifest does not exist: ${manifestPath}`, {
+        cause: error,
+      });
+    }
+    throw error;
+  }
+  const manifest = JSON.parse(source);
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+    throw new Error(`Generated deployment manifest is invalid: ${manifestPath}`);
+  }
+  return manifest;
+}
+
 export async function environmentManifest(environment) {
   const entries = {};
   for (const application of supportedApplications) {

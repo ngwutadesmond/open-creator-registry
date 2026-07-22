@@ -24,4 +24,18 @@ Use the Cloudflare dashboard **Workers & Pages → Worker → Observability** fo
 Zero Trust Access logs for authentication events. Correlate application and audit entries by
 request ID. Set retention and external Logpush only after data-classification review.
 
+During staging acceptance, run each tail separately from the repository root against the exact
+ignored manifest, exercise one health request, then stop the tail:
+
+```bash
+WRANGLER_WRITE_LOGS=false npx wrangler tail \
+  --config .generated/cloudflare/staging/public/deploy/wrangler.json
+WRANGLER_WRITE_LOGS=false npx wrangler tail \
+  --config .generated/cloudflare/staging/admin/final/wrangler.json
+```
+
+Expected events contain request ID, route, status, duration, environment, and Worker name. Stop
+acceptance if a JWT, cookie, secret, administrator mapping, private contact, SQL statement, import
+payload, or complete source response appears.
+
 See [Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/).
