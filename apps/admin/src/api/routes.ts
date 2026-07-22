@@ -31,12 +31,14 @@ import { createRegistryReleaseSnapshotRepository } from '@open-creator-registry/
 import { createReservedHandleRepository } from '@open-creator-registry/database/repositories/reserved-handle-repository';
 import { createConfusableSkeleton, normalizeHandle } from '@open-creator-registry/normalization';
 import { createWikidataFixtureFetch } from '@open-creator-registry/ingestion/fixtures';
+import { defaultConnectorContext } from '@open-creator-registry/ingestion/contracts';
 import { createIngestionOrchestrator } from '@open-creator-registry/ingestion/orchestrator';
 import { createDefaultConnectorRegistry } from '@open-creator-registry/ingestion/registry';
 
 import type { AdminAppEnv, RequestMetadataProvider } from './app-env';
 import { defaultRequestMetadataProvider } from './app-env';
 import { adminAuthenticationMiddleware, switchLocalAdministrator } from './authentication';
+import { isCloudflareAccessAuthenticationReady } from './cloudflare-access';
 import { adminAuthorizationMiddleware } from './authorization';
 import {
   AdminImportValidationError,
@@ -45,12 +47,14 @@ import {
 } from './import-service';
 import {
   adminCorsMiddleware,
+  adminRequestObservabilityMiddleware,
   adminSecurityHeadersMiddleware,
   createRequestContextMiddleware,
 } from './middleware';
 import { createAdminOpenApiDocument } from './openapi';
 import { createAdminReleaseService } from './release-service';
 import { errorEnvelope, paginationMeta, successEnvelope } from './responses';
+import { adminMutationRateLimitMiddleware } from './rate-limit';
 import {
   actionReasonSchema,
   aliasIdParamsSchema,
@@ -324,8 +328,14 @@ function connectorContext(context: Context<AdminAppEnv>) {
         now: () => metadataTimestamp(context),
         sleep: () => Promise.resolve(),
         random: () => 0,
+        userAgent: 'OpenCreatorRegistry/0.1 (deterministic-local-fixture)',
       }
-    : undefined;
+    : {
+        ...defaultConnectorContext,
+        userAgent:
+          context.env.WIKIDATA_USER_AGENT ??
+          'OpenCreatorRegistry/0.1 (unconfigured-contact; connector disabled by default)',
+      };
 }
 
 function metadataTimestamp(context: Context<AdminAppEnv>): string {
@@ -339,6 +349,7 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
   const app = new Hono<AdminAppEnv>();
 
   app.use('*', createRequestContextMiddleware(metadata));
+  app.use('*', adminRequestObservabilityMiddleware);
   app.use('*', adminSecurityHeadersMiddleware);
   app.use('/api/admin/v1/*', adminCorsMiddleware);
   app.use('/admin-openapi.json', adminCorsMiddleware);
@@ -347,6 +358,7 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
   app.use('/admin-openapi.json', adminAuthenticationMiddleware);
   app.use('/admin-docs', adminAuthenticationMiddleware);
   app.use('/api/admin/v1/*', adminAuthorizationMiddleware);
+  app.use('/api/admin/v1/*', adminMutationRateLimitMiddleware);
   app.use(
     '/api/admin/v1/*',
     bodyLimit({
@@ -390,15 +402,37 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
   });
 
   app.get('/api/admin/v1/health', async (context) => {
-    const connected = await createPublicRegistryRepository(context.env.DB).checkConnectivity();
+    const repository = createPublicRegistryRepository(context.env.DB);
+    const [connected, migrations, release, sourceConfiguration] = await Promise.all([
+      repository.checkConnectivity(),
+      repository.getMigrationCompatibility(),
+      createRegistryReleaseRepository(context.env.DB).findLatestPublished(),
+      createSourceConfigurationRepository(context.env.DB).findByName('wikidata'),
+    ]);
+    const authenticationReady =
+      context.env.ENVIRONMENT === 'local'
+        ? context.env.AUTH_PROVIDER === 'local_development'
+        : isCloudflareAccessAuthenticationReady(context.env);
+    const ready =
+      connected &&
+      migrations.status === 'compatible' &&
+      authenticationReady &&
+      Boolean(sourceConfiguration);
     return context.json(
       successEnvelope(context, {
         service: 'Open Creator Registry Administration API',
-        status: connected ? 'ok' : 'unavailable',
+        status: ready ? 'ok' : 'unavailable',
         environment: context.env.ENVIRONMENT,
         database: { status: connected ? 'connected' : 'unavailable' },
+        migrations: { status: migrations.status },
+        registry_version: release?.version ?? null,
+        authentication: { status: authenticationReady ? 'ready' : 'unavailable' },
+        scheduled_ingestion: {
+          status: sourceConfiguration ? 'ready' : 'unavailable',
+          enabled: sourceConfiguration?.scheduledEnabled ?? false,
+        },
       }),
-      connected ? 200 : 503,
+      ready ? 200 : 503,
     );
   });
 
@@ -2037,23 +2071,33 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
     return context.json(successEnvelope(context, toAdminApiValue(audit)), 200);
   });
 
-  app.get('/admin-openapi.json', (context) => context.json(createAdminOpenApiDocument(), 200));
+  app.get('/admin-openapi.json', (context) =>
+    context.json(
+      createAdminOpenApiDocument(
+        context.env.API_DOCUMENTATION_SERVER ?? new URL(context.req.url).origin,
+      ),
+      200,
+    ),
+  );
   app.get(
     '/admin-docs',
-    Scalar({
+    Scalar<AdminAppEnv>((context) => ({
       url: '/admin-openapi.json',
+      cdn: '/vendor/scalar/standalone.js',
+      nonce: context.get('cspNonce'),
       pageTitle: 'Open Creator Registry Administration API',
       theme: 'default',
       hideClientButton: true,
       hideModels: false,
       telemetry: false,
       showDeveloperTools: 'never',
+      withDefaultFonts: false,
       customCss: 'body { margin: 0; }',
-    }),
+    })),
   );
 
   app.notFound((context) => {
-    if (new URL(context.req.url).pathname.startsWith('/api/admin/'))
+    if (new URL(context.req.url).pathname.startsWith('/api/'))
       return context.json(
         errorEnvelope(
           context,
@@ -2062,7 +2106,13 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
         ),
         404,
       );
-    return context.notFound();
+    if ((context.req.method === 'GET' || context.req.method === 'HEAD') && context.env.ASSETS) {
+      return context.env.ASSETS.fetch(context.req.raw);
+    }
+    return context.json(
+      errorEnvelope(context, 'not_found', 'The requested resource does not exist.'),
+      404,
+    );
   });
 
   app.onError((error, context) => {

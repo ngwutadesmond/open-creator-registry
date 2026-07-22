@@ -1,7 +1,7 @@
 # Scheduled ingestion
 
-The admin Worker implements an awaited Cloudflare `scheduled()` handler. Phase 6 deliberately does
-not configure a production Cron Trigger. The handler selects valid source configurations having
+The admin Worker implements an awaited Cloudflare `scheduled()` handler. Gate A deliberately keeps
+local, staging, and production Cron arrays empty. The handler selects valid source configurations having
 both `enabled` and `scheduled_enabled`, runs each through the same bounded orchestrator used by
 manual actions, resumes checkpoints, enforces source locks, and isolates failures.
 
@@ -21,3 +21,7 @@ Wrangler with `Ctrl+C`.
 Scheduled runs never approve creators, merge identities, create handles, change protection tiers,
 or publish releases. Overlap returns a locked result. Expired leases can be recovered; force release
 requires super-administrator permission and an audit reason.
+
+After a separate production approval, the initial proposal is `0 3 * * 1` on the admin Worker only.
+Do not add it until observability/alerts, source licence/scope/contact, dry-run evidence, lease
+recovery, and an accountable operator are accepted. A trigger never enables a disabled source.

@@ -19,8 +19,8 @@ All Phase 3 endpoints are public and unauthenticated. Local development uses:
 http://localhost:5173
 ```
 
-No production hostname exists yet. The `registry.example.com` server in the OpenAPI document is an
-explicitly illustrative Phase 7 placeholder, not a deployed service.
+No production hostname exists yet. Gate A defines account-neutral Worker URL placeholders; the
+OpenAPI server is derived from the configured environment or current request origin.
 
 Every JSON response includes `meta.request_id` and `meta.timestamp`; the request ID is also returned
 as `X-Request-ID`. A caller may send a UUID in `X-Request-ID` for correlation. Other values are
@@ -174,8 +174,9 @@ curl 'http://localhost:5173/api/v1/submissions' \
 ```
 
 The current privacy/schema policy does not collect submitter contact information or private notes.
-Bot protection and a distributed Cloudflare-backed rate limiter must be configured in Phase 7.
-Local development intentionally uses the rate-limit interface in disabled mode.
+Gate A declares per-environment Cloudflare rate-limit bindings for submissions and handle checks;
+they are not active until deployment. Local development intentionally permits deterministic tests
+without a remote binding.
 
 ## Errors
 
@@ -296,5 +297,6 @@ registry reads permit browser caching for 60 seconds and shared caching for 300 
 batch requests, submissions, and every non-GET response use `no-store`. These short lifetimes avoid
 allowing a stale classification to outlive a newly published or disputed decision indefinitely.
 
-No production rate limit is asserted in Phase 3. Consumers should handle `429` and respect
-`Retry-After` once a real Cloudflare-backed limiter is configured in Phase 7.
+Remote configurations declare route-specific Cloudflare rate-limit bindings, but no deployed limit
+is asserted by Gate A. Consumers must handle `429`, respect `Retry-After`, and treat
+`503 rate_limit_unavailable` as a fail-closed transient error.

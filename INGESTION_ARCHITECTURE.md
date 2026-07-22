@@ -26,4 +26,6 @@ with an approved creator. No ingestion path creates creators, handles, protectio
 
 The admin Worker exports Cloudflare's `scheduled()` handler. It selects only configurations where
 both `enabled` and `scheduled_enabled` are true, awaits each bounded run, and isolates source
-failures. No production Cron Trigger is configured in Phase 6.
+failures. Gate A keeps every Cron array empty and adds structured, body-free scheduled event logs.
+The proposed later policy is one admin-only weekly trigger after explicit operational/source
+approval; source configuration still independently defaults to disabled and dry-run.

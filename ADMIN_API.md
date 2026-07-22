@@ -44,8 +44,9 @@ curl -sS http://localhost:5174/api/admin/v1/dashboard
 curl -sS 'http://localhost:5174/api/admin/v1/creators?page=1&limit=25'
 ```
 
-These work only with the local provider configured. Production callers must wait for the Phase 7
-Cloudflare Access implementation.
+These work locally only with the local provider configured. Remote callers require the complete
+Cloudflare Access application plus Worker-side JWT, allowlist, and role-mapping configuration in
+`CLOUDFLARE_ACCESS.md`; Gate A creates none of those remote resources.
 Phase 6 adds authenticated profile routes under creator/external-profile paths and private source
 configuration, ingestion preview/start, record outcome, checkpoint reset, and lock force-release
 routes. RBAC uses the centralized `external_profiles:*`, `ingestion_runs:*`,

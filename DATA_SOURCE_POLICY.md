@@ -13,3 +13,7 @@ reservation, release, or platform availability decision.
 Records remain subject to the project's correction and dispute workflow. Disputed, rejected,
 private, or suppressed profile associations are excluded from public output. Source configuration
 and ingestion administration are private and are never exposed by the public Worker.
+
+Remote Wikidata configuration remains disabled, scheduling-disabled, and dry-run by default. An
+operator must replace the placeholder contact in `WIKIDATA_USER_AGENT` before any reviewed live
+test. Gate A enables no source and makes no external connector request.

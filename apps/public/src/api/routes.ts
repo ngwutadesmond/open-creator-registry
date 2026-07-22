@@ -5,6 +5,7 @@ import type { Context } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 
 import { RegistryDatabaseError } from '@open-creator-registry/database/errors';
+import { createPublicRegistryRepository } from '@open-creator-registry/database/repositories/public-registry-repository';
 import { createRegistryReleaseRepository } from '@open-creator-registry/database/repositories/registry-release-repository';
 
 import type { PublicAppEnv, RequestMetadataProvider } from './app-env';
@@ -15,17 +16,14 @@ import {
   corsMiddleware,
   createRequestContextMiddleware,
   jsonContentTypeMiddleware,
+  requestObservabilityMiddleware,
   securityHeadersMiddleware,
 } from './middleware';
 import {
   DuplicatePublicSubmissionError,
   createPublicRegistryService,
 } from './public-registry-service';
-import {
-  disabledPublicRateLimiter,
-  createRateLimitMiddleware,
-  type PublicRateLimiter,
-} from './rate-limit';
+import { createRateLimitMiddleware, type PublicRateLimiter } from './rate-limit';
 import { errorEnvelope, paginationMeta, successEnvelope } from './responses';
 import {
   batchHandleCheckRequestSchema,
@@ -297,7 +295,7 @@ export type PublicAppDependencies = {
 
 export function createPublicApp(dependencies: PublicAppDependencies = {}) {
   const metadata = dependencies.metadata ?? defaultRequestMetadataProvider;
-  const rateLimiter = dependencies.rateLimiter ?? disabledPublicRateLimiter;
+  const rateLimiter = dependencies.rateLimiter;
   const app = new OpenAPIHono<PublicAppEnv>({
     defaultHook: (result, context) => {
       if (result.success) return;
@@ -322,6 +320,7 @@ export function createPublicApp(dependencies: PublicAppDependencies = {}) {
   };
 
   app.use('*', createRequestContextMiddleware(metadata));
+  app.use('*', requestObservabilityMiddleware);
   app.use('*', securityHeadersMiddleware);
   app.use('/api/v1/*', corsMiddleware);
   app.use('/openapi.json', corsMiddleware);
@@ -347,9 +346,10 @@ export function createPublicApp(dependencies: PublicAppDependencies = {}) {
   app.openapi(healthRoute, async (context) => {
     const service = createPublicRegistryService(context.env.DB);
     try {
-      const [connected, release] = await Promise.all([
+      const [connected, release, migrations] = await Promise.all([
         service.checkConnectivity(),
         createRegistryReleaseRepository(context.env.DB).findLatestPublished(),
+        createPublicRegistryRepository(context.env.DB).getMigrationCompatibility(),
       ]);
       context.header('Cache-Control', 'no-store');
       if (!connected) {
@@ -360,21 +360,24 @@ export function createPublicApp(dependencies: PublicAppDependencies = {}) {
             api_version: apiVersion,
             environment: context.env.ENVIRONMENT,
             database: { status: 'unavailable' as const },
+            migrations: { status: 'unavailable' as const },
             registry_version: release?.version ?? null,
           }),
           503,
         );
       }
+      const compatible = migrations.status === 'compatible';
       return context.json(
         successEnvelope(context, {
           service: serviceName,
-          status: 'ok' as const,
+          status: compatible ? ('ok' as const) : ('unavailable' as const),
           api_version: apiVersion,
           environment: context.env.ENVIRONMENT,
           database: { status: 'connected' as const },
+          migrations: { status: migrations.status },
           registry_version: release?.version ?? null,
         }),
-        200,
+        compatible ? 200 : 503,
       );
     } catch (error) {
       console.error(
@@ -395,6 +398,7 @@ export function createPublicApp(dependencies: PublicAppDependencies = {}) {
           api_version: apiVersion,
           environment: context.env.ENVIRONMENT,
           database: { status: 'unavailable' as const },
+          migrations: { status: 'unavailable' as const },
           registry_version: null,
         }),
         503,
@@ -588,18 +592,27 @@ export function createPublicApp(dependencies: PublicAppDependencies = {}) {
     },
   });
 
-  app.doc('/openapi.json', openApiConfiguration);
+  app.doc('/openapi.json', (context) => ({
+    ...openApiConfiguration,
+    servers: [
+      {
+        url: context.env.API_DOCUMENTATION_SERVER ?? new URL(context.req.url).origin,
+        description: `${context.env.ENVIRONMENT} public Worker`,
+      },
+    ],
+  }));
   app.get(
     '/docs',
     Scalar<PublicAppEnv>((context) => ({
       agent: { disabled: true },
-      cdn: 'https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.63.0',
+      cdn: '/vendor/scalar/standalone.js',
       nonce: context.get('cspNonce'),
       pageTitle: 'Open Creator Registry API',
       showDeveloperTools: 'never',
       telemetry: false,
       theme: 'default',
       url: '/openapi.json',
+      withDefaultFonts: false,
     })),
   );
 
@@ -627,6 +640,13 @@ export function createPublicApp(dependencies: PublicAppDependencies = {}) {
         errorEnvelope(context, 'method_not_allowed', 'The HTTP method is not allowed here.'),
         405,
       );
+    }
+    if (
+      !pathname.startsWith('/api/') &&
+      (context.req.method === 'GET' || context.req.method === 'HEAD') &&
+      context.env.ASSETS
+    ) {
+      return context.env.ASSETS.fetch(context.req.raw);
     }
     return context.json(
       errorEnvelope(context, 'not_found', 'The requested resource was not found.'),

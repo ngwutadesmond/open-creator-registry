@@ -24,6 +24,7 @@ describe('D1 migrations and constraints', () => {
       '0002_registry_operations.sql',
       '0003_registry_administration.sql',
       '0004_scheduled_ingestion_and_profiles.sql',
+      '0005_source_configuration_defaults.sql',
     ]);
     expect(tables.results.map((row) => row.name)).toEqual([
       'admin_approval_decisions',

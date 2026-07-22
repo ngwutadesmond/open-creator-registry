@@ -11,20 +11,15 @@ import {
 } from '@open-creator-registry/contracts/admin';
 
 import type { AdminAppEnv, AdminRuntimeBindings } from './app-env';
+import { AdminAuthenticationError } from './authentication-error';
+import { CloudflareAccessAuthenticationProvider } from './cloudflare-access';
 import { errorEnvelope } from './responses';
+import { enforceAuthenticationFailureLimit } from './rate-limit';
 
 const localAdminSlotSchema = z.enum(['primary', 'secondary']);
 export type LocalAdminSlot = z.infer<typeof localAdminSlotSchema>;
 
-export class AdminAuthenticationError extends Error {
-  constructor(
-    readonly code: 'authentication_required' | 'authentication_unavailable',
-    message: string,
-  ) {
-    super(message);
-    this.name = 'AdminAuthenticationError';
-  }
-}
+export { AdminAuthenticationError } from './authentication-error';
 
 export interface AdminAuthenticationProvider {
   authenticate(request: Request, bindings: AdminRuntimeBindings): Promise<AdminIdentity>;
@@ -92,18 +87,7 @@ export const localDevelopmentAuthenticationProvider: AdminAuthenticationProvider
   },
 };
 
-export class CloudflareAccessAuthenticationProvider implements AdminAuthenticationProvider {
-  authenticate(request: Request, bindings: AdminRuntimeBindings): Promise<AdminIdentity> {
-    void request;
-    void bindings;
-    return Promise.reject(
-      new AdminAuthenticationError(
-        'authentication_unavailable',
-        'Cloudflare Access JWT verification is not implemented until Phase 7.',
-      ),
-    );
-  }
-}
+const cloudflareAccessAuthenticationProvider = new CloudflareAccessAuthenticationProvider();
 
 export async function authenticateAdmin(
   request: Request,
@@ -113,7 +97,7 @@ export async function authenticateAdmin(
     return localDevelopmentAuthenticationProvider.authenticate(request, bindings);
   }
   if (bindings.AUTH_PROVIDER === 'cloudflare_access') {
-    return new CloudflareAccessAuthenticationProvider().authenticate(request, bindings);
+    return cloudflareAccessAuthenticationProvider.authenticate(request, bindings);
   }
   throw new AdminAuthenticationError(
     'authentication_required',
@@ -129,6 +113,8 @@ export const adminAuthenticationMiddleware = createMiddleware<AdminAppEnv>(
       await next();
     } catch (error) {
       if (error instanceof AdminAuthenticationError) {
+        const limited = await enforceAuthenticationFailureLimit(context);
+        if (limited) return limited;
         return context.json(
           errorEnvelope(context, error.code, error.message),
           error.code === 'authentication_required' ? 401 : 503,

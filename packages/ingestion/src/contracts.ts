@@ -57,6 +57,7 @@ export type SourceConnectorContext = {
   now(): string;
   sleep(milliseconds: number, signal?: AbortSignal): Promise<void>;
   random(): number;
+  userAgent?: string;
   signal?: AbortSignal;
 };
 
@@ -134,4 +135,5 @@ export const defaultConnectorContext: SourceConnectorContext = {
     });
   },
   random: Math.random,
+  userAgent: 'OpenCreatorRegistry/0.1 (local-development; connector disabled by default)',
 };

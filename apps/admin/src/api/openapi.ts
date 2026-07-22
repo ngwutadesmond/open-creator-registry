@@ -464,7 +464,7 @@ function jsonSchema(schema: z.ZodType): Record<string, unknown> {
   return z.toJSONSchema(schema, { target: 'draft-7', unrepresentable: 'any' });
 }
 
-export function createAdminOpenApiDocument() {
+export function createAdminOpenApiDocument(serverUrl = 'http://localhost:5174') {
   const paths: Record<string, Record<string, unknown>> = {};
   for (const route of routes) {
     const operation: Record<string, unknown> = {
@@ -496,17 +496,19 @@ export function createAdminOpenApiDocument() {
       title: 'Open Creator Registry Administration API',
       version: '1.0.0',
       description:
-        'Private API. Local development uses two configured identities. Production remains default-deny until Phase 7 implements cryptographic Cloudflare Access JWT verification. Critical changes require a different authorised approver before protected handles or registry releases can become live. Imports are limited to 500 records and 256 KiB. Every response includes a request ID.',
+        'Private API. Local development uses two configured identities. Staging and production require a cryptographically validated Cloudflare Access JWT plus server-side email allowlisting and role mapping. Critical changes require a different authorised approver before protected handles or registry releases can become live. Imports are limited to 500 records and 256 KiB. Every response includes a request ID.',
     },
-    servers: [{ url: 'http://localhost:5174', description: 'Local private Worker' }],
+    servers: [{ url: serverUrl, description: 'Current private administration Worker' }],
     security: [{ cloudflareAccess: [] }, { localDevelopmentCookie: [] }],
     tags: [...new Set(routes.map((route) => route.tag))].map((name) => ({ name })),
     components: {
       securitySchemes: {
         cloudflareAccess: {
-          type: 'openIdConnect',
-          openIdConnectUrl: 'https://example.invalid/cdn-cgi/access/certs',
-          description: 'Future Phase 7 provider; not active.',
+          type: 'apiKey',
+          in: 'header',
+          name: 'Cf-Access-Jwt-Assertion',
+          description:
+            'JWT injected by Cloudflare Access and cryptographically revalidated by the Worker. Never copy this token into client storage.',
         },
         localDevelopmentCookie: {
           type: 'apiKey',

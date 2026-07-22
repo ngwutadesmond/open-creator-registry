@@ -10,7 +10,7 @@ Do not include real credentials or personal data in a report.
 No response-time or bounty commitment exists yet. The owner should acknowledge a credible report,
 coordinate a fix and disclosure window, and credit the reporter when requested and safe.
 
-## Phase 5 security boundary
+## Deployment security boundary
 
 - The public API is unauthenticated by design and exposes only approved creators, verified sources
   and aliases, active public handles, and public release history.
@@ -21,8 +21,9 @@ coordinate a fix and disclosure window, and credit the reporter when requested a
 - The separate admin Worker defaults to `401` unless an explicit authentication provider is
   configured. Local identities come only from ignored server variables; client identity headers
   are ignored. Central RBAC is enforced before route handlers.
-- Production Cloudflare Access JWT verification is not yet implemented. Phase 7 must protect the
-  entire hostname and add application-level assertion validation before deployment.
+- Production Cloudflare Access assertions are cryptographically validated with RS256, the configured
+  issuer/audience, time claims, rotating cached JWKs, verified email allowlisting, and server-side
+  least-privilege role mapping. The entire admin hostname must additionally be protected by Access.
 - Critical hard-handle changes and publication use different-person approval, expiry, stale-target
   checks, replay denial, and guarded atomic D1 batches.
 - Admin bodies are JSON-only and bounded; imports add 256 KiB/500-row limits, schema validation,
@@ -42,8 +43,9 @@ coordinate a fix and disclosure window, and credit the reporter when requested a
 - Public POST responses use `no-store`. Read caching is short and documented in `API_USAGE.md`.
 - Submission URLs are syntax-checked and stored for later review; the Worker never fetches them, so
   this endpoint cannot be used as an SSRF proxy.
-- The local rate limiter is deliberately disabled behind an injectable interface. A real
-  distributed limiter and bot protection are Phase 7 deployment requirements.
+- Remote public abuse-sensitive routes and admin mutations use Cloudflare rate-limit bindings.
+  Protected operations fail closed when a required remote binding is unavailable; local tests may
+  use deterministic injected limiters.
 - The public React bundle contains no secrets, administration routes, SQL, or private record fields.
   Successful and error API bodies are runtime-validated before rendering.
 - External source links accept only `http` and `https` protocols and open with
@@ -77,12 +79,11 @@ coordinate a fix and disclosure window, and credit the reporter when requested a
 - Use `npm ci` from the committed lockfile in automation and run `npm audit --omit=dev` before a
   release.
 - Configure a real `ALLOWED_ORIGINS` list for each deployed public environment.
-- Configure Cloudflare TLS, Access, rate limiting, bot protection, log retention/redaction, and D1
-  backups during Phase 7. Do not describe these controls as active before configuration.
+- Configure Cloudflare TLS, Access, log retention/alerts, and D1 recovery during later remote gates.
+  Gate A configuration is deployment-ready but is not evidence that any remote control is active.
 - Registry downtime must not grant a suspicious handle. Consuming platforms need a bounded cache,
   a critical-name fallback, and manual review behavior.
 
-The interactive documentation currently loads a pinned Scalar browser bundle from jsDelivr. Its
-route-specific nonce-based CSP limits that dependency, and Scalar telemetry, AI, and developer
-tools are disabled, but a pinned URL alone is not cryptographic integrity. Self-hosting or a
-reviewed integrity mechanism remains a Phase 7 hardening item.
+Both interactive documentation applications copy the pinned Scalar browser bundle from the locked
+npm dependency into ignored build inputs and serve it from the same Worker origin. Their CSPs have
+no remote script/font source; Scalar telemetry, AI, and developer tools remain disabled.

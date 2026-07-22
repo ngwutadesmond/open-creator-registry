@@ -1,5 +1,5 @@
 import { env } from 'cloudflare:workers';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createAuditLogRepository } from '@open-creator-registry/database/repositories/audit-log-repository';
 import { createCreatorCandidateRepository } from '@open-creator-registry/database/repositories/creator-candidate-repository';
@@ -153,6 +153,111 @@ describe('administration authentication and authorization', () => {
         )
       ).status,
     ).toBe(422);
+  });
+
+  it('rate-limits authentication failures and authenticated mutations with distributed bindings', async () => {
+    const authenticationLimiter = { limit: vi.fn(() => Promise.resolve({ success: false })) };
+    const denied = await request('/api/admin/v1/me', undefined, {
+      ...superAdminBindings,
+      ENVIRONMENT: 'production',
+      AUTH_PROVIDER: 'unconfigured',
+      ADMIN_AUTH_FAILURE_RATE_LIMITER: authenticationLimiter,
+    });
+    expect(denied.status).toBe(429);
+    expect(authenticationLimiter.limit).toHaveBeenCalled();
+
+    const mutationLimiter = { limit: vi.fn(() => Promise.resolve({ success: false })) };
+    const mutation = await request(
+      '/api/admin/v1/creators',
+      jsonInit({
+        canonical_name: 'Rate Limited Creator',
+        entity_type: 'person',
+        notoriety_score: 20,
+        protection_tier: 'standard',
+        review_status: 'pending',
+      }),
+      { ...superAdminBindings, ADMIN_MUTATION_RATE_LIMITER: mutationLimiter },
+    );
+    expect(mutation.status).toBe(429);
+    expect(mutationLimiter.limit).toHaveBeenCalledWith({
+      key: 'mutation:local:admin-one@example.test',
+    });
+  });
+
+  it('serves authenticated documentation from self-hosted assets under a private CSP', async () => {
+    const response = await request('/admin-docs');
+    const html = await response.text();
+    const policy = response.headers.get('Content-Security-Policy') ?? '';
+    expect(response.status).toBe(200);
+    expect(html).toContain('/vendor/scalar/standalone.js');
+    expect(html).toContain('withDefaultFonts');
+    expect(html).not.toContain('cdn.jsdelivr.net');
+    expect(policy).not.toContain('cdn.jsdelivr.net');
+    expect(policy).toContain("style-src 'self' 'unsafe-inline'");
+    expect(policy).toContain("script-src 'self' 'nonce-00112233445566778899aabbccddeeff'");
+    expect(response.headers.get('X-Robots-Tag')).toBe('noindex, nofollow');
+    expect(response.headers.get('Strict-Transport-Security')).toBeNull();
+  });
+
+  it('keeps successful, error, documentation, and CORS administration responses private', async () => {
+    const successful = await request('/api/admin/v1/me', {
+      headers: { Origin: 'http://localhost:5174' },
+    });
+    expect(successful.status).toBe(200);
+    expect(successful.headers.get('Cache-Control')).toBe('no-store');
+    expect(successful.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:5174');
+    expect(successful.headers.get('X-Content-Type-Options')).toBe('nosniff');
+    expect(successful.headers.get('X-Frame-Options')).toBe('DENY');
+    expect(successful.headers.get('Content-Security-Policy')).toContain("default-src 'none'");
+
+    const preflight = await request('/api/admin/v1/me', {
+      method: 'OPTIONS',
+      headers: { Origin: 'http://localhost:5174' },
+    });
+    expect(preflight.status).toBe(204);
+    expect(preflight.headers.get('Cache-Control')).toBe('no-store');
+    expect(preflight.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:5174');
+    expect(preflight.headers.get('X-Content-Type-Options')).toBe('nosniff');
+
+    const rejectedOrigin = await request('/api/admin/v1/me', {
+      headers: { Origin: 'https://unapproved.example' },
+    });
+    expect(rejectedOrigin.status).toBe(403);
+    expect(rejectedOrigin.headers.get('Cache-Control')).toBe('no-store');
+    expect(rejectedOrigin.headers.get('Access-Control-Allow-Origin')).toBeNull();
+    expect(rejectedOrigin.headers.get('Content-Security-Policy')).toContain("default-src 'none'");
+
+    const missing = await request('/api/admin/v1/not-a-route');
+    expect(missing.status).toBe(404);
+    expect(missing.headers.get('Cache-Control')).toBe('no-store');
+    expect(missing.headers.get('Cross-Origin-Opener-Policy')).toBe('same-origin');
+
+    const publicApiPath = await request('/api/v1/health');
+    expect(publicApiPath.status).toBe(404);
+    expect(publicApiPath.headers.get('Cache-Control')).toBe('no-store');
+
+    const documentation = await request('/admin-docs');
+    expect(documentation.status).toBe(200);
+    expect(documentation.headers.get('Cache-Control')).toBe('no-store');
+  });
+
+  it('allows local Vite bootstrap without weakening the remote administration SPA policy', async () => {
+    const assets = {
+      fetch: vi.fn(() => Promise.resolve(new Response('<!doctype html><title>Admin</title>'))),
+    } as unknown as Fetcher;
+    const local = await request('/', undefined, { ...superAdminBindings, ASSETS: assets });
+    expect(local.headers.get('Content-Security-Policy')).toContain(
+      "script-src 'self' 'unsafe-inline'",
+    );
+
+    const production = await request('/', undefined, {
+      ...superAdminBindings,
+      ENVIRONMENT: 'production',
+      ASSETS: assets,
+    });
+    const policy = production.headers.get('Content-Security-Policy') ?? '';
+    expect(policy).toContain("script-src 'self'");
+    expect(policy).not.toContain("script-src 'self' 'unsafe-inline'");
   });
 });
 

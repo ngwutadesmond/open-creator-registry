@@ -40,11 +40,14 @@ npm run db:validate
 npm run db:inspect:local
 npm run ingestion:serve:local
 npm run ingestion:trigger:local
+npm run test:openapi
+npm run cloudflare:config:gate-a
+npm run cloudflare:seed:render
 ```
 
 Database and seed commands are local-only and documented in `LOCAL_DEVELOPMENT.md` and `DATABASE.md`.
-Playwright is local-only and documented in `LOCAL_DEVELOPMENT.md`. Deployment commands remain
-deferred until Phase 7 and must be documented before use.
+Playwright is local-only and documented in `LOCAL_DEVELOPMENT.md`. Remote deployment/migration
+commands are operator-only, prohibited during Gate A, and documented in `DEPLOYMENT.md`.
 
 ## Conventions
 

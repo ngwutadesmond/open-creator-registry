@@ -4,7 +4,7 @@
 
 - Node.js 22 or newer (`.nvmrc` contains the project version)
 - npm 10 or newer
-- No Cloudflare account or credentials are required for Phase 6 local development
+- No Cloudflare account or credentials are required for local development or Gate A verification
 
 ## Install
 
@@ -82,9 +82,9 @@ The seed is idempotent; running `db:seed:local` repeatedly does not duplicate re
 scripts and either individually started Vite Worker use `.wrangler/state/v3/d1` through the shared
 `DB` binding.
 
-There are no remote D1 commands. Do not add a real database ID or log in to Cloudflare during
-Phase 6. Remote creation, binding, migrations, and deployment are documented and performed in
-Phase 7.
+Guarded remote D1 commands are reserved for separately approved staging/production gates. Do not
+add a real database ID, log in to Cloudflare, or run them during local development or Gate A. See
+`DEPLOYMENT.md`; normal local work continues to use only the commands above.
 
 ## Fixture-backed Wikidata ingestion
 
@@ -237,8 +237,9 @@ Root and app templates are safe examples only. Never commit any `.dev.vars` file
 - If the wrong local administrator is active, use Settings or clear the `ocr_dev_admin` cookie.
 - If an endpoint reports `database_unavailable`, stop the Worker, run `npm run db:reset:local`, and
   restart `npm run dev:public`.
-- If the interactive reference is blank while the API works, check the browser console and network
-  panel. `/docs` currently needs access to the exact pinned Scalar bundle on `cdn.jsdelivr.net`.
+- If an interactive reference is blank while the API works, rerun the workspace `predev` step or
+  build and confirm `.generated/scalar-assets/vendor/scalar/standalone.js` was prepared from the
+  locked npm dependency. It should make no CDN request.
 - If types appear stale after changing a workspace export, restart Vite and rerun
   `npm run typecheck`.
 - Remove neither `package-lock.json` nor workspace package declarations when updating dependencies;

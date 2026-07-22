@@ -35,5 +35,5 @@ deep-link/overflow workflows. Destructive and critical actions require deliberat
 and server authorization; color is never the only status signal.
 
 Automated rules do not replace assistive-technology testing. A manual screen-reader pass with
-VoiceOver/NVDA and production-font/CSP checks remain appropriate before the first public release in
-Phase 7.
+VoiceOver/NVDA remains required before the first public release. Gate A browser QA checks the
+self-hosted documentation CSP and local font behavior but is not that screen-reader sign-off.

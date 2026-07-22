@@ -1,14 +1,17 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "open-creator-registry-admin",
+  "name": "open-creator-registry-admin-local",
   "compatibility_date": "2026-07-21",
   "main": "src/worker.ts",
   "vars": {
     "ENVIRONMENT": "production",
+    "WORKER_NAME": "open-creator-registry-admin-local",
     "AUTH_PROVIDER": "unconfigured",
     "ADMIN_ALLOWED_ORIGINS": "",
+    "APPLICATION_URL": "http://localhost:5174",
+    "API_DOCUMENTATION_SERVER": "http://localhost:5174",
+    "WIKIDATA_FIXTURE_MODE": "disabled",
   },
-  // This identifier is local-only. Authenticated remote configuration belongs to Phase 7.
   "d1_databases": [
     {
       "binding": "DB",
@@ -19,7 +22,112 @@
     },
   ],
   "assets": {
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/admin/*", "/admin-openapi.json", "/admin-docs"],
+    "run_worker_first": true,
+  },
+  "observability": { "enabled": false },
+  "triggers": { "crons": [] },
+  "env": {
+    "staging": {
+      "name": "open-creator-registry-admin-staging",
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "WORKER_NAME": "open-creator-registry-admin-staging",
+        "AUTH_PROVIDER": "cloudflare_access",
+        "ADMIN_ALLOWED_ORIGINS": "https://open-creator-registry-admin-staging.REPLACE_WITH_ACCOUNT_SUBDOMAIN.workers.dev",
+        "APPLICATION_URL": "https://open-creator-registry-admin-staging.REPLACE_WITH_ACCOUNT_SUBDOMAIN.workers.dev",
+        "API_DOCUMENTATION_SERVER": "https://open-creator-registry-admin-staging.REPLACE_WITH_ACCOUNT_SUBDOMAIN.workers.dev",
+        "CLOUDFLARE_ACCESS_TEAM_DOMAIN": "https://REPLACE_WITH_TEAM_NAME.cloudflareaccess.com",
+        "CLOUDFLARE_ACCESS_AUD": "REPLACE_WITH_STAGING_ACCESS_AUD",
+        "WIKIDATA_FIXTURE_MODE": "disabled",
+        "WIKIDATA_USER_AGENT": "OpenCreatorRegistry/0.1 (REPLACE_WITH_PROJECT_CONTACT_URL)",
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "open-creator-registry-staging",
+          "database_id": "REPLACE_WITH_STAGING_D1_ID",
+          "migrations_dir": "../../packages/database/migrations",
+        },
+      ],
+      "ratelimits": [
+        {
+          "name": "ADMIN_AUTH_FAILURE_RATE_LIMITER",
+          "namespace_id": "1004",
+          "simple": { "limit": 30, "period": 60 },
+        },
+        {
+          "name": "ADMIN_MUTATION_RATE_LIMITER",
+          "namespace_id": "1005",
+          "simple": { "limit": 120, "period": 60 },
+        },
+        {
+          "name": "ADMIN_INGESTION_RATE_LIMITER",
+          "namespace_id": "1006",
+          "simple": { "limit": 10, "period": 60 },
+        },
+      ],
+      "assets": {
+        "binding": "ASSETS",
+        "not_found_handling": "single-page-application",
+        "run_worker_first": true,
+      },
+      "observability": {
+        "enabled": true,
+        "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": true },
+      },
+      "triggers": { "crons": [] },
+    },
+    "production": {
+      "name": "open-creator-registry-admin",
+      "vars": {
+        "ENVIRONMENT": "production",
+        "WORKER_NAME": "open-creator-registry-admin",
+        "AUTH_PROVIDER": "cloudflare_access",
+        "ADMIN_ALLOWED_ORIGINS": "https://open-creator-registry-admin.REPLACE_WITH_ACCOUNT_SUBDOMAIN.workers.dev",
+        "APPLICATION_URL": "https://open-creator-registry-admin.REPLACE_WITH_ACCOUNT_SUBDOMAIN.workers.dev",
+        "API_DOCUMENTATION_SERVER": "https://open-creator-registry-admin.REPLACE_WITH_ACCOUNT_SUBDOMAIN.workers.dev",
+        "CLOUDFLARE_ACCESS_TEAM_DOMAIN": "https://REPLACE_WITH_TEAM_NAME.cloudflareaccess.com",
+        "CLOUDFLARE_ACCESS_AUD": "REPLACE_WITH_PRODUCTION_ACCESS_AUD",
+        "WIKIDATA_FIXTURE_MODE": "disabled",
+        "WIKIDATA_USER_AGENT": "OpenCreatorRegistry/0.1 (REPLACE_WITH_PROJECT_CONTACT_URL)",
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "open-creator-registry-production",
+          "database_id": "REPLACE_WITH_PRODUCTION_D1_ID",
+          "migrations_dir": "../../packages/database/migrations",
+        },
+      ],
+      "ratelimits": [
+        {
+          "name": "ADMIN_AUTH_FAILURE_RATE_LIMITER",
+          "namespace_id": "2004",
+          "simple": { "limit": 30, "period": 60 },
+        },
+        {
+          "name": "ADMIN_MUTATION_RATE_LIMITER",
+          "namespace_id": "2005",
+          "simple": { "limit": 120, "period": 60 },
+        },
+        {
+          "name": "ADMIN_INGESTION_RATE_LIMITER",
+          "namespace_id": "2006",
+          "simple": { "limit": 10, "period": 60 },
+        },
+      ],
+      "assets": {
+        "binding": "ASSETS",
+        "not_found_handling": "single-page-application",
+        "run_worker_first": true,
+      },
+      "observability": {
+        "enabled": true,
+        "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": true },
+      },
+      "triggers": { "crons": [] },
+    },
   },
 }

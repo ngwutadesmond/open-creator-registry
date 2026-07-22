@@ -9,23 +9,25 @@ Worker is run on its own. Local development uses the clearly local identifier
 deployment configuration.
 
 The root `npm run dev` starts both separate Workers against the canonical ignored local state.
-Phase 5 Playwright workflows verify that admin mutations become visible through the public Worker
-under public visibility rules. Production will bind both Workers to one remote D1 database after
-that database is created in Phase 7.
+Playwright workflows verify that admin mutations become visible through the public Worker under
+public visibility rules. Gate A defines separate staging and production D1 databases; within an
+environment both Workers bind the same database UUID as `DB` only after an approved remote gate.
 
-No Cloudflare account or login is needed for the commands in this document. Phase 7 will add a
-separate authenticated remote configuration after the owner creates a real D1 database. There are
-intentionally no remote migration, seed, or reset scripts in Phase 5.
+No Cloudflare account or login is needed for local commands in this document. Guarded remote
+commands exist only for an authorised later gate and are documented in `DEPLOYMENT.md`; never add
+`--remote` to a local command casually.
 
 ## Migrations
 
 Wrangler applies migrations in filename order from `packages/database/migrations`:
 
-| Migration                          | Purpose                                                           |
-| ---------------------------------- | ----------------------------------------------------------------- |
-| `0001_creator_registry.sql`        | Creators, evidence sources, aliases, and reserved handles         |
-| `0002_registry_operations.sql`     | Candidates, submissions, releases, ingestion runs, audit logs     |
-| `0003_registry_administration.sql` | Approvals, imports, release snapshots, and atomic mutation guards |
+| Migration                                   | Purpose                                                              |
+| ------------------------------------------- | -------------------------------------------------------------------- |
+| `0001_creator_registry.sql`                 | Creators, evidence sources, aliases, and reserved handles            |
+| `0002_registry_operations.sql`              | Candidates, submissions, releases, ingestion runs, audit logs        |
+| `0003_registry_administration.sql`          | Approvals, imports, release snapshots, and atomic mutation guards    |
+| `0004_scheduled_ingestion_and_profiles.sql` | Source runs, leases, checkpoints, outcomes, provenance, and profiles |
+| `0005_source_configuration_defaults.sql`    | Disabled/dry-run source system default for empty remote databases    |
 
 Wrangler records applied files in `d1_migrations`. Never edit an applied migration; add the next
 numbered SQL file instead.

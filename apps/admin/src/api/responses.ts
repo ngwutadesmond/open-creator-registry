@@ -12,6 +12,8 @@ export type AdminApiErrorCode =
   | 'internal_error'
   | 'method_not_allowed'
   | 'not_found'
+  | 'rate_limited'
+  | 'rate_limit_unavailable'
   | 'request_too_large'
   | 'unsupported_media_type'
   | 'validation_failed';

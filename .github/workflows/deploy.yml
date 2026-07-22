@@ -1,0 +1,53 @@
+name: Manual Cloudflare deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Deploy staging first; production requires accepted staging.
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      confirmation:
+        description: Enter deploy-staging or deploy-production.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: ${{ inputs.confirmation == format('deploy-{0}', inputs.environment) }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
+      - name: Materialize protected deployment configuration
+        run: npm run cloudflare:config:materialize -- --environment ${{ inputs.environment }}
+        env:
+          OCR_D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
+          OCR_ACCOUNT_SUBDOMAIN: ${{ vars.ACCOUNT_SUBDOMAIN }}
+          OCR_ACCESS_TEAM_NAME: ${{ vars.CLOUDFLARE_ACCESS_TEAM_NAME }}
+          OCR_ACCESS_AUD: ${{ secrets.CLOUDFLARE_ACCESS_AUD }}
+          OCR_PROJECT_CONTACT_URL: ${{ vars.PROJECT_CONTACT_URL }}
+      - run: npm run cloudflare:config:${{ inputs.environment }}
+      - run: npm run deploy:public:${{ inputs.environment }}
+      - run: npm run deploy:admin:${{ inputs.environment }}
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+# D1 migrations are intentionally absent. Run the guarded remote D1 command separately,
+# record its recovery reference, and verify the schema before invoking this workflow.

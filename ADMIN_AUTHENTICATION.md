@@ -3,10 +3,10 @@
 ## Current boundary
 
 The administration application is a separate Worker. Production configuration is deliberately
-default-deny: `ENVIRONMENT=production` and `AUTH_PROVIDER=unconfigured` return `401` before a route
-or database operation runs. Phase 5 does not claim Cloudflare Access verification is complete.
-Phase 7 will add and document JWT verification and the whole admin hostname must also be protected
-by Cloudflare Access.
+default-deny: an unconfigured provider returns `401` before a route or database operation runs.
+Remote environments use `AUTH_PROVIDER=cloudflare_access` and still deny unless the Access team
+domain, audience, administrator allowlist, role mapping, and cryptographically valid assertion all
+pass. The whole admin hostname must also be protected as documented in `CLOUDFLARE_ACCESS.md`.
 
 Client-supplied names, email addresses, roles, or identity headers are never trusted. The current
 provider abstraction creates identity only from server-side Worker configuration. Tests confirm an
@@ -41,3 +41,7 @@ production roles.
 The production build command removes Cloudflare's generated local-preview `.dev.vars` copy from
 `dist` and verifies that no such file remains. Do not deploy an ad-hoc Vite output that bypasses the
 workspace build script.
+
+Access tests use ephemeral keys and cover signatures, issuer/audience/time claims, key rotation,
+JWK caching, identity allowlisting, role mapping, configuration failure, and token redaction. No
+real JWT is stored in source or test artifacts.

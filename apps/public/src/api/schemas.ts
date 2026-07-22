@@ -45,6 +45,7 @@ export const errorEnvelopeSchema = z
         'method_not_allowed',
         'not_found',
         'rate_limited',
+        'rate_limit_unavailable',
         'request_too_large',
         'unsupported_media_type',
         'validation_failed',
@@ -295,6 +296,7 @@ export const healthDataSchema = z
     api_version: z.string(),
     environment: z.string(),
     database: z.object({ status: z.enum(['connected', 'unavailable']) }),
+    migrations: z.object({ status: z.enum(['compatible', 'outdated', 'unavailable']) }),
     registry_version: z.string().nullable(),
   })
   .openapi('HealthData');

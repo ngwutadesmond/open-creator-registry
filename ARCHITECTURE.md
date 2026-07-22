@@ -82,7 +82,8 @@ Conflicting creator identities set `ambiguous` and suppress creator attribution.
 
 Cloudflare D1 is the source of truth. Both Workers bind it as `DB`, use one migrations directory,
 and use the canonical repository-root `.wrangler/state`; the combined local command and Playwright
-prove cross-Worker visibility. Deployed Workers will bind one remote D1 database in Phase 7.
+prove cross-Worker visibility. Gate A defines separate staging and production D1 boundaries; within
+each environment both deployed Workers will bind the same environment database after provisioning.
 Repository modules own SQL and use D1 prepared statements; route and UI code do not compose SQL.
 
 Administrative mutations create append-only audit evidence. Imports, critical changes, and release
@@ -113,18 +114,19 @@ details.
 ## Security boundaries
 
 - Public API inputs are untrusted and are validated with Zod before repository access.
-- Admin authentication defaults to denied. Phase 5 local identities come only from server-side
+- Admin authentication defaults to denied. Local identities come only from server-side
   ignored variables and exercise RBAC/two-person approval; client identity headers are ignored.
-- Cloudflare Access JWT validation is explicitly deferred to Phase 7. The whole production Worker
-  hostname must be protected and the Worker must validate the assertion before trusting an actor.
+- Remote administration validates the Cloudflare Access assertion with cached/rotating JWKs,
+  RS256, issuer, audience, time claims, email allowlisting, and server-side role mapping. The whole
+  admin hostname must also be protected by an Access application.
 - D1 operations use prepared statements; untrusted values are never concatenated into SQL.
 - Secrets belong in `.dev.vars` locally and Worker secrets remotely. `.dev.vars` is ignored.
 - Public responses must never include private administrator data or raw internal errors.
 - Public profile responses include only reviewed public associations and exclude connector
   configuration, source references, private confidence, and rejected/disputed/suppressed evidence.
-- The public Worker uses a strict origin allowlist, bounded bodies/pages/batches, short cache
-  lifetimes, security headers, and an injectable rate-limit boundary. Distributed enforcement and
-  bot protection require real Phase 7 Cloudflare configuration.
+- Both Workers use strict origin allowlists, bounded inputs, route-preserving safe cache fallbacks,
+  security headers, environment rate-limit bindings, and structured redacted operational logs.
+  Protected production operations fail closed when a required limiter is unavailable.
 
 ## Version and availability semantics
 

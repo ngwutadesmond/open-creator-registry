@@ -6,6 +6,14 @@ export type PublicRegistrySnapshot = {
   lastUpdatedAt: string | null;
 };
 
+export const expectedSchemaMigration = '0005_source_configuration_defaults.sql';
+
+export type MigrationCompatibility = {
+  status: 'compatible' | 'outdated';
+  latestAppliedMigration: string | null;
+  expectedMigration: string;
+};
+
 type PublicRegistrySnapshotRow = {
   creator_count: number;
   active_reserved_handle_count: number;
@@ -49,5 +57,17 @@ export function createPublicRegistryRepository(db: D1Database) {
     };
   }
 
-  return { checkConnectivity, getSnapshot };
+  async function getMigrationCompatibility(): Promise<MigrationCompatibility> {
+    const row = await firstRow<{ name: string }>(
+      db.prepare('SELECT name FROM d1_migrations ORDER BY id DESC LIMIT 1'),
+      'publicRegistry.getMigrationCompatibility',
+    );
+    return {
+      status: row?.name === expectedSchemaMigration ? 'compatible' : 'outdated',
+      latestAppliedMigration: row?.name ?? null,
+      expectedMigration: expectedSchemaMigration,
+    };
+  }
+
+  return { checkConnectivity, getMigrationCompatibility, getSnapshot };
 }

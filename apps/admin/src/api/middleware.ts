@@ -19,21 +19,53 @@ export function createRequestContextMiddleware(metadata: RequestMetadataProvider
   });
 }
 
+export const adminRequestObservabilityMiddleware = createMiddleware<AdminAppEnv>(
+  async (context, next) => {
+    const startedAt = performance.now();
+    await next();
+    if (context.env.ENVIRONMENT === 'local') return;
+    console.log(
+      JSON.stringify({
+        event: 'http_request_completed',
+        request_id: context.get('requestId'),
+        route: context.req.routePath || new URL(context.req.url).pathname,
+        method: context.req.method,
+        status: context.res.status,
+        duration_ms: Math.round((performance.now() - startedAt) * 100) / 100,
+        environment: context.env.ENVIRONMENT,
+        worker_name: context.env.WORKER_NAME ?? 'open-creator-registry-admin',
+        error_code: context.res.status >= 500 ? 'request_failed' : null,
+      }),
+    );
+  },
+);
+
 export const adminSecurityHeadersMiddleware = createMiddleware<AdminAppEnv>(
   async (context, next) => {
     await next();
-    const isDocs = new URL(context.req.url).pathname === '/admin-docs';
+    const requestUrl = new URL(context.req.url);
+    const pathname = requestUrl.pathname;
+    const isDocs = pathname === '/admin-docs';
+    const isApi = pathname.startsWith('/api/') || pathname === '/admin-openapi.json';
+    const spaScriptSources =
+      context.env.ENVIRONMENT === 'local' ? "'self' 'unsafe-inline'" : "'self'";
     context.header('Cache-Control', 'no-store');
     context.header('X-Content-Type-Options', 'nosniff');
     context.header('X-Frame-Options', 'DENY');
     context.header('Referrer-Policy', 'no-referrer');
     context.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-    context.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    context.header('Cross-Origin-Opener-Policy', 'same-origin');
+    context.header('X-Robots-Tag', 'noindex, nofollow');
+    if (context.env.ENVIRONMENT !== 'local' && requestUrl.protocol === 'https:') {
+      context.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
     context.header(
       'Content-Security-Policy',
       isDocs
-        ? `default-src 'none'; script-src 'self' 'nonce-${context.get('cspNonce')}' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self'; img-src 'self' data:; font-src https://fonts.scalar.com data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`
-        : "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+        ? `default-src 'none'; script-src 'self' 'nonce-${context.get('cspNonce')}'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; font-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'`
+        : isApi
+          ? "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'"
+          : `default-src 'self'; script-src ${spaScriptSources}; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'`,
     );
   },
 );

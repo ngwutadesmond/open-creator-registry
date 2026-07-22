@@ -257,7 +257,9 @@ export const wikidataConnector: SourceConnector = {
       request: new Request(url, {
         headers: {
           accept: 'application/sparql-results+json, application/json',
-          'user-agent': 'OpenCreatorRegistry/0.1 (scheduled-ingestion-poc)',
+          'user-agent':
+            context.userAgent ??
+            'OpenCreatorRegistry/0.1 (unconfigured-contact; connector disabled by default)',
         },
       }),
       context,

@@ -5,6 +5,47 @@ after its first public release.
 
 ## Unreleased
 
+### Phase 7 Gate A added
+
+- Separate local, staging, and production Wrangler environments for public/admin Workers with
+  isolated environment D1 boundaries, rate-limit bindings, asset bindings, empty Cron policies,
+  and Workers observability configuration.
+- Default-deny Cloudflare Access JWT verification with RS256 signature, issuer, audience, time,
+  email allowlist, server-side role mapping, JWK caching/rotation, and deterministic ephemeral-key
+  tests.
+- Route-preserving cache fallback behavior, hardened CORS/security/CSP headers, self-hosted locked
+  Scalar assets, production-like readiness health checks, redacted request/scheduled logs, and
+  fail-closed remote abuse-protection boundaries.
+- Guarded remote migration, configuration, build/deployment, staging seed, and smoke-test tooling;
+  least-privilege manual CI deployment; Dependabot; and production-safe source defaults.
+- Account-neutral staging, production, Access, secret, operations, observability, backup/recovery,
+  rollback, incident, contribution, correction/dispute, and resource-manifest documentation.
+
+### Phase 7 Gate A safety boundary
+
+- Gate A performed no Wrangler authentication, Cloudflare provisioning, remote migration,
+  deployment, secret creation, Access configuration, Cron creation, or external connector request.
+  Gate B staging requires separate owner approval; production remains a later gate.
+
+### Phase 7 Gate A verified
+
+- A clean local reset applied all five migrations, produced 21 tables and 86 indexes with no
+  foreign-key violations, and retained identical demonstration counts across two additional seed
+  runs.
+- Formatting, zero-warning ESLint, strict all-workspace TypeScript, generated Worker bindings,
+  staging/production configuration validation, both OpenAPI documents, both production builds,
+  bundle boundary/secret inspection, and the production dependency audit pass.
+- The aggregate suite passes 160 tests: 57 unit, 23 frontend, 30 real D1, 31 public API, and 19
+  administration API tests. Focused coverage additionally confirms 10 Cloudflare Access JWT cases,
+  eight ingestion cases, the scheduled-handler scenario, and 14 Chromium workflows.
+- Browser inspection covered 18 public/private surfaces at 1536×1024, 1280×800, 1024×768,
+  768×1024, 390×844, and 320×844 (108 rendered checks) with no page-level overflow, render alert,
+  console/request/CSP error, clipped control, or unlabelled application table scroller. The audit
+  filter's native date input intrinsic-width overflow was corrected during this pass.
+- Route cache policies now survive the generic fallback: health and all administration responses
+  remain `no-store`, explicit public API cache policies are preserved, uncached GET/error routes
+  receive `no-cache`, and CORS/preflight responses retain the full security-header policy.
+
 ### Phase 6 added
 
 - Strongly typed source connector contracts, explicit future MusicBrainz/public-web boundaries,

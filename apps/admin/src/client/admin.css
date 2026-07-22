@@ -519,6 +519,10 @@ textarea {
   min-width: 9rem;
   flex: 1;
 }
+.filter-bar input,
+.filter-bar select {
+  min-width: 0;
+}
 .filter-bar label:first-child {
   flex: 2;
 }

@@ -13,6 +13,9 @@ Phase 6 adds an evidence-only scheduled-ingestion framework, a disabled-by-defau
 of concept, persistent checkpoints and leases, candidate provenance, and optional reviewed creator
 platform profiles. It does not configure a production schedule or automatically approve creators,
 reserve handles, or publish releases.
+Phase 7 Gate A adds local-only deployment preparation: isolated staging/production configuration,
+Access JWT validation, rate-limit bindings, self-hosted API documentation assets, observability,
+guarded migration/deployment/smoke tooling, CI, and operator runbooks. It creates no remote resource.
 
 ## Applications
 
@@ -47,11 +50,13 @@ The public application runs at `http://localhost:5173`; the authenticated local 
 
 ## Project status
 
-Phases 1–6 run locally against clearly labelled demonstration D1 data. Production admin
-authentication, remote D1, deployment, source connectors, and scheduled ingestion are not
-configured; do not use this version as a production registry service. See
-[ADMIN_AUTHENTICATION.md](./ADMIN_AUTHENTICATION.md), [ADMIN_FRONTEND.md](./ADMIN_FRONTEND.md), and
-[ACCESSIBILITY.md](./ACCESSIBILITY.md).
+Phases 1–6 and Phase 7 Gate A run locally against clearly labelled demonstration D1 data.
+Production-like administration authentication fails closed and can validate configured Cloudflare
+Access assertions, but no remote D1, Access application, secret, deployment, source connector, or
+schedule has been configured. Do not use this version as a production registry service. Begin with
+[DEPLOYMENT.md](./DEPLOYMENT.md),
+[CLOUDFLARE_RESOURCE_MANIFEST.md](./CLOUDFLARE_RESOURCE_MANIFEST.md), and
+[ADMIN_AUTHENTICATION.md](./ADMIN_AUTHENTICATION.md).
 
 ## Domain disclaimer
 

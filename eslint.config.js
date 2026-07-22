@@ -8,6 +8,7 @@ export default tseslint.config(
     ignores: [
       '**/dist/**',
       '**/coverage/**',
+      '**/.generated/**',
       '**/.wrangler/**',
       '**/playwright-report/**',
       '**/test-results/**',
@@ -27,8 +28,9 @@ export default tseslint.config(
             'vitest.frontend.config.ts',
             'vitest.admin-api.config.ts',
             'scripts/*.mjs',
+            'scripts/cloudflare/*.mjs',
           ],
-          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 12,
+          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 20,
         },
         tsconfigRootDir: import.meta.dirname,
       },
@@ -60,7 +62,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['scripts/*.mjs'],
+    files: ['scripts/*.mjs', 'scripts/cloudflare/*.mjs'],
     languageOptions: {
       globals: {
         AbortSignal: 'readonly',
@@ -69,6 +71,10 @@ export default tseslint.config(
         process: 'readonly',
       },
     },
+  },
+  {
+    files: ['scripts/cloudflare/*.mjs'],
+    ...tseslint.configs.disableTypeChecked,
   },
   {
     files: ['**/*.d.ts'],

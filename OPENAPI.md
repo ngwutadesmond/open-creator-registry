@@ -28,12 +28,10 @@ Then open:
 - specification: `http://localhost:5173/openapi.json`
 - interactive Scalar reference: `http://localhost:5173/docs`
 
-The Scalar renderer is pinned to an exact package version on jsDelivr. It is the only third-party
-script used by the documentation page and is allowlisted only on that route's nonce-based Content
-Security Policy. Scalar telemetry, AI, and developer tools are disabled. Scalar's font origin is
-allowlisted without granting it script or connection access. Production should self-host the
-renderer or add a reviewed integrity strategy in Phase 7. The rest of the API receives a
-`default-src 'none'` policy.
+The Scalar renderer is pinned by the lockfile, copied from the local npm package during predev/build,
+and served at `/vendor/scalar/standalone.js` from the Worker origin. Documentation CSP permits no
+remote script or font origin. Scalar telemetry, AI, and developer tools are disabled. The rest of
+the API receives a `default-src 'none'` policy.
 
 ## Validate
 
@@ -62,8 +60,8 @@ identifies the published Registry dataset/decision point used for a response. It
 release is actually published. A client should retain both the Registry version and the response
 timestamp when caching a decision.
 
-The production server entry in the current document is illustrative. Phase 7 will replace it only
-after a real hostname is configured; it does not claim a deployment exists.
+The server entry is derived from the configured environment or request origin. Gate A placeholders
+do not claim a deployment; an operator must replace them before remote configuration validation.
 
 ## Future client generation
 
