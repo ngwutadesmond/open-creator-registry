@@ -8,6 +8,7 @@ import {
   supportedEnvironments,
 } from './configuration.mjs';
 import { createDeploymentPlan, validateDeploymentManifest } from './deployment-configuration.mjs';
+import { remoteDatabaseArguments, timeTravelInfoArguments } from './remote-d1-arguments.mjs';
 
 const actions = ['list-migrations', 'apply-migrations', 'validate', 'inspect', 'seed-staging'];
 const action = requireChoice(argument('action'), actions, 'action');
@@ -44,7 +45,14 @@ function run(args) {
   });
 }
 
-const common = [database.database_name, '--remote', '--config', plan.sourceManifestPath];
+const common = remoteDatabaseArguments({
+  databaseName: database.database_name,
+  manifestPath: plan.sourceManifestPath,
+});
+const timeTravelInfo = timeTravelInfoArguments({
+  databaseName: database.database_name,
+  manifestPath: plan.sourceManifestPath,
+});
 
 console.log(`Environment: ${environment}`);
 console.log(`Database name: ${database.database_name}`);
@@ -61,7 +69,7 @@ if (action === 'list-migrations') {
   }
   if (action === 'apply-migrations') {
     await run(['d1', 'migrations', 'list', ...common]);
-    await run(['d1', 'time-travel', 'info', ...common]);
+    await run(['d1', 'time-travel', 'info', ...timeTravelInfo]);
     await run(['d1', 'migrations', 'apply', ...common]);
   } else if (action === 'seed-staging') {
     if (environment !== 'staging')

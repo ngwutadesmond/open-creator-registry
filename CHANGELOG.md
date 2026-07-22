@@ -16,6 +16,12 @@ after its first public release.
 - Added 24 deterministic deployment-tooling tests and separate public/admin bootstrap/admin final
   commands. The manual workflow now deploys one typed target/phase per exact confirmation.
 
+### Phase 7 Gate B staging fixed
+
+- Corrected the D1 migration guard for Wrangler 4.112: Time Travel info is inherently remote and
+  must not receive the migrations/execute-only `--remote` flag. Focused argument tests preserve the
+  distinction before the staging migration is retried with operator approval.
+
 ### Phase 7 Gate A added
 
 - Separate local, staging, and production Wrangler environments for public/admin Workers with
