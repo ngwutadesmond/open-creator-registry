@@ -8,7 +8,7 @@ const meta = {
   request_id: '90000000-0000-4000-8000-000000000001',
   timestamp: '2026-07-21T18:00:00.000Z',
 };
-const identity = {
+const localIdentity = {
   subject: 'local:admin@example.test',
   email: 'admin@example.test',
   display_name: 'Local Registry Admin',
@@ -22,9 +22,11 @@ const identity = {
   ],
   authentication_source: 'local_development',
 };
+let identity = localIdentity;
 
 describe('AdminApp', () => {
   beforeEach(() => {
+    identity = localIdentity;
     window.history.replaceState({}, '', '/');
     vi.stubGlobal(
       'fetch',
@@ -67,8 +69,26 @@ describe('AdminApp', () => {
     expect(screen.getByText('Local Registry Admin')).toBeInTheDocument();
     expect(screen.getByText('Approved creators')).toBeInTheDocument();
     expect(screen.getByText('10')).toBeInTheDocument();
-    expect(screen.getByText(/Production remains denied/)).toBeInTheDocument();
+    expect(screen.getByText(/Remote environments remain denied/)).toBeInTheDocument();
+    expect(screen.getByText('Environment-scoped Registry database')).toBeInTheDocument();
     expect(screen.queryByText(/available in Phase 5/)).not.toBeInTheDocument();
+  });
+
+  it('describes a remotely authenticated identity without local-environment claims', async () => {
+    identity = {
+      ...localIdentity,
+      subject: 'access:administrator@example.test',
+      display_name: 'Staging Registry Admin',
+      authentication_source: 'cloudflare_access',
+    };
+    render(<AdminApp />);
+    expect(
+      await screen.findByRole('heading', { name: 'Registry administration' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Cloudflare Access identity/)).toBeInTheDocument();
+    expect(screen.getByText(/server-side role mapping/)).toBeInTheDocument();
+    expect(screen.queryByText(/Local development identity/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Current administrator')).toBeInTheDocument();
   });
 
   it('exposes the administration navigation without linking to it from the public app', async () => {

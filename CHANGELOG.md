@@ -5,6 +5,14 @@ after its first public release.
 
 ## Unreleased
 
+### Phase 7 Gate B staging UI fixed
+
+- Replaced hard-coded local-development identity and local-D1 claims with authentication-aware and
+  environment-neutral administration labels so a Cloudflare Access staging session truthfully
+  reports Worker-validated Access authentication and the bound environment database.
+- Added frontend coverage proving remote Access identities never render the local-development
+  authentication notice while preserving the explicit local-only warning in local development.
+
 ### Phase 7 Gate B validation fixed
 
 - Split Cloudflare validation into account-neutral structural, public deployment, default-deny

@@ -58,14 +58,14 @@ export default function DashboardPage() {
         }
       />
       <section className="environment-banner" aria-label="Registry environment">
-        <strong>Local demonstration database</strong>
+        <strong>Environment-scoped Registry database</strong>
         <span>No authoritative global release is implied.</span>
         <span>Latest release: {data.latest_release?.version ?? 'Unversioned'}</span>
       </section>
       <section aria-labelledby="metrics-heading">
         <div className="section-heading">
           <h2 id="metrics-heading">Operational metrics</h2>
-          <p>Live counts from the shared local D1 database.</p>
+          <p>Live counts from the bound D1 database.</p>
         </div>
         <div className="metrics-grid">
           {metrics.map(([label, value, href]) => (

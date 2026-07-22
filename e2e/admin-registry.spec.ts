@@ -228,7 +228,7 @@ test('enforces two-person critical handle approval and publishes a release', asy
 
   await page.goto(`${adminUrl}/settings`);
   await page.getByRole('button', { name: 'Use secondary local admin' }).click();
-  await expect(page.getByLabel('Current local administrator').getByText('Admin Two')).toBeVisible();
+  await expect(page.getByLabel('Current administrator').getByText('Admin Two')).toBeVisible();
   await page.goto(`${adminUrl}/approvals?status=pending`);
   await page.getByRole('link', { name: 'handle.create_critical' }).click();
   await page.getByRole('button', { name: 'Approve independently' }).click();
@@ -251,7 +251,7 @@ test('enforces two-person critical handle approval and publishes a release', asy
 
   await page.goto(`${adminUrl}/settings`);
   await page.getByRole('button', { name: 'Use primary local admin' }).click();
-  await expect(page.getByLabel('Current local administrator').getByText('Admin One')).toBeVisible();
+  await expect(page.getByLabel('Current administrator').getByText('Admin One')).toBeVisible();
   await page.goto(`${adminUrl}/releases`);
   await page.getByRole('link', { name: 'phase-5-browser-release' }).click();
   await page.getByRole('button', { name: 'Approve as second admin' }).click();

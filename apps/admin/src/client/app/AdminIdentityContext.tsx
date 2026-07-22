@@ -26,7 +26,7 @@ export function AdminIdentityProvider({ children }: { children: ReactNode }) {
   if (resource.status === 'loading')
     return (
       <main className="authentication-state">
-        <LoadingState label="Authenticating local administrator…" />
+        <LoadingState label="Authenticating administrator…" />
       </main>
     );
   if (resource.status === 'error')

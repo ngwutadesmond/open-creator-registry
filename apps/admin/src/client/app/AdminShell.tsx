@@ -66,6 +66,7 @@ export function AdminShell() {
   const firstLink = useRef<HTMLAnchorElement>(null);
   const location = useLocation();
   const { identity } = useAdminIdentity();
+  const usesCloudflareAccess = identity.authentication_source === 'cloudflare_access';
 
   useEffect(() => {
     if (!navigationOpen) return;
@@ -111,7 +112,7 @@ export function AdminShell() {
           <span aria-hidden="true" />
           <p>Administration</p>
         </div>
-        <div className="current-admin" aria-label="Current local administrator">
+        <div className="current-admin" aria-label="Current administrator">
           <span>{identity.display_name}</span>
           <small>{identity.roles.join(' · ')}</small>
         </div>
@@ -138,13 +139,22 @@ export function AdminShell() {
       </aside>
       <main className="admin-main" id="main-content">
         <div className="local-auth-notice" role="note">
-          <strong>Local development identity:</strong> {identity.email}. Production remains denied
-          until Cloudflare Access JWT verification is configured.
+          {usesCloudflareAccess ? (
+            <>
+              <strong>Cloudflare Access identity:</strong> {identity.email}. The Worker verified the
+              Access assertion and applied its server-side role mapping.
+            </>
+          ) : (
+            <>
+              <strong>Local development identity:</strong> {identity.email}. Remote environments
+              remain denied until Cloudflare Access JWT verification is configured.
+            </>
+          )}
         </div>
         <Outlet />
         <footer className="admin-status">
           <NavIcon type="shield" />
-          <span>Private application · Local demonstration data</span>
+          <span>Private application · Environment-scoped Registry data</span>
         </footer>
       </main>
       <button
