@@ -5,6 +5,12 @@ after its first public release.
 
 ## Unreleased
 
+### Phase 7 Gate C preflight fixed
+
+- Made approval creation, expiry checks, decisions, and application use the same request-scoped
+  timestamp. This removes wall-clock drift from deterministic administration tests and prevents a
+  request crossing a clock boundary from evaluating one approval against inconsistent timestamps.
+
 ### Phase 7 Gate B public profile endpoint fixed
 
 - Added the documented public creator-profile endpoint with generated OpenAPI coverage, public-only

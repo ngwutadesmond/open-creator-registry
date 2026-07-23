@@ -343,6 +343,13 @@ function metadataTimestamp(context: Context<AdminAppEnv>): string {
   return context.get('requestTimestamp');
 }
 
+function adminApprovalRepository(context: Context<AdminAppEnv>) {
+  return createAdminApprovalRepository(context.env.DB, {
+    createId: () => crypto.randomUUID(),
+    now: () => metadataTimestamp(context),
+  });
+}
+
 export type AdminAppDependencies = { metadata?: RequestMetadataProvider };
 
 export function createAdminApp(dependencies: AdminAppDependencies = {}) {
@@ -467,7 +474,7 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
     const handles = createReservedHandleRepository(context.env.DB);
     const candidates = createCreatorCandidateRepository(context.env.DB);
     const submissions = createPublicSubmissionRepository(context.env.DB);
-    const approvals = createAdminApprovalRepository(context.env.DB);
+    const approvals = adminApprovalRepository(context);
     const releases = createRegistryReleaseRepository(context.env.DB);
     const runs = createIngestionRunRepository(context.env.DB);
     const audits = createAuditLogRepository(context.env.DB);
@@ -589,7 +596,7 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
       createExternalProfileRepository(context.env.DB).listByCreator(creatorId),
       createReservedHandleRepository(context.env.DB).listByCreator(creatorId),
       createAuditLogRepository(context.env.DB).findByEntity('creator_entity', creatorId),
-      createAdminApprovalRepository(context.env.DB).list({
+      adminApprovalRepository(context).list({
         entityType: 'creator_entity',
         entityId: creatorId,
         limit: 50,
@@ -665,7 +672,7 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
     if (creator.protectionTier === 'critical') {
       requireCriticalPermission(context);
       const profileId = crypto.randomUUID();
-      const approval = await createAdminApprovalRepository(context.env.DB).create({
+      const approval = await adminApprovalRepository(context).create({
         actionType: 'external_profile.create_critical',
         entityType: 'creator_external_profile',
         entityId: profileId,
@@ -737,7 +744,7 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
       );
     if (creator.protectionTier === 'critical') {
       requireCriticalPermission(context);
-      const approval = await createAdminApprovalRepository(context.env.DB).create({
+      const approval = await adminApprovalRepository(context).create({
         actionType: 'external_profile.update_critical',
         entityType: 'creator_external_profile',
         entityId: profileId,
@@ -772,7 +779,7 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
     if (!creator) notFound('Creator');
     if (creator.protectionTier === 'critical') {
       requireCriticalPermission(context);
-      const approval = await createAdminApprovalRepository(context.env.DB).create({
+      const approval = await adminApprovalRepository(context).create({
         actionType: 'external_profile.delete_critical',
         entityType: 'creator_external_profile',
         entityId: profileId,
@@ -1041,7 +1048,7 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
         status: body.status,
       });
       const identity = context.get('adminIdentity');
-      const approval = await createAdminApprovalRepository(context.env.DB).create({
+      const approval = await adminApprovalRepository(context).create({
         actionType: 'handle.create_critical',
         entityType: 'reserved_handle',
         entityId: id,
@@ -1084,7 +1091,7 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
     const [creator, audits, approvals, confusable] = await Promise.all([
       createCreatorRepository(context.env.DB).findById(handle.creatorEntityId),
       createAuditLogRepository(context.env.DB).findByEntity('reserved_handle', handleId),
-      createAdminApprovalRepository(context.env.DB).list({
+      adminApprovalRepository(context).list({
         entityType: 'reserved_handle',
         entityId: handleId,
         limit: 50,
@@ -1136,7 +1143,7 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
     if (isCritical) {
       requireCriticalPermission(context);
       const identity = context.get('adminIdentity');
-      const approval = await createAdminApprovalRepository(context.env.DB).create({
+      const approval = await adminApprovalRepository(context).create({
         actionType: 'handle.update_critical',
         entityType: 'reserved_handle',
         entityId: handleId,
@@ -1205,7 +1212,7 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
           reason: previous.reason,
           status,
         });
-        const approval = await createAdminApprovalRepository(context.env.DB).create({
+        const approval = await adminApprovalRepository(context).create({
           actionType: `handle.${action}_critical`,
           entityType: 'reserved_handle',
           entityId: handleId,
@@ -1800,7 +1807,7 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
     if (!release) notFound('Registry release');
     const [snapshot, approvals, audits] = await Promise.all([
       createRegistryReleaseSnapshotRepository(context.env.DB).findByReleaseId(releaseId),
-      createAdminApprovalRepository(context.env.DB).list({
+      adminApprovalRepository(context).list({
         entityType: 'registry_release',
         entityId: releaseId,
         limit: 50,
@@ -1848,7 +1855,7 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
     if (release.releaseStatus !== 'draft' || release.checksum !== snapshot.checksum)
       throw new AdminRequestError('conflict', 'The release is not an unchanged calculated draft.');
     const payload = { releaseId, checksum: snapshot.checksum, updatedAt: release.updatedAt };
-    const approval = await createAdminApprovalRepository(context.env.DB).create({
+    const approval = await adminApprovalRepository(context).create({
       actionType: 'release.publish',
       entityType: 'registry_release',
       entityId: releaseId,
@@ -1873,7 +1880,7 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
     releaseId: string,
     status: 'pending' | 'approved',
   ) {
-    const result = await createAdminApprovalRepository(context.env.DB).list({
+    const result = await adminApprovalRepository(context).list({
       entityType: 'registry_release',
       entityId: releaseId,
       status,
@@ -1893,7 +1900,7 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
     const { releaseId } = parseParams(context, releaseIdParamsSchema);
     const body = await parseBody(context, actionReasonSchema);
     const approval = await approvalForRelease(context, releaseId, 'pending');
-    const approved = await createAdminApprovalRepository(context.env.DB).approveRelease(
+    const approved = await adminApprovalRepository(context).approveRelease(
       approval,
       context.get('adminIdentity').email,
       body.reason,
@@ -1908,7 +1915,7 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
     const payload = releaseApprovalPayloadSchema.safeParse(approval.requestedPayload);
     if (!payload.success)
       throw new AdminRequestError('conflict', 'The approved release payload is invalid.');
-    const applied = await createAdminApprovalRepository(context.env.DB).publishApprovedRelease(
+    const applied = await adminApprovalRepository(context).publishApprovedRelease(
       approval,
       payload.data,
       context.get('adminIdentity').email,
@@ -1940,7 +1947,7 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
 
   app.get('/api/admin/v1/approval-requests', async (context) => {
     const query = parseQuery(context, approvalListQuerySchema);
-    const repository = createAdminApprovalRepository(context.env.DB);
+    const repository = adminApprovalRepository(context);
     const options = {
       page: query.page,
       limit: query.limit,
@@ -1966,7 +1973,7 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
   });
   app.get('/api/admin/v1/approval-requests/:approvalId', async (context) => {
     const { approvalId } = parseParams(context, approvalIdParamsSchema);
-    const repository = createAdminApprovalRepository(context.env.DB);
+    const repository = adminApprovalRepository(context);
     const approval = await repository.findById(approvalId);
     if (!approval) notFound('Approval request');
     return context.json(
@@ -1980,7 +1987,7 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
   app.post('/api/admin/v1/approval-requests/:approvalId/approve', async (context) => {
     const { approvalId } = parseParams(context, approvalIdParamsSchema);
     const body = await parseBody(context, actionReasonSchema);
-    const repository = createAdminApprovalRepository(context.env.DB);
+    const repository = adminApprovalRepository(context);
     const approval = await repository.findById(approvalId);
     if (!approval) notFound('Approval request');
     if (approval.actionType === 'release.publish') {
@@ -2024,7 +2031,7 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
   app.post('/api/admin/v1/approval-requests/:approvalId/reject', async (context) => {
     const { approvalId } = parseParams(context, approvalIdParamsSchema);
     const body = await parseBody(context, actionReasonSchema);
-    const repository = createAdminApprovalRepository(context.env.DB);
+    const repository = adminApprovalRepository(context);
     const approval = await repository.findById(approvalId);
     if (!approval) notFound('Approval request');
     if (approval.actionType !== 'release.publish') requireCriticalPermission(context);
