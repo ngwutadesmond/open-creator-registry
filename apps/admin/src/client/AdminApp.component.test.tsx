@@ -91,6 +91,43 @@ describe('AdminApp', () => {
     expect(screen.getByLabelText('Current administrator')).toBeInTheDocument();
   });
 
+  it('does not render local identity controls for a Cloudflare Access administrator', async () => {
+    identity = {
+      ...localIdentity,
+      subject: 'access:administrator@example.test',
+      display_name: 'Production Registry Admin',
+      authentication_source: 'cloudflare_access',
+    };
+    window.history.replaceState({}, '', '/settings');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    render(<AdminApp />);
+
+    expect(
+      await screen.findByRole('heading', { name: 'Administration settings' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Use primary local admin' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Use secondary local admin' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('Remote access remains fail closed')).toBeInTheDocument();
+    expect(screen.getByText(/Worker revalidates/)).toBeInTheDocument();
+    expect(screen.queryByText(/until Phase 7/)).not.toBeInTheDocument();
+  });
+
+  it('retains local identity controls in local development', async () => {
+    window.history.replaceState({}, '', '/settings');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    render(<AdminApp />);
+
+    expect(
+      await screen.findByRole('heading', { name: 'Administration settings' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Use primary local admin' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Use secondary local admin' })).toBeInTheDocument();
+  });
+
   it('exposes the administration navigation without linking to it from the public app', async () => {
     render(<AdminApp />);
     await waitFor(() =>

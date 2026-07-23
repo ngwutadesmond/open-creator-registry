@@ -5,6 +5,11 @@ after its first public release.
 
 ## Unreleased
 
+### Phase 7 Gate C administration settings fixed
+
+- Hide local-development identity-switch controls from Cloudflare Access sessions and replace the
+  stale Phase 7 setup message with the enforced remote JWT, allowlist, and role-mapping boundary.
+
 ### Phase 7 Gate C public empty state fixed
 
 - Replaced the stale local-demonstration and Phase 5 release placeholder with an

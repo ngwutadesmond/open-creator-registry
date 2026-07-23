@@ -1003,14 +1003,16 @@ function Settings() {
             <dd>{identity.roles.join(', ')}</dd>
           </div>
         </dl>
-        <div className="form-actions">
-          <button className="secondary-button" onClick={() => void change('primary')}>
-            Use primary local admin
-          </button>
-          <button className="secondary-button" onClick={() => void change('secondary')}>
-            Use secondary local admin
-          </button>
-        </div>
+        {identity.authentication_source === 'local_development' ? (
+          <div className="form-actions">
+            <button className="secondary-button" onClick={() => void change('primary')}>
+              Use primary local admin
+            </button>
+            <button className="secondary-button" onClick={() => void change('secondary')}>
+              Use secondary local admin
+            </button>
+          </div>
+        ) : null}
       </section>
       <section className="panel">
         <h2>Permissions</h2>
@@ -1021,11 +1023,11 @@ function Settings() {
         </ul>
       </section>
       <div className="policy-callout">
-        <strong>Production access remains fail closed</strong>
+        <strong>Remote access remains fail closed</strong>
         <p>
-          Local identities come only from server-side development variables. Production
-          configuration denies all access until Phase 7 documents and enables verified Cloudflare
-          Access JWT authentication.
+          Local identities are available only from server-side development variables. Remote
+          environments require a Cloudflare Access JWT that the Worker revalidates before applying
+          its server-side identity allowlist and role mapping.
         </p>
       </div>
       <a className="primary-button inline-button" href="/admin-docs">
