@@ -5,6 +5,11 @@ after its first public release.
 
 ## Unreleased
 
+### Phase 7 Gate C public empty state fixed
+
+- Replaced the stale local-demonstration and Phase 5 release placeholder with an
+  environment-neutral empty state that truthfully describes an unpublished production Registry.
+
 ### Phase 7 Gate C preflight fixed
 
 - Made approval creation, expiry checks, decisions, and application use the same request-scoped

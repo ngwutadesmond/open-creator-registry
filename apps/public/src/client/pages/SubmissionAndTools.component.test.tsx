@@ -118,6 +118,13 @@ describe('ReleasesPage', () => {
     expect(await screen.findByText('Unversioned development state')).toBeInTheDocument();
     expect(screen.getByText('No Registry release has been published yet.')).toBeInTheDocument();
     expect(screen.getByText('No published releases')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'No Registry release has been published. Public data remains unversioned until an authorised administrator publishes a reviewed release.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/local demonstration/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/phase 5/i)).not.toBeInTheDocument();
   });
 });
 

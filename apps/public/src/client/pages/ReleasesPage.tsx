@@ -89,7 +89,7 @@ export default function ReleasesPage() {
             {resource.data.releases.data.length === 0 ? (
               <EmptyState
                 title="No published releases"
-                description="The local demonstration Registry is truthfully unversioned until an administrator publishes a release in Phase 5."
+                description="No Registry release has been published. Public data remains unversioned until an authorised administrator publishes a reviewed release."
               />
             ) : (
               <div className="release-list">
