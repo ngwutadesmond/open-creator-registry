@@ -5,6 +5,19 @@ after its first public release.
 
 ## Unreleased
 
+### Phase 7 Gate C accepted
+
+- Provisioned isolated production public and administration Workers with a dedicated D1 database,
+  five reviewed migrations, 21 tables, 86 indexes, and no foreign-key violations.
+- Protected the complete production administration hostname with a distinct Cloudflare Access
+  application, Worker-level JWT validation, an exact administrator allowlist, server-side role
+  mapping, and default-deny bootstrap behavior.
+- Verified production HTTP smoke tests, OpenAPI and Scalar documentation, security and cache
+  headers, CORS, observability redaction, independent Worker rollback, and D1 recovery readiness.
+- Kept production empty and unpublished: no demonstration data was copied, no ingestion ran,
+  Wikidata and scheduled ingestion remain disabled, and no Cron Trigger or Registry release was
+  created.
+
 ### Phase 7 Gate C administration settings fixed
 
 - Hide local-development identity-switch controls from Cloudflare Access sessions and replace the

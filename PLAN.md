@@ -109,10 +109,11 @@ Status: Complete and quality-gate reviewed on 2026-07-21.
 
 ## Phase 7 — deployment, automation, security, and final QA
 
-Status: Gate A local preparation and its deterministic CI correction completed on 2026-07-22. Gate
-B is approved for staging only. Its validation-sequencing correction is implemented and locally
-validated before any Wrangler authentication or remote resource action; staging provisioning must
-still wait for the correction commit, push, and green CI.
+Status: Gate A local preparation, Gate B staging acceptance, and Gate C controlled production
+acceptance completed by 2026-07-23. Staging and production use isolated Worker names, D1 databases,
+Cloudflare Access applications, audiences, and administrator configuration. Production remains
+empty and unpublished; Wikidata, scheduled ingestion, and Cron remain disabled. Initial production
+data onboarding is a separate reviewed decision.
 
 - Finalize separate Worker configurations that share one D1 binding.
 - Add least-privilege GitHub Actions deployment workflows and Dependabot.
@@ -126,7 +127,10 @@ still wait for the correction commit, push, and green CI.
 - Validate Gate B through structural, public-ready, default-deny admin bootstrap, and complete admin
   final phases using ignored target-specific manifests.
 - Provision and accept staging only after the sequencing correction is committed, pushed, and green.
-- Stop after Gate B; production is a later approval gate.
+- Provision and accept production only after explicit Gate C approval, without copying staging
+  demonstration data or enabling ingestion.
+- Stop after Gate C; production data onboarding, ingestion approval, scheduling, and release
+  publication require separate review.
 
 ## Cross-phase quality gate
 
