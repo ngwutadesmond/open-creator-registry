@@ -5,6 +5,17 @@ after its first public release.
 
 ## Unreleased
 
+### Public creator submission experience improved
+
+- Replaced free-text category/country entry with a centralized controlled category taxonomy and an
+  accessible, offline, searchable ISO-country multiselect while preserving all legacy records.
+- Added row-level username/source validation, normalized duplicate detection, focus and live-region
+  behavior, a review summary, recoverable server states, and a clearer pending-review acknowledgement.
+- Hardened new-submission API validation for category, country, handle, and URL values; documented the
+  temporary omitted-category compatibility path and kept the D1 schema unchanged.
+- Added public/admin regression coverage, keyboard and automated accessibility checks, responsive
+  overflow coverage at six viewports, and end-to-end pending-submission/admin-queue verification.
+
 ### Phase 7 Gate C accepted
 
 - Provisioned isolated production public and administration Workers with a dedicated D1 database,

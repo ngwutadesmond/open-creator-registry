@@ -148,4 +148,70 @@ describe('AdminApp', () => {
     const requests = vi.mocked(fetch).mock.calls.map(([input]) => String(input));
     expect(requests.some((request) => request.includes('/creators/undefined'))).toBe(false);
   });
+
+  it('renders friendly controlled categories while preserving legacy and missing submission values', async () => {
+    window.history.replaceState({}, '', '/submissions');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input);
+        if (path.endsWith('/me')) return Response.json({ data: identity, meta });
+        if (path.startsWith('/api/admin/v1/submissions')) {
+          const record = {
+            country_codes: ['NG'],
+            requested_handles: ['example_handle'],
+            public_sources: ['https://example.test/profile'],
+            submission_status: 'pending',
+            created_at: '2026-08-19T12:00:00.000Z',
+            reviewed_at: null,
+            updated_at: '2026-08-19T12:00:00.000Z',
+          };
+          return Response.json({
+            data: [
+              {
+                ...record,
+                id: 'submission-controlled',
+                creator_name: 'Controlled Category Creator',
+                category: 'content_creator',
+              },
+              {
+                ...record,
+                id: 'submission-legacy',
+                creator_name: 'Legacy Category Creator',
+                category: 'Legacy Video / Online',
+              },
+              {
+                ...record,
+                id: 'submission-missing',
+                creator_name: 'Missing Category Creator',
+                category: null,
+                country_codes: null,
+              },
+            ],
+            meta: {
+              ...meta,
+              pagination: {
+                page: 1,
+                limit: 25,
+                total: 3,
+                total_pages: 1,
+                has_next_page: false,
+                has_previous_page: false,
+              },
+            },
+          });
+        }
+        return Response.json(
+          { error: { code: 'not_found', message: 'Not found', details: [] }, meta },
+          { status: 404 },
+        );
+      }),
+    );
+
+    render(<AdminApp />);
+    expect(await screen.findByText('Content Creator / Influencer')).toBeInTheDocument();
+    expect(screen.getByText('Legacy Video / Online')).toBeInTheDocument();
+    expect(screen.getByText('Uncategorised')).toBeInTheDocument();
+  });
 });

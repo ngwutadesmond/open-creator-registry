@@ -77,7 +77,7 @@ test('reviews a public submission via a candidate without creating a handle', as
   const submitted = await request.post(`${publicUrl}/api/v1/submissions`, {
     data: {
       creator_name: 'Phase Five Candidate Creator',
-      category: 'design',
+      category: 'visual_arts_design',
       country_codes: ['GH'],
       requested_handles: ['phase_five_candidate'],
       public_sources: ['https://example.com/phase-five-candidate'],

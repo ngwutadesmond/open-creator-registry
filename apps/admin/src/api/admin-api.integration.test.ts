@@ -416,6 +416,52 @@ describe('creator, evidence and review administration', () => {
     expect(
       await createReservedHandleRepository(env.DB).findExact('submission_phase_five'),
     ).toBeNull();
+
+    const legacySubmission = await createPublicSubmissionRepository(env.DB).create({
+      creatorName: 'Legacy Category Submission',
+      category: 'Legacy Video / Online',
+      countryCodes: ['ZZ'],
+      requestedHandles: ['legacy_category_submission'],
+      publicSources: ['https://example.test/legacy-category-submission'],
+    });
+    const legacyDetail = await request(`/api/admin/v1/submissions/${legacySubmission.id}`);
+    expect(legacyDetail.status).toBe(200);
+    await expect(legacyDetail.json()).resolves.toMatchObject({
+      data: {
+        submission: {
+          category: 'Legacy Video / Online',
+          country_codes: ['ZZ'],
+        },
+      },
+    });
+    const legacyConversion = await request(
+      `/api/admin/v1/submissions/${legacySubmission.id}/convert-to-candidate`,
+      jsonInit({ reason: 'Preserve legacy submission values during review.' }),
+    );
+    expect(legacyConversion.status).toBe(201);
+    await expect(legacyConversion.json()).resolves.toMatchObject({
+      data: {
+        candidate: {
+          category: 'Legacy Video / Online',
+          country_codes: ['ZZ'],
+        },
+      },
+    });
+
+    const missingCategorySubmission = await createPublicSubmissionRepository(env.DB).create({
+      creatorName: 'Missing Category Submission',
+      category: null,
+      countryCodes: null,
+      requestedHandles: ['missing_category_submission'],
+      publicSources: ['https://example.test/missing-category-submission'],
+    });
+    const missingDetail = await request(
+      `/api/admin/v1/submissions/${missingCategorySubmission.id}`,
+    );
+    expect(missingDetail.status).toBe(200);
+    await expect(missingDetail.json()).resolves.toMatchObject({
+      data: { submission: { category: null, country_codes: null } },
+    });
   });
 });
 

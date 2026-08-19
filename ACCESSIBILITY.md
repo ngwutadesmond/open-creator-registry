@@ -16,18 +16,25 @@ restricted, long handles/URLs wrap, and code output remains keyboard-scrollable.
 
 - Handle and submission validation uses `aria-invalid` and `aria-describedby`.
 - Submission summaries are focusable alerts and preserve the user's inputs after failure.
+- Submission errors link to their exact field or dynamic row, and the summary receives focus only
+  after a submit attempt.
+- The country selector exposes an editable ARIA combobox and multiselect listbox, announces selected
+  country changes, restores focus after selection/Escape, and uses native buttons for keyboard
+  removal.
+- Dynamic username and source rows have unique labels, 44-pixel controls, predictable focus after
+  add/remove actions, and polite assistive-technology announcements.
 - API errors expose safe messages and request IDs without stack traces or SQL details.
 - Loading states use `role="status"`; dynamic results use polite live regions.
 - Classification is conveyed with a label and explanation, never color alone.
 
 ## Verification
 
-Component tests cover labels, error association, dynamic content, keyboard submission, mobile
-navigation Escape behavior, public-only navigation, and the private shell. Playwright runs axe WCAG
-A rules on the rendered public home and admin dashboard and exercises keyboard/mobile workflows in
-real Chromium. Manual inspection was completed at 1536×1024, 1280×800, 1024×768, 768×1024,
-390×844, and 320×844 with browser console/request monitoring and document-overflow assertions at
-every viewport.
+Component tests cover labels, error association, dynamic content, the country combobox keyboard
+model, keyboard submission, mobile navigation Escape behavior, public-only navigation, and the
+private shell. Playwright runs axe WCAG A rules on the rendered public home, creator-submission
+form, and admin dashboard and exercises keyboard/mobile workflows in real Chromium. Responsive
+coverage checks 1536×1024, 1280×800, 1024×768, 768×1024, 390×844, and 320×844 with browser
+console/request monitoring, listbox bounds, and document-overflow assertions at every viewport.
 
 The admin UI adds labelled scroll regions for wide tables, focus-restoring confirmation dialogs,
 an Escape-dismissable drawer, textual statuses, explicit loading/empty/error states, and responsive

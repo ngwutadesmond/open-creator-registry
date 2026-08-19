@@ -41,9 +41,11 @@ npm run test:api
 ```
 
 The contract test passes the generated object to Swagger Parser, checks the exact public path set,
-checks classification and action enums, and rejects administration or availability fields. D1
-integration tests parse representative real endpoint responses through their exported Zod response
-schemas, which catches implementation/schema drift.
+checks classification, action, and public-submission category enums, verifies ISO-country guidance,
+and rejects administration or availability fields. D1 integration tests parse representative real
+endpoint responses through their exported Zod response schemas, which catches implementation/schema
+drift. Submission schemas accept only controlled supplied categories and real ISO alpha-2 country
+codes; the documented optional category preserves legacy direct-client compatibility.
 
 Worker binding types are generated from the public Wrangler configuration:
 

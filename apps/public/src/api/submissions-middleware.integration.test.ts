@@ -2,7 +2,9 @@ import { env } from 'cloudflare:workers';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createCreatorRepository } from '@open-creator-registry/database/repositories/creator-repository';
+import { createCreatorCandidateRepository } from '@open-creator-registry/database/repositories/creator-candidate-repository';
 import { createPublicSubmissionRepository } from '@open-creator-registry/database/repositories/public-submission-repository';
+import { createRegistryReleaseRepository } from '@open-creator-registry/database/repositories/registry-release-repository';
 import { createReservedHandleRepository } from '@open-creator-registry/database/repositories/reserved-handle-repository';
 
 import { createPublicApp } from './routes';
@@ -28,7 +30,9 @@ const validSubmission = {
 describe('public submissions', () => {
   it('creates only a pending review record and does not mutate the live registry', async () => {
     const creatorsBefore = await createCreatorRepository(env.DB).count();
+    const candidatesBefore = await createCreatorCandidateRepository(env.DB).count();
     const handlesBefore = await createReservedHandleRepository(env.DB).count();
+    const releasesBefore = await createRegistryReleaseRepository(env.DB).count();
     const response = await requestApi('/api/v1/submissions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -47,10 +51,35 @@ describe('public submissions', () => {
       'submission_status',
     ]);
     expect(await createCreatorRepository(env.DB).count()).toBe(creatorsBefore);
+    expect(await createCreatorCandidateRepository(env.DB).count()).toBe(candidatesBefore);
     expect(await createReservedHandleRepository(env.DB).count()).toBe(handlesBefore);
+    expect(await createRegistryReleaseRepository(env.DB).count()).toBe(releasesBefore);
     expect(
       (await createPublicSubmissionRepository(env.DB).findById(body.data.id))?.countryCodes,
     ).toEqual(['NG']);
+  });
+
+  it('keeps category omission and null as documented legacy compatibility paths', async () => {
+    for (const [index, category] of [undefined, null].entries()) {
+      const body = {
+        ...validSubmission,
+        creator_name: `Legacy Compatible Submission ${index}`,
+        requested_handles: [`legacy_compatible_${index}`],
+        public_sources: [`https://example.test/legacy-compatible-${index}`],
+        category,
+      };
+      if (category === undefined) delete body.category;
+      const response = await requestApi('/api/v1/submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const responseBody = publicSubmissionResponseSchema.parse(await response.json());
+      expect(response.status).toBe(201);
+      expect(
+        (await createPublicSubmissionRepository(env.DB).findById(responseBody.data.id))?.category,
+      ).toBeNull();
+    }
   });
 
   it('returns 409 for an equivalent pending submission regardless of list order', async () => {
@@ -85,12 +114,25 @@ describe('public submissions', () => {
   it('rejects invalid fields, limits, malformed JSON, unsupported media, and oversized bodies', async () => {
     const invalidBodies = [
       { ...validSubmission, creator_name: 'x' },
+      { ...validSubmission, category: 'arbitrary_new_category' },
+      { ...validSubmission, country_codes: ['ZZ'] },
+      { ...validSubmission, country_codes: ['ng', 'NG'] },
+      {
+        ...validSubmission,
+        country_codes: ['AD', 'AE', 'AF', 'AG', 'AI', 'AL', 'AM', 'AO', 'AQ', 'AR', 'AS'],
+      },
       { ...validSubmission, requested_handles: ['%bad'] },
+      { ...validSubmission, requested_handles: ['creator-name', '@Creator.Name'] },
       {
         ...validSubmission,
         requested_handles: Array.from({ length: 11 }, (_, index) => `name_${index}`),
       },
       { ...validSubmission, public_sources: ['not-a-url'] },
+      { ...validSubmission, public_sources: ['ftp://example.test/profile'] },
+      {
+        ...validSubmission,
+        public_sources: ['https://example.test/profile', 'https://EXAMPLE.test/profile'],
+      },
       {
         ...validSubmission,
         public_sources: Array.from({ length: 11 }, (_, index) => `https://example.test/${index}`),

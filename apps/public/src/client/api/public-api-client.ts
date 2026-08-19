@@ -11,6 +11,8 @@ import {
   handleCheckResponseSchema,
   registryMetaResponseSchema,
   registryReleasesResponseSchema,
+  type SubmissionInput,
+  submissionInputSchema,
   submissionResponseSchema,
 } from './schemas';
 
@@ -152,14 +154,6 @@ function createQueryString(values: Record<string, string | number | undefined>) 
   return encoded ? `?${encoded}` : '';
 }
 
-export type SubmissionInput = {
-  category?: string | null;
-  country_codes?: string[] | null;
-  creator_name: string;
-  public_sources: string[];
-  requested_handles: string[];
-};
-
 export const publicApi = {
   checkHandle(handle: string, signal?: AbortSignal) {
     const query = createQueryString({ handle });
@@ -212,8 +206,21 @@ export const publicApi = {
     );
   },
   submitCreator(input: SubmissionInput, signal?: AbortSignal) {
+    const parsedInput = submissionInputSchema.safeParse(input);
+    if (!parsedInput.success) {
+      throw new PublicApiError({
+        code: 'client_validation_failed',
+        details: parsedInput.error.issues.map((issue) => ({
+          code: issue.code,
+          message: issue.message,
+          path: issue.path.join('.'),
+        })),
+        message: 'Review the submission fields and try again.',
+        status: 0,
+      });
+    }
     return request(`${publicApiBasePath}/submissions`, submissionResponseSchema, {
-      body: input,
+      body: parsedInput.data,
       method: 'POST',
       signal,
     });

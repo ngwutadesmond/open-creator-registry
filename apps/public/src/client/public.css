@@ -1363,6 +1363,17 @@ textarea:focus {
   line-height: 1.5;
 }
 
+.validation-summary a {
+  color: var(--color-danger);
+  font-weight: 700;
+  text-underline-offset: 0.2em;
+}
+
+.validation-summary:focus {
+  outline: 3px solid var(--color-danger);
+  outline-offset: 3px;
+}
+
 .submission-form {
   max-width: 68rem;
 }
@@ -1411,9 +1422,63 @@ textarea:focus {
   grid-column: 1 / -1;
 }
 
+.form-field {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: var(--space-2);
+}
+
+.optional-label {
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.field-count {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.repeatable-fieldset {
+  display: grid;
+  max-width: 55rem;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  gap: var(--space-5);
+}
+
+.repeatable-guidance {
+  max-width: 50rem;
+  margin: 0;
+  color: var(--color-ink-soft);
+  line-height: 1.6;
+}
+
+.repeatable-guidance p {
+  margin: 0 0 var(--space-3);
+}
+
+.source-examples {
+  padding-left: var(--space-6);
+  margin: 0 0 var(--space-3);
+}
+
+.source-examples li + li {
+  margin-top: var(--space-2);
+}
+
 .repeatable-fields {
   display: grid;
   gap: var(--space-5);
+}
+
+.repeatable-field {
+  display: grid;
+  min-width: 0;
+  gap: var(--space-2);
 }
 
 .repeatable-field-row {
@@ -1430,6 +1495,195 @@ textarea:focus {
   background: var(--color-surface);
   cursor: pointer;
   font-weight: 700;
+}
+
+.repeatable-field-row button:disabled,
+.add-field-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.add-field-button {
+  width: fit-content;
+  min-height: 2.75rem;
+}
+
+.handle-input-wrap {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.handle-input-wrap > span {
+  display: grid;
+  min-width: 2.75rem;
+  place-items: center;
+  border: 1px solid var(--color-rule-strong);
+  border-right: 0;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  color: var(--color-ink-soft);
+  background: var(--color-surface-subtle);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.handle-input-wrap input {
+  min-width: 0;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.handle-input-wrap:focus-within > span {
+  border-color: var(--color-emerald);
+}
+
+.country-field {
+  position: relative;
+}
+
+.country-field > .field-help {
+  max-width: 45rem;
+}
+
+.selected-country-list {
+  display: flex;
+  padding: 0;
+  margin: var(--space-2) 0;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  list-style: none;
+}
+
+.selected-country-chip {
+  display: inline-flex;
+  max-width: 100%;
+  min-height: 2.75rem;
+  align-items: center;
+  border: 1px solid var(--color-emerald);
+  border-radius: 999px;
+  color: var(--color-emerald-dark);
+  background: var(--color-emerald-soft);
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+
+.selected-country-chip > span {
+  padding: 0.55rem 0 0.55rem 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.selected-country-chip button {
+  display: grid;
+  width: 2.75rem;
+  min-width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border-radius: 50%;
+  color: currentColor;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+
+.country-combobox {
+  position: relative;
+  width: min(100%, 42rem);
+}
+
+.country-combobox input {
+  min-width: 0;
+}
+
+.country-options {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  left: 0;
+  max-height: min(20rem, 50vh);
+  padding: var(--space-2);
+  margin: 0;
+  overflow-y: auto;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  box-shadow: 0 1rem 2rem rgb(18 39 32 / 16%);
+  list-style: none;
+  overscroll-behavior: contain;
+}
+
+.country-option {
+  display: flex;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  line-height: 1.35;
+}
+
+.country-option > span:last-child {
+  color: var(--color-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 800;
+}
+
+.country-option--active {
+  box-shadow: inset 3px 0 0 var(--color-emerald);
+  background: var(--color-emerald-soft);
+}
+
+.country-options__message {
+  padding: var(--space-4);
+  color: var(--color-ink-soft);
+  line-height: 1.5;
+}
+
+.submission-review-summary {
+  max-width: 55rem;
+  padding: var(--space-6);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle);
+}
+
+.submission-review-summary h3,
+.privacy-notice h3 {
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-size: 1.35rem;
+}
+
+.submission-review-summary dl {
+  display: grid;
+  margin: var(--space-5) 0 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+
+.submission-review-summary dl div {
+  min-width: 0;
+}
+
+.submission-review-summary dt {
+  color: var(--color-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.submission-review-summary dd {
+  margin: var(--space-2) 0 0;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.privacy-notice ul {
+  padding-left: var(--space-6);
+  color: var(--color-ink-soft);
+  line-height: 1.55;
 }
 
 .submission-confirmation .primary-button {
@@ -1951,6 +2205,15 @@ textarea:focus {
 
   .repeatable-field-row button {
     min-height: 2.75rem;
+  }
+
+  .submission-review-summary dl {
+    grid-template-columns: 1fr;
+  }
+
+  .country-combobox,
+  .submission-review-summary {
+    width: 100%;
   }
 
   .api-tester-output,

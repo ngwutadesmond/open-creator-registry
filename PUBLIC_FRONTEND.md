@@ -52,6 +52,23 @@ preserve entered data; pending requests disable repeat submission. A success ack
 that the proposal remains pending and has not approved a creator or reserved a handle. No form data
 is written to local storage or logged to the browser console.
 
+Submission options are centralized in `@open-creator-registry/contracts/submissions`. The browser
+requires one controlled category and submits its stable machine value. The API retains a documented
+omit/`null` compatibility path for older direct consumers while rejecting arbitrary supplied text.
+The administration queue formats known values with friendly labels and safely preserves unknown or
+missing legacy values.
+
+The country selector uses the complete local ISO 3166-1 alpha-2 list, sorted by English display
+name, with deterministic common aliases. It has no external country request or browser persistence.
+Its combobox/listbox interaction supports name/code search, arrow keys, Enter, Escape, focus
+restoration, keyboard-removable selected tokens, duplicate prevention, and a 10-country maximum.
+
+Focused submission modules own creator/category fields, country selection, repeatable usernames,
+repeatable public sources, validation, and the live review summary. Row IDs remain stable while
+fields are added or removed, new inputs receive focus, and polite live regions announce structural
+changes. Handles use the shared normalization policy only; source duplicate comparison canonicalizes
+safe URL structure without fetching a submitted URL.
+
 ## Visual fidelity ledger
 
 The accepted Phase 1 public shell was the primary design source. Temporary screenshots were captured

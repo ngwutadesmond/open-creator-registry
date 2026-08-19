@@ -7,7 +7,8 @@
     "./admin": "./src/admin.ts",
     "./classifications": "./src/classifications.ts",
     "./domain": "./src/domain.ts",
-    "./sources": "./src/sources.ts"
+    "./sources": "./src/sources.ts",
+    "./submissions": "./src/submissions.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

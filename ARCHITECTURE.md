@@ -99,7 +99,9 @@ profile evidence is not promoted to a creator automatically. See `INGESTION_ARCH
 ## Shared contracts
 
 The contracts package owns classification, recommended-action, review, status, tier, alias, source,
-release, and ingestion literals so clients, APIs, importers, repositories, and tests cannot drift.
+release, ingestion, public-submission category, and ISO-country literals so clients, APIs, importers,
+repositories, and tests cannot drift. It also owns friendly category/country formatting that falls
+back safely for historical administration records.
 The normalization package is the sole implementation used by repositories, seeds, future APIs,
 future imports, handle generation, and tests.
 

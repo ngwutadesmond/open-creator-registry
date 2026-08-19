@@ -78,7 +78,10 @@ filtering, and duplicate detection.
 ### `public_submissions`
 
 Public creator suggestions. Requested handles and public sources are JSON arrays stored as text.
-The submission-status/created-time index supports the review queue.
+The submission-status/created-time index supports the review queue. New public requests validate
+controlled supplied categories and at most 10 unique ISO alpha-2 country codes before repository
+insertion. This is an API-boundary change only: the nullable columns and historical arbitrary
+category/country values remain readable and are never rewritten.
 
 ### `registry_releases`
 
@@ -132,7 +135,8 @@ D1 stores these structured fields as `TEXT` with `json_valid` checks:
 
 Repository writes use `serializeJson`; reads use checked `parseJson`, `parseStringArray`, or
 `parseRequiredStringArray`. Invalid stored JSON becomes a stable database failure instead of being
-silently returned. Arrays use ISO 3166-1 alpha-2 uppercase strings where country codes are supplied.
+silently returned. New arrays use ISO 3166-1 alpha-2 uppercase strings where country codes are
+supplied; readers continue to tolerate structurally valid legacy string values.
 
 ## IDs and timestamps
 

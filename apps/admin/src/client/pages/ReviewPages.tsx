@@ -2,6 +2,11 @@ import { FormEvent, useCallback, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { z } from 'zod';
 
+import {
+  formatCountryCode,
+  formatSubmissionCategory,
+} from '@open-creator-registry/contracts/submissions';
+
 import { adminApi, AdminApiError } from '../api/admin-api-client';
 import {
   candidateSchema,
@@ -104,7 +109,7 @@ function CandidateList() {
               <tr key={record.id}>
                 <td>
                   <Link to={`/candidates/${record.id}`}>{record.canonical_name}</Link>
-                  <small>{record.category ?? 'Uncategorised'}</small>
+                  <small>{formatSubmissionCategory(record.category) ?? 'Uncategorised'}</small>
                 </td>
                 <td>{record.discovery_source}</td>
                 <td>{record.confidence_score}%</td>
@@ -168,7 +173,7 @@ function SubmissionList() {
               <tr key={record.id}>
                 <td>
                   <Link to={`/submissions/${record.id}`}>{record.creator_name}</Link>
-                  <small>{record.category ?? 'Uncategorised'}</small>
+                  <small>{formatSubmissionCategory(record.category) ?? 'Uncategorised'}</small>
                 </td>
                 <td>{record.requested_handles.join(', ')}</td>
                 <td>{new Date(record.created_at).toLocaleDateString()}</td>
@@ -439,11 +444,13 @@ function SubmissionDetail({ id }: { id: string }) {
           </div>
           <div>
             <dt>Category</dt>
-            <dd>{data.submission.category ?? 'Not supplied'}</dd>
+            <dd>{formatSubmissionCategory(data.submission.category) ?? 'Not supplied'}</dd>
           </div>
           <div>
             <dt>Countries</dt>
-            <dd>{data.submission.country_codes?.join(', ') || 'Not supplied'}</dd>
+            <dd>
+              {data.submission.country_codes?.map(formatCountryCode).join(', ') || 'Not supplied'}
+            </dd>
           </div>
           <div>
             <dt>Requested handles</dt>

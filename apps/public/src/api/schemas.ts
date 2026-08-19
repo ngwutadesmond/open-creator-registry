@@ -10,11 +10,16 @@ import {
   handleMatchTypes,
   reservationStatuses,
 } from '@open-creator-registry/contracts/domain';
-import { validateHandle } from '@open-creator-registry/normalization';
 import {
   externalProfilePlatforms,
   externalProfileVerificationStatuses,
 } from '@open-creator-registry/contracts/sources';
+import {
+  isCountryCode,
+  normalizePublicSourceUrl,
+  submissionCategories,
+} from '@open-creator-registry/contracts/submissions';
+import { validateHandle } from '@open-creator-registry/normalization';
 
 import { defaultPageSize, maximumBatchSize, maximumPageSize } from './constants';
 
@@ -360,15 +365,102 @@ export const registryReleasesResponseSchema = z
 
 export const publicSubmissionRequestSchema = z
   .object({
-    creator_name: z.string().trim().min(2).max(120),
-    category: z.string().trim().min(1).max(64).nullable().optional(),
-    country_codes: z
-      .array(z.string().regex(/^[A-Za-z]{2}$/u))
-      .max(10)
+    creator_name: z.string().trim().min(2).max(120).openapi({ example: 'Registry Test Creator' }),
+    category: z
+      .enum(submissionCategories.map(({ value }) => value))
       .nullable()
-      .optional(),
-    requested_handles: z.array(handleInputSchema).min(1).max(10),
-    public_sources: z.array(z.url()).min(1).max(10),
+      .optional()
+      .openapi({
+        description:
+          'Controlled creator category. Omission or null remains temporarily accepted only for legacy API compatibility; the public form always requires a value.',
+        example: 'content_creator',
+      }),
+    country_codes: z
+      .array(
+        z
+          .string()
+          .trim()
+          .length(2)
+          .superRefine((value, context) => {
+            if (!isCountryCode(value.toUpperCase())) {
+              context.addIssue({
+                code: 'custom',
+                message: 'Select a supported ISO 3166-1 alpha-2 country code.',
+              });
+            }
+          }),
+      )
+      .max(10)
+      .superRefine((values, context) => {
+        const seen = new Set<string>();
+        values.forEach((value, index) => {
+          const normalized = value.toUpperCase();
+          if (seen.has(normalized)) {
+            context.addIssue({
+              code: 'custom',
+              message: 'Country codes must not be duplicated.',
+              path: [index],
+            });
+          }
+          seen.add(normalized);
+        });
+      })
+      .nullable()
+      .optional()
+      .openapi({
+        description:
+          'Up to 10 unique ISO 3166-1 alpha-2 codes. Accepted lowercase codes are normalized to uppercase before storage.',
+        example: ['NG', 'GH'],
+      }),
+    requested_handles: z
+      .array(handleInputSchema)
+      .min(1)
+      .max(10)
+      .superRefine((values, context) => {
+        const seen = new Set<string>();
+        values.forEach((value, index) => {
+          const result = validateHandle(value);
+          if (!result.valid) return;
+          if (seen.has(result.normalized)) {
+            context.addIssue({
+              code: 'custom',
+              message: 'Requested usernames must be unique after normalization.',
+              path: [index],
+            });
+          }
+          seen.add(result.normalized);
+        });
+      })
+      .openapi({ example: ['registry_test_creator'] }),
+    public_sources: z
+      .array(
+        z.url().superRefine((value, context) => {
+          if (!normalizePublicSourceUrl(value)) {
+            context.addIssue({
+              code: 'custom',
+              message: 'Use a complete public http or https URL.',
+            });
+          }
+        }),
+      )
+      .min(1)
+      .max(10)
+      .superRefine((values, context) => {
+        const seen = new Set<string>();
+        values.forEach((value, index) => {
+          const normalized = normalizePublicSourceUrl(value);
+          if (!normalized) return;
+          if (seen.has(normalized)) {
+            context.addIssue({
+              code: 'custom',
+              message: 'Supporting source URLs must not be duplicated.',
+              path: [index],
+            });
+          }
+          seen.add(normalized);
+        });
+      })
+      .openapi({ example: ['https://example.test/public-profile'] }),
   })
   .strict()
   .openapi('PublicSubmissionRequest');

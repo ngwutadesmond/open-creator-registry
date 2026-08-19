@@ -2,6 +2,8 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 const creatorId = '10000000-0000-4000-8000-000000000001';
+const adminUrl = 'http://localhost:5174';
+const publicUrl = 'http://localhost:5173';
 
 const browserErrors = new WeakMap<Page, string[]>();
 
@@ -99,7 +101,7 @@ test('loads and refreshes deep links and renders an unknown-route state', async 
   await expect(page.getByRole('link', { name: 'Explore creators' })).toBeVisible();
 });
 
-test('validates, recovers, and submits a public proposal without changing Registry counts', async ({
+test('validates, recovers, submits structured evidence, and exposes it in the admin queue', async ({
   page,
   request,
 }) => {
@@ -109,33 +111,144 @@ test('validates, recovers, and submits a public proposal without changing Regist
   };
 
   await page.goto('/submit');
+  await expectNoAutomaticAccessibilityViolations(page);
   await page
     .getByRole('textbox', { name: /creator public name/i })
     .fill('Phase Four Demo Proposal');
-  await page.getByRole('textbox', { name: 'Handle 1' }).fill('bad/handle');
-  await page.getByRole('textbox', { name: 'Source URL 1' }).fill('not-a-url');
+  await page.getByRole('textbox', { name: 'Username 1' }).fill('bad/handle');
+  await page.getByRole('textbox', { name: 'Supporting source 1' }).fill('not-a-url');
   await page.getByRole('button', { name: 'Submit for review' }).click();
   await expect(page.getByRole('heading', { name: 'Review the submission' })).toBeVisible();
+  await expect(page.getByRole('alert')).toBeFocused();
   await expect(page.getByRole('textbox', { name: /creator public name/i })).toHaveValue(
     'Phase Four Demo Proposal',
   );
 
-  await page.getByRole('textbox', { name: 'Handle 1' }).fill('phase_four_demo_proposal');
+  await page.getByRole('combobox', { name: 'Category' }).selectOption('music');
+  const countrySearch = page.getByRole('combobox', { name: /countries/i });
+  await countrySearch.focus();
+  await page.keyboard.type('Nigeria');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name: 'Remove Nigeria (NG)' })).toBeVisible();
+  await page.keyboard.type('Ghana');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name: 'Remove Ghana (GH)' })).toBeVisible();
+
+  await page.getByRole('textbox', { name: 'Username 1' }).fill('phase_four_demo_proposal');
+  await page.getByRole('button', { name: 'Add another username' }).click();
+  await expect(page.getByRole('textbox', { name: 'Username 2' })).toBeFocused();
+  await page.getByRole('textbox', { name: 'Username 2' }).fill('@phase.four.demo');
   await page
-    .getByRole('textbox', { name: 'Source URL 1' })
+    .getByRole('textbox', { name: 'Supporting source 1' })
+    .fill('https://example.com/phase-four-demo');
+  await page.getByRole('button', { name: 'Add another source' }).click();
+  await expect(page.getByRole('textbox', { name: 'Supporting source 2' })).toBeFocused();
+  await page
+    .getByRole('textbox', { name: 'Supporting source 2' })
+    .fill('https://example.org/phase-four-demo');
+  const reviewSummary = page.locator('.submission-review-summary');
+  await expect(reviewSummary).toContainText('Music');
+  await expect(reviewSummary).toContainText('Nigeria (NG), Ghana (GH)');
+  await expect(reviewSummary).toContainText('Requested usernames2');
+  await expect(reviewSummary).toContainText('Supporting sources2');
+  await page.getByRole('button', { name: 'Submit for review' }).click();
+  await expect(page.getByRole('heading', { name: 'Submission received' })).toBeVisible();
+  await expect(page.getByText('Pending review')).toBeVisible();
+  await expect(
+    page.getByText(/has not approved a creator or reserved any username/i),
+  ).toBeVisible();
+
+  await page.goto(`${adminUrl}/submissions`);
+  await expect(page.getByRole('link', { name: 'Phase Four Demo Proposal' })).toBeVisible();
+
+  await page.goto(`${publicUrl}/submit`);
+  await page
+    .getByRole('textbox', { name: /creator public name/i })
+    .fill('Phase Four Demo Proposal');
+  await page.getByRole('combobox', { name: 'Category' }).selectOption('music');
+  await page.getByRole('textbox', { name: 'Username 1' }).fill('@phase_four_demo_proposal');
+  await page.getByRole('button', { name: 'Add another username' }).click();
+  await page.getByRole('textbox', { name: 'Username 2' }).fill('phase-four-demo');
+  await page
+    .getByRole('textbox', { name: 'Supporting source 1' })
+    .fill('https://example.org/phase-four-demo');
+  await page.getByRole('button', { name: 'Add another source' }).click();
+  await page
+    .getByRole('textbox', { name: 'Supporting source 2' })
     .fill('https://example.com/phase-four-demo');
   await page.getByRole('button', { name: 'Submit for review' }).click();
   await expect(
-    page.getByRole('heading', { name: 'Thank you for contributing public evidence.' }),
+    page.getByRole('heading', { name: 'This proposal is already pending' }),
   ).toBeVisible();
-  await expect(page.getByText('Pending review')).toBeVisible();
-  await expect(
-    page.getByText(/has not created an approved creator or reserved any username/i),
-  ).toBeVisible();
+  browserErrors.set(
+    page,
+    (browserErrors.get(page) ?? []).filter(
+      (message) =>
+        message !==
+        'console: Failed to load resource: the server responded with a status of 409 (Conflict)',
+    ),
+  );
+  await expect(page.getByRole('textbox', { name: /creator public name/i })).toHaveValue(
+    'Phase Four Demo Proposal',
+  );
 
   const after = await request.get('/api/v1/registry/meta');
   const afterBody = (await after.json()) as typeof beforeBody;
   expect(afterBody.data.record_counts).toEqual(beforeBody.data.record_counts);
+});
+
+test('completes the creator submission flow on a 320px mobile viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto('/submit');
+  await page.getByRole('textbox', { name: /creator public name/i }).fill('Mobile Demo Creator');
+  await page.getByRole('combobox', { name: 'Category' }).selectOption('comedy');
+  const countrySearch = page.getByRole('combobox', { name: /countries/i });
+  await countrySearch.fill('Ghana');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await page.getByRole('textbox', { name: 'Username 1' }).fill('mobile_demo_creator');
+  await page
+    .getByRole('textbox', { name: 'Supporting source 1' })
+    .fill('https://example.test/mobile-demo-creator');
+  await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 320);
+  await page.getByRole('button', { name: 'Submit for review' }).click();
+  await expect(page.getByRole('heading', { name: 'Submission received' })).toBeVisible();
+  await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 320);
+});
+
+test('keeps the submission form and country list inside all required viewports', async ({
+  page,
+}) => {
+  const viewports = [
+    { width: 1536, height: 1024 },
+    { width: 1280, height: 800 },
+    { width: 1024, height: 768 },
+    { width: 768, height: 1024 },
+    { width: 390, height: 844 },
+    { width: 320, height: 844 },
+  ];
+
+  for (const viewport of viewports) {
+    await page.setViewportSize(viewport);
+    await page.goto('/submit');
+    const countrySearch = page.getByRole('combobox', { name: /countries/i });
+    await countrySearch.fill('United');
+    const listbox = page.getByRole('listbox', { name: 'Countries' });
+    await expect(listbox).toBeVisible();
+    const dimensions = await page.evaluate(() => ({
+      bodyWidth: document.body.scrollWidth,
+      viewportWidth: document.documentElement.clientWidth,
+    }));
+    expect(dimensions.bodyWidth).toBeLessThanOrEqual(dimensions.viewportWidth);
+    const box = await listbox.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box?.x ?? -1).toBeGreaterThanOrEqual(0);
+    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(viewport.width);
+    await page.keyboard.press('Escape');
+    await expect(countrySearch).toBeFocused();
+  }
 });
 
 test('shows truthful releases, exercises the API tester, and opens Scalar docs', async ({

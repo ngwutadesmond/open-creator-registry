@@ -19,8 +19,12 @@ All Phase 3 endpoints are public and unauthenticated. Local development uses:
 http://localhost:5173
 ```
 
-No production hostname exists yet. Gate A defines account-neutral Worker URL placeholders; the
-OpenAPI server is derived from the configured environment or current request origin.
+The deployed public environments are:
+
+- production: `https://open-creator-registry.ngwutades.workers.dev`
+- staging: `https://open-creator-registry-staging.ngwutades.workers.dev`
+
+The generated OpenAPI server is derived from the configured environment or current request origin.
 
 Every JSON response includes `meta.request_id` and `meta.timestamp`; the request ID is also returned
 as `X-Request-ID`. A caller may send a UUID in `X-Request-ID` for correlation. Other values are
@@ -158,9 +162,38 @@ withdrawn records are private. Local metadata explicitly marks the seed as demon
 ## Public submissions
 
 Submissions create only a pending human-review record. They never approve a creator or reserve a
-handle. The request is limited to 32 KiB, 10 handles, and 10 syntactically valid public source URLs.
-Submitted URLs are stored but never fetched. Equivalent pending submissions return `409`; this is
-the Phase 3 duplicate/idempotency policy.
+handle. The request is limited to 32 KiB, 10 handles, 10 countries, and 10 syntactically valid
+public source URLs. Submitted URLs are stored for review but never fetched and are not proof of
+identity or account ownership. Equivalent pending submissions return `409`; this is the existing
+duplicate/idempotency policy.
+
+`category`, when supplied, must be one of these stable machine values:
+
+| Value                       | Display label                |
+| --------------------------- | ---------------------------- |
+| `music`                     | Music                        |
+| `film_tv`                   | Film & Television            |
+| `comedy`                    | Comedy                       |
+| `content_creator`           | Content Creator / Influencer |
+| `gaming_streaming`          | Gaming / Streaming           |
+| `sports`                    | Sports                       |
+| `fashion_beauty`            | Fashion / Beauty             |
+| `visual_arts_design`        | Visual Arts / Design         |
+| `dance`                     | Dance / Choreography         |
+| `writing_publishing`        | Writing / Publishing         |
+| `podcasting_audio`          | Podcasting / Audio           |
+| `education`                 | Education                    |
+| `technology`                | Technology                   |
+| `business_entrepreneurship` | Business / Entrepreneurship  |
+| `other`                     | Other                        |
+
+The public browser form always requires a category. For backward compatibility, direct API callers
+may temporarily omit `category` or send `null`; arbitrary category text is rejected. Existing
+stored legacy categories remain unchanged and readable.
+
+`country_codes` is optional and accepts at most 10 real ISO 3166-1 alpha-2 codes. Codes are matched
+case-insensitively, stored in uppercase, and must be unique. Unsupported combinations such as `ZZ`
+are rejected for new submissions; historical records are not rewritten.
 
 ```bash
 curl 'http://localhost:5173/api/v1/submissions' \
@@ -175,9 +208,8 @@ curl 'http://localhost:5173/api/v1/submissions' \
 ```
 
 The current privacy/schema policy does not collect submitter contact information or private notes.
-Gate A declares per-environment Cloudflare rate-limit bindings for submissions and handle checks;
-they are not active until deployment. Local development intentionally permits deterministic tests
-without a remote binding.
+Deployed environments use per-environment Cloudflare rate-limit bindings for submissions and handle
+checks. Local development intentionally permits deterministic tests without a remote binding.
 
 ## Errors
 

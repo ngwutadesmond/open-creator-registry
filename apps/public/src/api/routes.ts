@@ -262,7 +262,7 @@ const submissionRoute = createRoute({
   tags: ['Submissions'],
   summary: 'Submit a creator for human review',
   description:
-    'Creates only a pending review record. It never approves a creator or reserves a handle. Equivalent pending submissions receive 409. Submitted URLs are validated syntactically but never fetched.',
+    'Creates only a pending review record. It never approves a creator or reserves a handle. New clients use a controlled category and up to 10 unique ISO 3166-1 alpha-2 country codes. Category omission or null is accepted temporarily for legacy API compatibility, while arbitrary category text is rejected. Equivalent pending submissions receive 409. Submitted URLs are stored for review, are never fetched by this endpoint, and are not proof of identity or account ownership.',
   request: { body: { required: true, content: jsonContent(publicSubmissionRequestSchema) } },
   responses: {
     201: {

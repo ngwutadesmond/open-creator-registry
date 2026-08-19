@@ -5,6 +5,7 @@ import {
   recommendedActions,
   registryClassifications,
 } from '@open-creator-registry/contracts/classifications';
+import { submissionCategories } from '@open-creator-registry/contracts/submissions';
 
 import { createOpenApiDocument } from './routes';
 
@@ -42,8 +43,12 @@ describe('generated public OpenAPI document', () => {
       expect(serialized).toContain(classification),
     );
     recommendedActions.forEach((action) => expect(serialized).toContain(action));
+    submissionCategories.forEach(({ value }) => expect(serialized).toContain(value));
     expect(serialized).toContain('total_pages');
     expect(serialized).toContain('validation_failed');
+    expect(serialized).toContain('ISO 3166-1 alpha-2');
+    expect(serialized).toContain('legacy API compatibility');
+    expect(serialized).toContain('not proof of identity or account ownership');
     expect(serialized).toContain('not legal ownership');
     expect(serialized).not.toContain('username_available');
     expect(serialized).not.toContain('is_available');

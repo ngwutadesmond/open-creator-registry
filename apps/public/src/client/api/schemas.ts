@@ -14,6 +14,13 @@ import {
   externalProfilePlatforms,
   externalProfileVerificationStatuses,
 } from '@open-creator-registry/contracts/sources';
+import {
+  isCountryCode,
+  normalizePublicSourceUrl,
+  submissionCategories,
+  type CountryCode,
+} from '@open-creator-registry/contracts/submissions';
+import { validateHandle } from '@open-creator-registry/normalization';
 
 const requestMetaSchema = z.object({
   request_id: z.uuid(),
@@ -176,6 +183,26 @@ export const submissionResponseSchema = z.object({
   meta: requestMetaSchema,
 });
 
+const submissionCountryCodeSchema = z.custom<CountryCode>(
+  (value) => typeof value === 'string' && isCountryCode(value),
+);
+
+export const submissionInputSchema = z
+  .object({
+    category: z.enum(submissionCategories.map(({ value }) => value)),
+    country_codes: z.array(submissionCountryCodeSchema).max(10).nullable(),
+    creator_name: z.string().trim().min(2).max(120),
+    public_sources: z
+      .array(z.string().refine((value) => Boolean(normalizePublicSourceUrl(value))))
+      .min(1)
+      .max(10),
+    requested_handles: z
+      .array(z.string().refine((value) => validateHandle(value).valid))
+      .min(1)
+      .max(10),
+  })
+  .strict();
+
 export const errorEnvelopeSchema = z.object({
   error: z.object({
     code: z.string(),
@@ -206,3 +233,4 @@ export type RegistryReleasesResponse = z.infer<typeof registryReleasesResponseSc
 export type RegistryRelease = RegistryReleasesResponse['data'][number];
 export type SubmissionResponse = z.infer<typeof submissionResponseSchema>;
 export type SubmissionAcknowledgement = SubmissionResponse['data'];
+export type SubmissionInput = z.infer<typeof submissionInputSchema>;
