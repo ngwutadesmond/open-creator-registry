@@ -106,9 +106,7 @@ describe('SubmissionPage', () => {
     expect(countrySearch).toHaveAttribute('aria-expanded', 'false');
     expect(countrySearch).toHaveFocus();
 
-    const removeNigeria = screen.getByRole('button', { name: 'Remove Nigeria (NG)' });
-    removeNigeria.focus();
-    await user.keyboard('{Enter}');
+    await user.click(screen.getByRole('button', { name: 'Remove Nigeria (NG)' }));
     expect(screen.queryByText('Nigeria (NG)')).not.toBeInTheDocument();
     expect(screen.getByText('1 of 10 countries selected')).toBeInTheDocument();
     await waitFor(() => expect(countrySearch).toHaveFocus());

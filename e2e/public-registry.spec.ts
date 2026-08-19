@@ -135,6 +135,15 @@ test('validates, recovers, submits structured evidence, and exposes it in the ad
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('button', { name: 'Remove Ghana (GH)' })).toBeVisible();
+  const removeGhana = page.getByRole('button', { name: 'Remove Ghana (GH)' });
+  await removeGhana.focus();
+  await page.keyboard.press('Enter');
+  await expect(removeGhana).toBeHidden();
+  await expect(countrySearch).toBeFocused();
+  await page.keyboard.type('Ghana');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name: 'Remove Ghana (GH)' })).toBeVisible();
 
   await page.getByRole('textbox', { name: 'Username 1' }).fill('phase_four_demo_proposal');
   await page.getByRole('button', { name: 'Add another username' }).click();
