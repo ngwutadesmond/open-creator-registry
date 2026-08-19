@@ -28,6 +28,7 @@ Wrangler applies migrations in filename order from `packages/database/migrations
 | `0003_registry_administration.sql`          | Approvals, imports, release snapshots, and atomic mutation guards    |
 | `0004_scheduled_ingestion_and_profiles.sql` | Source runs, leases, checkpoints, outcomes, provenance, and profiles |
 | `0005_source_configuration_defaults.sql`    | Disabled/dry-run source system default for empty remote databases    |
+| `0006_public_submission_bulk_safety.sql`    | Active-submission fingerprints, batch idempotency, and safe origin   |
 
 Wrangler records applied files in `d1_migrations`. Never edit an applied migration; add the next
 numbered SQL file instead.
@@ -80,8 +81,15 @@ filtering, and duplicate detection.
 Public creator suggestions. Requested handles and public sources are JSON arrays stored as text.
 The submission-status/created-time index supports the review queue. New public requests validate
 controlled supplied categories and at most 10 unique ISO alpha-2 country codes before repository
-insertion. This is an API-boundary change only: the nullable columns and historical arbitrary
-category/country values remain readable and are never rewritten.
+insertion. Historical arbitrary category/country values remain readable and are never rewritten.
+
+Migration `0006_public_submission_bulk_safety.sql` adds nullable normalized-name, fingerprint,
+batch-reference, and batch-row columns. Existing rows remain null and unchanged; there is no legacy
+backfill. A partial unique index applies only to non-null fingerprints in `pending` or
+`under_review` state, preventing concurrent equivalent active submissions while allowing corrected
+resubmission after a terminal decision. `public_submission_batches` stores only an idempotency UUID,
+preview checksum, bounded result JSON, and timestamps. It does not store raw rows, filenames, or
+workbook data.
 
 ### `registry_releases`
 
@@ -160,9 +168,11 @@ metadata provider.
   code hydrates matched creators once rather than issuing one query per handle.
 - Public release queries expose only published and superseded published history; drafts and
   withdrawn records remain private.
-- Pending-submission duplicate detection examines a bounded recent pending set and compares
-  normalized names, canonical handles, country lists, and URLs. A duplicate returns a stable
-  conflict rather than creating a second pending record.
+- Single and bulk duplicate detection share an order-independent SHA-256 fingerprint over normalized
+  creator name, category, sorted unique countries, normalized handles, and canonical URLs. Active
+  legacy rows without a stored fingerprint are compared at runtime; new active rows additionally use
+  the partial unique index for race-safe enforcement. A duplicate returns a stable conflict or a
+  skipped bulk row instead of creating another active submission.
 - Find methods return `null` for absence. Mutations targeting a missing record throw a stable
   `not_found` error.
 - Unique, constraint, validation, and unexpected D1 failures map to stable application error codes.

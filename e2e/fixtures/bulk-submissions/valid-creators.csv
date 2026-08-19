@@ -1,0 +1,6 @@
+creator_name,category,countries,requested_usernames,public_sources
+Registry Batch Test One,music,NG; GH,registry_batch_test_one; @registrybatchone,https://example.test/registry-batch-one
+Registry Batch Test Two,content_creator,United States,registry_batch_test_two,https://example.test/registry-batch-two
+Registry Batch Test Three,technology,GB,registry_batch_test_three,https://example.test/registry-batch-three
+Registry Batch Test Four,visual_arts_design,Ghana,registry_batch_test_four,https://example.test/registry-batch-four
+Registry Batch Test Five,education,,registry_batch_test_five,https://example.test/registry-batch-five

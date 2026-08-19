@@ -33,6 +33,7 @@
     "db:validate": "tsx packages/database/scripts/local-d1.ts validate",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "fixtures:bulk": "node scripts/generate-bulk-submission-fixtures.mjs",
     "ingestion:serve:local": "WRANGLER_WRITE_LOGS=false wrangler dev --config apps/admin/wrangler.scheduled-local.jsonc --local --persist-to .wrangler/state --test-scheduled --port 8788",
     "ingestion:trigger:local": "node scripts/trigger-local-ingestion.mjs",
     "lint": "eslint . --max-warnings 0",

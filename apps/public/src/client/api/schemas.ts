@@ -183,6 +183,88 @@ export const submissionResponseSchema = z.object({
   meta: requestMetaSchema,
 });
 
+export const bulkSubmissionSourceRowSchema = z.object({
+  row_number: z.number().int().min(2),
+  creator_name: z.string(),
+  category: z.string(),
+  countries: z.array(z.string()),
+  requested_usernames: z.array(z.string()),
+  public_sources: z.array(z.string()),
+});
+
+const bulkSubmissionIssueSchema = z.object({
+  code: z.string(),
+  field: z.string().nullable(),
+  message: z.string(),
+});
+
+const normalizedBulkSubmissionSchema = z.object({
+  creator_name: z.string(),
+  category: z.enum(submissionCategories.map(({ value }) => value)),
+  country_codes: z.array(z.string()),
+  requested_handles: z.array(z.string()),
+  public_sources: z.array(z.string()),
+});
+
+export const bulkSubmissionPreviewResponseSchema = z.object({
+  data: z.object({
+    preview_checksum: z.string(),
+    rows: z.array(
+      z.object({
+        row_number: z.number().int(),
+        status: z.enum(['ready', 'exact_duplicate', 'possible_duplicate', 'invalid']),
+        normalized: normalizedBulkSubmissionSchema.nullable(),
+        fingerprint: z.string().nullable(),
+        duplicate_scope: z.enum(['within_file', 'existing']).nullable(),
+        duplicate_of_row: z.number().int().nullable(),
+        errors: z.array(bulkSubmissionIssueSchema),
+        warnings: z.array(bulkSubmissionIssueSchema),
+      }),
+    ),
+    summary: z.object({
+      total_rows: z.number().int(),
+      ready: z.number().int(),
+      exact_duplicates: z.number().int(),
+      possible_duplicates: z.number().int(),
+      invalid: z.number().int(),
+      rows_with_warnings: z.number().int(),
+    }),
+  }),
+  meta: requestMetaSchema,
+});
+
+export const bulkSubmissionCommitResponseSchema = z.object({
+  data: z.object({
+    batch_reference: z.string(),
+    preview_checksum: z.string(),
+    idempotent_replay: z.boolean(),
+    submitted_rows: z.number().int(),
+    skipped_exact_duplicates: z.number().int(),
+    skipped_within_file_duplicates: z.number().int(),
+    possible_duplicates_excluded: z.number().int(),
+    invalid_rows: z.number().int(),
+    failed_rows: z.number().int(),
+    total_pending_submissions_created: z.number().int(),
+    rows: z.array(
+      z.object({
+        row_number: z.number().int(),
+        status: z.enum([
+          'submitted',
+          'skipped_exact_duplicate',
+          'skipped_within_file_duplicate',
+          'excluded_possible_duplicate',
+          'excluded_by_user',
+          'invalid',
+          'failed',
+        ]),
+        submission_id: z.string().nullable(),
+        messages: z.array(z.string()),
+      }),
+    ),
+  }),
+  meta: requestMetaSchema,
+});
+
 const submissionCountryCodeSchema = z.custom<CountryCode>(
   (value) => typeof value === 'string' && isCountryCode(value),
 );
@@ -234,3 +316,8 @@ export type RegistryRelease = RegistryReleasesResponse['data'][number];
 export type SubmissionResponse = z.infer<typeof submissionResponseSchema>;
 export type SubmissionAcknowledgement = SubmissionResponse['data'];
 export type SubmissionInput = z.infer<typeof submissionInputSchema>;
+export type BulkSubmissionSourceRow = z.infer<typeof bulkSubmissionSourceRowSchema>;
+export type BulkSubmissionPreviewResponse = z.infer<typeof bulkSubmissionPreviewResponseSchema>;
+export type BulkSubmissionPreview = BulkSubmissionPreviewResponse['data'];
+export type BulkSubmissionCommitResponse = z.infer<typeof bulkSubmissionCommitResponseSchema>;
+export type BulkSubmissionCommitResult = BulkSubmissionCommitResponse['data'];

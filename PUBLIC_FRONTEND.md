@@ -15,7 +15,7 @@ is available, proves identity or ownership, approves a claim, or exposes adminis
 | `/creators`            | Server-paginated creator search, filters, and safe sorting             |
 | `/creators/:creatorId` | Public creator, alias, source, and active-handle evidence              |
 | `/releases`            | Current Registry state and published release history                   |
-| `/submit`              | Pending public-evidence proposal                                       |
+| `/submit`              | Individual and spreadsheet pending public-evidence proposals           |
 | `/api-tester`          | Allowlisted public GET request tester                                  |
 | `/about`               | Classification, platform-flow, and public data-source policy           |
 | `/docs`                | Phase 3 generated Scalar API documentation                             |
@@ -68,6 +68,15 @@ repeatable public sources, validation, and the live review summary. Row IDs rema
 fields are added or removed, new inputs receive focus, and polite live regions announce structural
 changes. Handles use the shared normalization policy only; source duplicate comparison canonicalizes
 safe URL structure without fetching a submitted URL.
+
+The submission page defaults to an individual-form tab and uses `?mode=bulk` for its spreadsheet
+tab so direct loading and browser history work. Both mounted drafts survive a mode switch. The bulk
+panel parses bounded CSV locally with Papa Parse and dynamically loads its local XLSX reader only
+when necessary. It displays detected headers, server-authoritative row status, filters, responsive
+table/cards, selection counts, an explicit commit confirmation, row-level results, request IDs,
+and CSV reports. Exact/invalid rows cannot be selected; possible duplicates require a deliberate
+row selection. No raw file, filename, or browser draft is persisted. See
+`PUBLIC_SUBMISSIONS.md` for the complete format and API policy.
 
 ## Visual fidelity ledger
 

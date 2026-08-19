@@ -3,6 +3,11 @@
 Imports are bounded local Registry changes, not an external scraping or connector system. Phase 6
 owns scheduled connectors.
 
+This authenticated workflow is distinct from the public spreadsheet uploader documented in
+`PUBLIC_SUBMISSIONS.md`. Administration imports can create controlled Registry records after an
+admin preview/commit. Public spreadsheets create only normal pending public submissions and never
+call this endpoint, create creators/candidates, reserve handles, or publish releases.
+
 ## Formats
 
 JSON is one array of records. CSV uses a header row, comma delimiters, RFC-style doubled quotes,

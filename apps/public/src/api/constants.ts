@@ -3,6 +3,7 @@ export const serviceName = 'Open Creator Registry API' as const;
 export const registryName = 'Open Creator Registry' as const;
 export const maximumBatchSize = 50;
 export const maximumRequestBodySize = 32 * 1024;
+export const maximumBulkSubmissionRequestBodySize = 2 * 1024 * 1024;
 export const defaultPageSize = 20;
 export const maximumPageSize = 100;
 

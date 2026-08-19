@@ -1,0 +1,6 @@
+creator_name,category,countries,requested_usernames,public_sources
+Registry Batch Test One,music,NG; GH,registry_batch_test_one; @registrybatchone,https://example.test/registry-batch-one
+Registry Batch Test One,music,NG; GH,registry_batch_test_one; @registrybatchone,https://example.test/registry-batch-one
+Registry Invalid Category,not_a_category,NG,registry_invalid_category,https://example.test/invalid-category
+Registry Invalid Country,music,ZZ,registry_invalid_country,https://example.test/invalid-country
+Registry Invalid Source,music,NG,registry_invalid_source,file:///private/source

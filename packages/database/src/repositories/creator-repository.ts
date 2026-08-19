@@ -127,6 +127,23 @@ export function createCreatorRepository(
     return rows.map(mapCreatorEntity);
   }
 
+  async function findApprovedByNormalizedNames(names: string[]): Promise<CreatorEntity[]> {
+    const normalizedNames = [...new Set(names.map(normalizeCreatorName))];
+    if (normalizedNames.length === 0) return [];
+    const rows = await allRows<CreatorEntityRow>(
+      db
+        .prepare(
+          `SELECT * FROM creator_entities
+           WHERE review_status = 'approved'
+             AND normalized_name IN (SELECT value FROM json_each(?))
+           ORDER BY created_at, id`,
+        )
+        .bind(serializeJson(normalizedNames)),
+      'creator.findApprovedByNormalizedNames',
+    );
+    return rows.map(mapCreatorEntity);
+  }
+
   function createFilterBinding(options: CreatorListOptions) {
     const query = options.query?.trim() || null;
     const normalizedName = query ? normalizeCreatorName(query) : null;
@@ -291,5 +308,15 @@ export function createCreatorRepository(
     return row?.count ?? 0;
   }
 
-  return { create, findById, findPublicById, findByIds, findByNormalizedName, list, update, count };
+  return {
+    count,
+    create,
+    findApprovedByNormalizedNames,
+    findById,
+    findByIds,
+    findByNormalizedName,
+    findPublicById,
+    list,
+    update,
+  };
 }

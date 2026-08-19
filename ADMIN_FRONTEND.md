@@ -30,6 +30,12 @@ Loading, empty, error, success, confirmation, common-name, confusable, demonstra
 approval states are explicit. WCAG A/2.1 A automation runs in Playwright, with keyboard focus,
 Escape behavior, reduced motion, labelled controls, and responsive overflow covered.
 
+Public spreadsheet rows remain ordinary public submissions. The queue and detail page display a
+safe shortened batch reference and spreadsheet row number when present, without exposing or
+retaining the original filename or raw workbook. Start review, reject, approve under existing
+policy, and convert-to-candidate continue to operate on each individual submission. This is not the
+administration import system.
+
 ## Phase 5 visual-fidelity ledger
 
 | Surface                      | Accepted direction                                                              | Rendered result                                                                                                                      | Finding or intentional deviation                                                  |

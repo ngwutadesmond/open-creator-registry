@@ -94,7 +94,7 @@ changing remote state.
 
 ## Staging migration safety
 
-Apply only after checking the database name/UUID and all five filenames:
+Apply only after checking the database name/UUID and all six filenames:
 
 ```bash
 export STAGING_D1_DATABASE_ID='value-copied-from-d1-create'
@@ -107,7 +107,7 @@ for migration confirmation. Read every filename and confirm only when it matches
 `packages/database/migrations` directory. Wrangler applies each migration transactionally and the
 script then lists tables, foreign-key violations, applied migrations, and the system source
 configuration count. Stop on any error; do not deploy against a partially verified schema.
-Acceptance requires five applied migration names, 21 application tables, 86 indexes, an empty
+Acceptance requires six applied migration names, 22 application tables, 90 indexes, an empty
 foreign-key result, the disabled default source configuration, and zero creators, handles,
 releases, and submissions before any optional staging seed.
 

@@ -34,6 +34,12 @@ function distributedLimiterForRequest(
   if (method === 'POST' && pathname === '/api/v1/submissions') {
     return bindings.PUBLIC_SUBMISSION_RATE_LIMITER;
   }
+  if (method === 'POST' && pathname === '/api/v1/submissions/bulk/preview') {
+    return bindings.PUBLIC_BULK_PREVIEW_RATE_LIMITER;
+  }
+  if (method === 'POST' && pathname === '/api/v1/submissions/bulk/commit') {
+    return bindings.PUBLIC_BULK_COMMIT_RATE_LIMITER;
+  }
   return undefined;
 }
 
@@ -47,6 +53,8 @@ function createDistributedPublicRateLimiter(bindings: PublicRuntimeBindings): Pu
             'GET:/api/v1/handles/check',
             'POST:/api/v1/handles/check-batch',
             'POST:/api/v1/submissions',
+            'POST:/api/v1/submissions/bulk/preview',
+            'POST:/api/v1/submissions/bulk/commit',
           ].includes(`${context.method}:${context.pathname}`)
           ? { allowed: true }
           : { allowed: false, unavailable: true };

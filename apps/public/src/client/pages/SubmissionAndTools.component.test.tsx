@@ -25,6 +25,41 @@ async function fillValidSubmission(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('SubmissionPage', () => {
+  it('defaults to individual mode and preserves manual input while switching URL-backed tabs', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(<SubmissionPage />, '/submit');
+    const individualTab = screen.getByRole('tab', { name: 'Submit one creator' });
+    const bulkTab = screen.getByRole('tab', { name: 'Upload spreadsheet' });
+    expect(individualTab).toHaveAttribute('aria-selected', 'true');
+    await user.type(
+      screen.getByRole('textbox', { name: /creator public name/i }),
+      'Preserved Creator Draft',
+    );
+
+    await user.click(bulkTab);
+    expect(await screen.findByRole('heading', { name: 'Upload multiple creators' })).toBeVisible();
+    expect(bulkTab).toHaveAttribute('aria-selected', 'true');
+    await user.click(individualTab);
+    expect(screen.getByDisplayValue('Preserved Creator Draft')).toBeVisible();
+  });
+
+  it('opens bulk mode directly and supports arrow, Home, and End tab navigation', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(<SubmissionPage />, '/submit?mode=bulk');
+    const bulkTab = screen.getByRole('tab', { name: 'Upload spreadsheet' });
+    expect(await screen.findByRole('heading', { name: 'Upload multiple creators' })).toBeVisible();
+    bulkTab.focus();
+    await user.keyboard('{ArrowLeft}');
+    const individualTab = screen.getByRole('tab', { name: 'Submit one creator' });
+    await waitFor(() => expect(individualTab).toHaveFocus());
+    expect(individualTab).toHaveAttribute('aria-selected', 'true');
+    await user.keyboard('{End}');
+    await waitFor(() => expect(bulkTab).toHaveFocus());
+    expect(bulkTab).toHaveAttribute('aria-selected', 'true');
+    await user.keyboard('{Home}');
+    await waitFor(() => expect(individualTab).toHaveFocus());
+  });
+
   it('renders the complete controlled category list with no initial selection', () => {
     renderWithRouter(<SubmissionPage />);
 

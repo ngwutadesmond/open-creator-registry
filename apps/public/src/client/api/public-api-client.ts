@@ -3,6 +3,8 @@ import type { z } from 'zod';
 import type { CreatorProtectionTier } from '@open-creator-registry/contracts/domain';
 
 import {
+  bulkSubmissionCommitResponseSchema,
+  bulkSubmissionPreviewResponseSchema,
   creatorAliasesResponseSchema,
   creatorDetailResponseSchema,
   creatorHandlesResponseSchema,
@@ -12,6 +14,7 @@ import {
   registryMetaResponseSchema,
   registryReleasesResponseSchema,
   type SubmissionInput,
+  type BulkSubmissionSourceRow,
   submissionInputSchema,
   submissionResponseSchema,
 } from './schemas';
@@ -224,6 +227,29 @@ export const publicApi = {
       method: 'POST',
       signal,
     });
+  },
+  previewBulkSubmissions(rows: BulkSubmissionSourceRow[], signal?: AbortSignal) {
+    return request(
+      `${publicApiBasePath}/submissions/bulk/preview`,
+      bulkSubmissionPreviewResponseSchema,
+      { body: { rows }, method: 'POST', signal },
+    );
+  },
+  commitBulkSubmissions(
+    input: {
+      commit_id: string;
+      preview_checksum: string;
+      rows: BulkSubmissionSourceRow[];
+      selected_row_numbers: number[];
+      confirmed_possible_duplicate_row_numbers: number[];
+    },
+    signal?: AbortSignal,
+  ) {
+    return request(
+      `${publicApiBasePath}/submissions/bulk/commit`,
+      bulkSubmissionCommitResponseSchema,
+      { body: input, method: 'POST', signal },
+    );
   },
 };
 

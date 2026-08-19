@@ -28,6 +28,7 @@ const expectedTables = [
   'import_batches',
   'ingestion_record_outcomes',
   'ingestion_runs',
+  'public_submission_batches',
   'public_submissions',
   'registry_release_snapshots',
   'registry_releases',

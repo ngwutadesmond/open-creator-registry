@@ -181,10 +181,14 @@ export function mapCreatorCandidate(row: CreatorCandidateRow): CreatorCandidate 
 export type PublicSubmissionRow = {
   id: string;
   creator_name: string;
+  normalized_creator_name: string | null;
   category: string | null;
   country_codes: string | null;
   requested_handles: string;
   public_sources: string;
+  submission_fingerprint: string | null;
+  batch_reference: string | null;
+  batch_row_number: number | null;
   submission_status: string;
   created_at: string;
   reviewed_at: string | null;
@@ -195,6 +199,7 @@ export function mapPublicSubmission(row: PublicSubmissionRow): PublicSubmission 
   return {
     id: row.id,
     creatorName: row.creator_name,
+    normalizedCreatorName: row.normalized_creator_name,
     category: row.category,
     countryCodes: parseStringArray(row.country_codes, 'public_submissions.country_codes'),
     requestedHandles: parseRequiredStringArray(
@@ -205,6 +210,9 @@ export function mapPublicSubmission(row: PublicSubmissionRow): PublicSubmission 
       row.public_sources,
       'public_submissions.public_sources',
     ),
+    submissionFingerprint: row.submission_fingerprint,
+    batchReference: row.batch_reference,
+    batchRowNumber: row.batch_row_number,
     submissionStatus: row.submission_status as SubmissionStatus,
     createdAt: row.created_at,
     reviewedAt: row.reviewed_at,

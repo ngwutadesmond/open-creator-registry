@@ -22,6 +22,13 @@ const submissionCategoryLabels = new Map<string, string>(
   submissionCategories.map(({ label, value }) => [value, label]),
 );
 
+const submissionCategoryInputs = new Map<string, SubmissionCategory>(
+  submissionCategories.flatMap(({ label, value }) => [
+    [value.toLocaleLowerCase('en'), value] as const,
+    [label.toLocaleLowerCase('en'), value] as const,
+  ]),
+);
+
 export function isSubmissionCategory(value: string): value is SubmissionCategory {
   return submissionCategoryLabels.has(value);
 }
@@ -29,6 +36,10 @@ export function isSubmissionCategory(value: string): value is SubmissionCategory
 export function formatSubmissionCategory(value: string | null | undefined): string | null {
   if (!value) return null;
   return submissionCategoryLabels.get(value) ?? value;
+}
+
+export function normalizeSubmissionCategoryInput(value: string): SubmissionCategory | null {
+  return submissionCategoryInputs.get(value.trim().toLocaleLowerCase('en')) ?? null;
 }
 
 export const countryOptions = [
@@ -313,6 +324,26 @@ const countryAliases: Partial<Record<CountryCode, readonly string[]>> = {
   VA: ['Holy See'],
 };
 
+function normalizeCountryLookupValue(value: string): string {
+  return value
+    .normalize('NFKD')
+    .replace(/\p{M}+/gu, '')
+    .replace(/[’']/gu, '')
+    .replace(/&/gu, 'and')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+    .toLocaleLowerCase('en');
+}
+
+const countryInputCodes = new Map<string, CountryCode>();
+for (const option of countryOptions) {
+  countryInputCodes.set(normalizeCountryLookupValue(option.code), option.code);
+  countryInputCodes.set(normalizeCountryLookupValue(option.name), option.code);
+  for (const alias of countryAliases[option.code] ?? []) {
+    countryInputCodes.set(normalizeCountryLookupValue(alias), option.code);
+  }
+}
+
 export const countryOptionsByName: readonly CountryOption[] = [...countryOptions].sort(
   (left, right) => left.name.localeCompare(right.name, 'en'),
 );
@@ -333,6 +364,50 @@ export function formatCountryCode(value: string): string {
   const normalized = value.toUpperCase();
   const option = getCountryOption(normalized);
   return option ? `${option.name} (${option.code})` : value;
+}
+
+export function normalizeCountryInput(value: string): CountryCode | null {
+  return countryInputCodes.get(normalizeCountryLookupValue(value)) ?? null;
+}
+
+export const bulkSubmissionHeaderAliases = {
+  creator_name: ['creator_name', 'creator name', 'creator public name', 'name'],
+  category: ['category', 'creator category'],
+  countries: ['countries', 'country', 'country codes'],
+  requested_usernames: ['requested_usernames', 'requested usernames', 'usernames', 'handles'],
+  public_sources: ['public_sources', 'public sources', 'source urls', 'supporting links'],
+} as const;
+
+export type BulkSubmissionColumn = keyof typeof bulkSubmissionHeaderAliases;
+
+export const bulkSubmissionColumns = Object.keys(
+  bulkSubmissionHeaderAliases,
+) as BulkSubmissionColumn[];
+
+export const requiredBulkSubmissionColumns: readonly BulkSubmissionColumn[] = [
+  'creator_name',
+  'category',
+  'requested_usernames',
+  'public_sources',
+];
+
+export const maximumBulkSubmissionRows = 250;
+export const maximumBulkSubmissionFileSize = 2 * 1024 * 1024;
+
+export function normalizeBulkSubmissionHeader(value: string): string {
+  return value.trim().replace(/\s+/gu, ' ').toLocaleLowerCase('en');
+}
+
+const bulkSubmissionColumnByAlias = new Map<string, BulkSubmissionColumn>(
+  bulkSubmissionColumns.flatMap((column) =>
+    bulkSubmissionHeaderAliases[column].map(
+      (alias) => [normalizeBulkSubmissionHeader(alias), column] as const,
+    ),
+  ),
+);
+
+export function resolveBulkSubmissionColumn(value: string): BulkSubmissionColumn | null {
+  return bulkSubmissionColumnByAlias.get(normalizeBulkSubmissionHeader(value)) ?? null;
 }
 
 export function normalizePublicSourceUrl(value: string): string | null {

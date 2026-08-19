@@ -1,5 +1,13 @@
-import { type FormEvent, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router';
+import {
+  lazy,
+  Suspense,
+  type FormEvent,
+  type KeyboardEvent,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { Link, useSearchParams } from 'react-router';
 
 import type { SubmissionCategory } from '@open-creator-registry/contracts/submissions';
 
@@ -24,6 +32,8 @@ import {
 import { SubmissionReviewSummary } from '../features/submissions/SubmissionReviewSummary';
 import { SupportingSources } from '../features/submissions/SupportingSources';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+
+const BulkSubmissionPanel = lazy(() => import('../features/bulk-submissions/BulkSubmissionPanel'));
 
 type ValidationSummaryItem = {
   message: string;
@@ -114,8 +124,7 @@ function requestErrorContent(error: PublicApiError) {
   };
 }
 
-export default function SubmissionPage() {
-  useDocumentTitle('Submit a creator');
+function IndividualSubmissionForm() {
   const [draft, setDraft] = useState<SubmissionDraft>(createEmptyDraft);
   const [errors, setErrors] = useState<SubmissionErrors>(createEmptySubmissionErrors);
   const [requestError, setRequestError] = useState<PublicApiError | null>(null);
@@ -243,7 +252,7 @@ export default function SubmissionPage() {
 
   if (acknowledgement) {
     return (
-      <div className="page-container submission-success" aria-live="polite">
+      <div className="submission-success" aria-live="polite">
         <p className="record-type">Creator suggestion</p>
         <h1>Submission received</h1>
         <p>
@@ -279,17 +288,7 @@ export default function SubmissionPage() {
   const requestErrorCopy = requestError ? requestErrorContent(requestError) : null;
 
   return (
-    <div className="page-container submission-page">
-      <PageIntro
-        title="Suggest a creator for Registry review."
-        description={
-          <p>
-            Share accurate public information and supporting sources. This form creates a pending
-            suggestion only; it does not approve a creator or reserve a username.
-          </p>
-        }
-      />
-
+    <div className="submission-mode-content">
       {(showValidationSummary && summaryItems.length) || requestError ? (
         <div
           className="validation-summary"
@@ -462,6 +461,110 @@ export default function SubmissionPage() {
           </p>
         </section>
       </form>
+    </div>
+  );
+}
+
+export default function SubmissionPage() {
+  useDocumentTitle('Submit a creator');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const mode = searchParams.get('mode') === 'bulk' ? 'bulk' : 'individual';
+  const [bulkLoaded, setBulkLoaded] = useState(mode === 'bulk');
+
+  function selectMode(nextMode: 'individual' | 'bulk') {
+    const next = new URLSearchParams(searchParams);
+    if (nextMode === 'bulk') {
+      next.set('mode', 'bulk');
+      setBulkLoaded(true);
+    } else {
+      next.delete('mode');
+    }
+    setSearchParams(next);
+  }
+
+  function handleModeKeyDown(
+    event: KeyboardEvent<HTMLButtonElement>,
+    currentMode: 'individual' | 'bulk',
+  ) {
+    let nextMode: 'individual' | 'bulk' | null = null;
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      nextMode = currentMode === 'individual' ? 'bulk' : 'individual';
+    } else if (event.key === 'Home') {
+      nextMode = 'individual';
+    } else if (event.key === 'End') {
+      nextMode = 'bulk';
+    }
+    if (!nextMode) return;
+    event.preventDefault();
+    selectMode(nextMode);
+    window.requestAnimationFrame(() =>
+      document.getElementById(`submission-mode-${nextMode}-tab`)?.focus(),
+    );
+  }
+
+  return (
+    <div className="page-container submission-page">
+      <PageIntro
+        title="Suggest creators for Registry review."
+        description={
+          <p>
+            Submit one creator manually or upload a spreadsheet. Every accepted suggestion remains
+            pending human review; it does not approve a creator or reserve a username.
+          </p>
+        }
+      />
+      <div className="submission-mode-tabs" role="tablist" aria-label="Submission method">
+        <button
+          id="submission-mode-individual-tab"
+          type="button"
+          role="tab"
+          aria-controls="submission-mode-individual-panel"
+          aria-selected={mode === 'individual'}
+          tabIndex={mode === 'individual' ? 0 : -1}
+          onClick={() => selectMode('individual')}
+          onKeyDown={(event) => handleModeKeyDown(event, 'individual')}
+        >
+          Submit one creator
+        </button>
+        <button
+          id="submission-mode-bulk-tab"
+          type="button"
+          role="tab"
+          aria-controls="submission-mode-bulk-panel"
+          aria-selected={mode === 'bulk'}
+          tabIndex={mode === 'bulk' ? 0 : -1}
+          onClick={() => selectMode('bulk')}
+          onKeyDown={(event) => handleModeKeyDown(event, 'bulk')}
+        >
+          Upload spreadsheet
+        </button>
+      </div>
+      <div
+        id="submission-mode-individual-panel"
+        role="tabpanel"
+        aria-labelledby="submission-mode-individual-tab"
+        hidden={mode !== 'individual'}
+      >
+        <IndividualSubmissionForm />
+      </div>
+      {bulkLoaded ? (
+        <div
+          id="submission-mode-bulk-panel"
+          role="tabpanel"
+          aria-labelledby="submission-mode-bulk-tab"
+          hidden={mode !== 'bulk'}
+        >
+          <Suspense
+            fallback={
+              <div className="bulk-progress" role="status">
+                Loading spreadsheet tools…
+              </div>
+            }
+          >
+            <BulkSubmissionPanel onSubmitOne={() => selectMode('individual')} />
+          </Suspense>
+        </div>
+      ) : null}
     </div>
   );
 }

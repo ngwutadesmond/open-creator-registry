@@ -6,7 +6,7 @@ export type PublicRegistrySnapshot = {
   lastUpdatedAt: string | null;
 };
 
-export const expectedSchemaMigration = '0005_source_configuration_defaults.sql';
+export const expectedSchemaMigration = '0006_public_submission_bulk_safety.sql';
 
 export type MigrationCompatibility = {
   status: 'compatible' | 'outdated';

@@ -9,6 +9,8 @@ export type PublicRuntimeBindings = {
   PUBLIC_HANDLE_CHECK_RATE_LIMITER?: CloudflareRateLimitBinding;
   PUBLIC_BATCH_CHECK_RATE_LIMITER?: CloudflareRateLimitBinding;
   PUBLIC_SUBMISSION_RATE_LIMITER?: CloudflareRateLimitBinding;
+  PUBLIC_BULK_PREVIEW_RATE_LIMITER?: CloudflareRateLimitBinding;
+  PUBLIC_BULK_COMMIT_RATE_LIMITER?: CloudflareRateLimitBinding;
 };
 
 export type CloudflareRateLimitBinding = {

@@ -211,6 +211,59 @@ The current privacy/schema policy does not collect submitter contact information
 Deployed environments use per-environment Cloudflare rate-limit bindings for submissions and handle
 checks. Local development intentionally permits deterministic tests without a remote binding.
 
+### Bulk public submissions
+
+Bulk submission is the public pending-review path, not the authenticated administration import
+system. The browser parses `.csv` or `.xlsx` locally and sends only structured JSON. Raw files,
+filenames, formulas, macros, and workbook metadata are never accepted by these endpoints.
+
+Preview performs no database mutation:
+
+```bash
+curl 'http://localhost:5173/api/v1/submissions/bulk/preview' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "rows":[{
+      "row_number":2,
+      "creator_name":"Registry Batch Example",
+      "category":"Content Creator / Influencer",
+      "countries":["Nigeria","GH"],
+      "requested_usernames":["registry_batch_example"],
+      "public_sources":["https://example.test/registry-batch-example"]
+    }]
+  }'
+```
+
+Preview accepts 1–250 rows in a request of at most 2 MiB. It normalizes category labels to stable
+values, country names/codes to uppercase ISO alpha-2 codes, and uses the shared handle and safe URL
+comparison policies. It reports invalid rows, within-file or existing active exact duplicates, and
+possible-duplicate warnings. The response contains a deterministic `preview_checksum`; it creates
+no submission, creator, candidate, handle, or release.
+
+Commit receives the unchanged structured rows, checksum, selected row numbers, explicitly
+confirmed possible-duplicate rows, and a UUID `commit_id`:
+
+```json
+{
+  "commit_id": "ba000000-0000-4000-8000-000000000001",
+  "preview_checksum": "<64 lowercase hexadecimal characters>",
+  "rows": ["<the exact structured preview rows>"],
+  "selected_row_numbers": [2],
+  "confirmed_possible_duplicate_row_numbers": []
+}
+```
+
+The server recalculates the checksum, revalidates, and rechecks active duplicates before an atomic
+D1 insertion. Each accepted row becomes its own `pending` public submission. Repeating the same
+commit ID and preview is idempotent and returns the original row-level result. Exact equivalence is
+order-independent across normalized creator name, category, unique countries, normalized
+usernames, and canonical source URLs. Only active pending/under-review equivalents block insertion;
+terminal history remains preserved and does not prohibit a corrected resubmission.
+
+Bulk preview and commit use dedicated deployed Cloudflare distributed limits of 10 and 3 requests
+per 60 seconds respectively. The complete spreadsheet/template and retention policy is documented
+in [PUBLIC_SUBMISSIONS.md](./PUBLIC_SUBMISSIONS.md).
+
 ## Errors
 
 Failures never return `200` and never expose SQL messages or stack traces. Expected statuses are

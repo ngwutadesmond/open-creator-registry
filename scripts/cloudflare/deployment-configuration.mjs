@@ -13,7 +13,7 @@ export const deploymentExpectations = {
     databasePlaceholder: 'REPLACE_WITH_STAGING_D1_ID',
     accessAudiencePlaceholder: 'REPLACE_WITH_STAGING_ACCESS_AUD',
     rateLimits: {
-      public: ['1001', '1002', '1003'],
+      public: ['1001', '1002', '1003', '1007', '1008'],
       admin: ['1004', '1005', '1006'],
     },
   },
@@ -24,7 +24,7 @@ export const deploymentExpectations = {
     databasePlaceholder: 'REPLACE_WITH_PRODUCTION_D1_ID',
     accessAudiencePlaceholder: 'REPLACE_WITH_PRODUCTION_ACCESS_AUD',
     rateLimits: {
-      public: ['2001', '2002', '2003'],
+      public: ['2001', '2002', '2003', '2007', '2008'],
       admin: ['2004', '2005', '2006'],
     },
   },
@@ -84,6 +84,8 @@ function validateRateLimits(selected, application, environment, failures) {
           'PUBLIC_HANDLE_CHECK_RATE_LIMITER',
           'PUBLIC_BATCH_CHECK_RATE_LIMITER',
           'PUBLIC_SUBMISSION_RATE_LIMITER',
+          'PUBLIC_BULK_PREVIEW_RATE_LIMITER',
+          'PUBLIC_BULK_COMMIT_RATE_LIMITER',
         ]
       : [
           'ADMIN_AUTH_FAILURE_RATE_LIMITER',

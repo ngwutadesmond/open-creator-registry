@@ -15,6 +15,7 @@ import {
   externalProfileVerificationStatuses,
 } from '@open-creator-registry/contracts/sources';
 import {
+  maximumBulkSubmissionRows,
   isCountryCode,
   normalizePublicSourceUrl,
   submissionCategories,
@@ -477,3 +478,147 @@ export const publicSubmissionAcknowledgementSchema = z
 export const publicSubmissionResponseSchema = z
   .object({ data: publicSubmissionAcknowledgementSchema, meta: requestMetaSchema })
   .openapi('PublicSubmissionResponse');
+
+export const bulkSubmissionSourceRowSchema = z
+  .object({
+    row_number: z.int().min(2).max(1_000_000),
+    creator_name: z.string().max(500),
+    category: z.string().max(120),
+    countries: z.array(z.string().max(120)).max(20),
+    requested_usernames: z.array(z.string().max(120)).max(20),
+    public_sources: z.array(z.string().max(2_048)).max(20),
+  })
+  .strict()
+  .openapi('BulkSubmissionSourceRow');
+
+export const bulkSubmissionPreviewRequestSchema = z
+  .object({
+    rows: z.array(bulkSubmissionSourceRowSchema).min(1).max(maximumBulkSubmissionRows),
+  })
+  .strict()
+  .openapi('BulkSubmissionPreviewRequest');
+
+export const bulkSubmissionIssueSchema = z
+  .object({
+    code: z.string(),
+    field: z
+      .enum([
+        'row',
+        'creator_name',
+        'category',
+        'countries',
+        'requested_usernames',
+        'public_sources',
+      ])
+      .nullable(),
+    message: z.string(),
+  })
+  .openapi('BulkSubmissionIssue');
+
+export const normalizedBulkSubmissionSchema = z
+  .object({
+    creator_name: z.string(),
+    category: z.enum(submissionCategories.map(({ value }) => value)),
+    country_codes: z.array(z.string().length(2)),
+    requested_handles: z.array(z.string()),
+    public_sources: z.array(z.url()),
+  })
+  .openapi('NormalizedBulkSubmission');
+
+export const bulkSubmissionPreviewRowSchema = z
+  .object({
+    row_number: z.int(),
+    status: z.enum(['ready', 'exact_duplicate', 'possible_duplicate', 'invalid']),
+    normalized: normalizedBulkSubmissionSchema.nullable(),
+    fingerprint: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/u)
+      .nullable(),
+    duplicate_scope: z.enum(['within_file', 'existing']).nullable(),
+    duplicate_of_row: z.int().nullable(),
+    errors: z.array(bulkSubmissionIssueSchema),
+    warnings: z.array(bulkSubmissionIssueSchema),
+  })
+  .openapi('BulkSubmissionPreviewRow');
+
+export const bulkSubmissionSummarySchema = z
+  .object({
+    total_rows: z.int().min(0),
+    ready: z.int().min(0),
+    exact_duplicates: z.int().min(0),
+    possible_duplicates: z.int().min(0),
+    invalid: z.int().min(0),
+    rows_with_warnings: z.int().min(0),
+  })
+  .openapi('BulkSubmissionPreviewSummary');
+
+export const bulkSubmissionPreviewDataSchema = z
+  .object({
+    preview_checksum: z.string().regex(/^[a-f0-9]{64}$/u),
+    rows: z.array(bulkSubmissionPreviewRowSchema),
+    summary: bulkSubmissionSummarySchema,
+  })
+  .openapi('BulkSubmissionPreview');
+
+export const bulkSubmissionPreviewResponseSchema = z
+  .object({ data: bulkSubmissionPreviewDataSchema, meta: requestMetaSchema })
+  .openapi('BulkSubmissionPreviewResponse');
+
+function uniqueIntegerArray(maximum: number) {
+  return z
+    .array(z.int().min(2).max(1_000_000))
+    .max(maximum)
+    .superRefine((values, context) => {
+      if (new Set(values).size !== values.length) {
+        context.addIssue({ code: 'custom', message: 'Row selections must not be duplicated.' });
+      }
+    });
+}
+
+export const bulkSubmissionCommitRequestSchema = z
+  .object({
+    commit_id: z.uuid(),
+    preview_checksum: z.string().regex(/^[a-f0-9]{64}$/u),
+    rows: z.array(bulkSubmissionSourceRowSchema).min(1).max(maximumBulkSubmissionRows),
+    selected_row_numbers: uniqueIntegerArray(maximumBulkSubmissionRows),
+    confirmed_possible_duplicate_row_numbers: uniqueIntegerArray(maximumBulkSubmissionRows),
+  })
+  .strict()
+  .openapi('BulkSubmissionCommitRequest');
+
+export const bulkSubmissionCommitRowSchema = z
+  .object({
+    row_number: z.int(),
+    status: z.enum([
+      'submitted',
+      'skipped_exact_duplicate',
+      'skipped_within_file_duplicate',
+      'excluded_possible_duplicate',
+      'excluded_by_user',
+      'invalid',
+      'failed',
+    ]),
+    submission_id: z.uuid().nullable(),
+    messages: z.array(z.string()),
+  })
+  .openapi('BulkSubmissionCommitRow');
+
+export const bulkSubmissionCommitDataSchema = z
+  .object({
+    batch_reference: z.uuid(),
+    preview_checksum: z.string().regex(/^[a-f0-9]{64}$/u),
+    idempotent_replay: z.boolean(),
+    submitted_rows: z.int().min(0),
+    skipped_exact_duplicates: z.int().min(0),
+    skipped_within_file_duplicates: z.int().min(0),
+    possible_duplicates_excluded: z.int().min(0),
+    invalid_rows: z.int().min(0),
+    failed_rows: z.int().min(0),
+    total_pending_submissions_created: z.int().min(0),
+    rows: z.array(bulkSubmissionCommitRowSchema),
+  })
+  .openapi('BulkSubmissionCommitResult');
+
+export const bulkSubmissionCommitResponseSchema = z
+  .object({ data: bulkSubmissionCommitDataSchema, meta: requestMetaSchema })
+  .openapi('BulkSubmissionCommitResponse');

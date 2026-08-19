@@ -10,7 +10,17 @@ import { createRegistryReleaseRepository } from '@open-creator-registry/database
 
 import type { PublicAppEnv, RequestMetadataProvider } from './app-env';
 import { defaultRequestMetadataProvider } from './app-env';
-import { apiVersion, maximumRequestBodySize, registryDisclaimer, serviceName } from './constants';
+import {
+  apiVersion,
+  maximumBulkSubmissionRequestBodySize,
+  maximumRequestBodySize,
+  registryDisclaimer,
+  serviceName,
+} from './constants';
+import {
+  BulkSubmissionValidationError,
+  createBulkSubmissionService,
+} from './bulk-submission-service';
 import { createHandleCheckService } from './handle-check-service';
 import {
   corsMiddleware,
@@ -28,6 +38,10 @@ import { errorEnvelope, paginationMeta, successEnvelope } from './responses';
 import {
   batchHandleCheckRequestSchema,
   batchHandleCheckResponseSchema,
+  bulkSubmissionCommitRequestSchema,
+  bulkSubmissionCommitResponseSchema,
+  bulkSubmissionPreviewRequestSchema,
+  bulkSubmissionPreviewResponseSchema,
   creatorAliasesResponseSchema,
   creatorChildrenQuerySchema,
   creatorDetailResponseSchema,
@@ -283,6 +297,60 @@ const submissionRoute = createRoute({
   },
 });
 
+const bulkSubmissionPreviewRoute = createRoute({
+  method: 'post',
+  path: '/api/v1/submissions/bulk/preview',
+  tags: ['Submissions'],
+  summary: 'Validate and preview public creator submissions in bulk',
+  description:
+    'Accepts structured spreadsheet rows, never a raw file. The endpoint normalizes categories, countries, usernames, and public URLs; detects within-file and active-submission duplicates; reports possible duplicate signals; and makes no database mutation.',
+  request: {
+    body: { required: true, content: jsonContent(bulkSubmissionPreviewRequestSchema) },
+  },
+  responses: {
+    200: {
+      description: 'Authoritative row-level preview with a deterministic checksum.',
+      content: jsonContent(bulkSubmissionPreviewResponseSchema),
+    },
+    400: { description: 'Malformed JSON request.', content: jsonContent(errorEnvelopeSchema) },
+    413: { description: 'Request body exceeds 2 MiB.', content: jsonContent(errorEnvelopeSchema) },
+    415: {
+      description: 'The request is not application/json.',
+      content: jsonContent(errorEnvelopeSchema),
+    },
+    ...commonErrorResponses,
+  },
+});
+
+const bulkSubmissionCommitRoute = createRoute({
+  method: 'post',
+  path: '/api/v1/submissions/bulk/commit',
+  tags: ['Submissions'],
+  summary: 'Commit selected valid public creator submissions',
+  description:
+    'Revalidates every structured row, recalculates the preview checksum, rechecks active duplicates, and transactionally creates only selected valid pending public submissions. Exact duplicates are skipped. Possible duplicates require explicit row confirmation. Commit IDs are idempotent and no creator, candidate, reserved handle, or Registry release is created.',
+  request: {
+    body: { required: true, content: jsonContent(bulkSubmissionCommitRequestSchema) },
+  },
+  responses: {
+    200: {
+      description: 'Idempotent row-level commit result.',
+      content: jsonContent(bulkSubmissionCommitResponseSchema),
+    },
+    400: { description: 'Malformed JSON request.', content: jsonContent(errorEnvelopeSchema) },
+    409: {
+      description: 'The preview checksum or commit reference conflicts with the request.',
+      content: jsonContent(errorEnvelopeSchema),
+    },
+    413: { description: 'Request body exceeds 2 MiB.', content: jsonContent(errorEnvelopeSchema) },
+    415: {
+      description: 'The request is not application/json.',
+      content: jsonContent(errorEnvelopeSchema),
+    },
+    ...commonErrorResponses,
+  },
+});
+
 const openApiConfiguration = {
   openapi: '3.1.0' as const,
   info: {
@@ -339,6 +407,14 @@ export function createPublicApp(dependencies: PublicAppDependencies = {}) {
     );
   };
 
+  const bulkRequestTooLargeResponse = (untypedContext: Context) => {
+    const context = untypedContext as Context<PublicAppEnv>;
+    return context.json(
+      errorEnvelope(context, 'request_too_large', 'The bulk request body exceeds 2 MiB.'),
+      413,
+    );
+  };
+
   app.use('*', createRequestContextMiddleware(metadata));
   app.use('*', requestObservabilityMiddleware);
   app.use('*', securityHeadersMiddleware);
@@ -360,8 +436,24 @@ export function createPublicApp(dependencies: PublicAppDependencies = {}) {
       onError: requestTooLargeResponse,
     }),
   );
+  app.use(
+    '/api/v1/submissions/bulk/preview',
+    bodyLimit({
+      maxSize: maximumBulkSubmissionRequestBodySize,
+      onError: bulkRequestTooLargeResponse,
+    }),
+  );
+  app.use(
+    '/api/v1/submissions/bulk/commit',
+    bodyLimit({
+      maxSize: maximumBulkSubmissionRequestBodySize,
+      onError: bulkRequestTooLargeResponse,
+    }),
+  );
   app.use('/api/v1/handles/check-batch', jsonContentTypeMiddleware);
   app.use('/api/v1/submissions', jsonContentTypeMiddleware);
+  app.use('/api/v1/submissions/bulk/preview', jsonContentTypeMiddleware);
+  app.use('/api/v1/submissions/bulk/commit', jsonContentTypeMiddleware);
 
   app.openapi(healthRoute, async (context) => {
     const service = createPublicRegistryService(context.env.DB);
@@ -596,6 +688,20 @@ export function createPublicApp(dependencies: PublicAppDependencies = {}) {
     }
   });
 
+  app.openapi(bulkSubmissionPreviewRoute, async (context) => {
+    const { rows } = context.req.valid('json');
+    const preview = await createBulkSubmissionService(context.env.DB).preview(rows);
+    context.header('Cache-Control', 'no-store');
+    return context.json(successEnvelope(context, preview), 200);
+  });
+
+  app.openapi(bulkSubmissionCommitRoute, async (context) => {
+    const body = context.req.valid('json');
+    const result = await createBulkSubmissionService(context.env.DB).commit(body);
+    context.header('Cache-Control', 'no-store');
+    return context.json(successEnvelope(context, result), 200);
+  });
+
   app.openAPIRegistry.registerPath({
     method: 'get',
     path: '/openapi.json',
@@ -653,6 +759,8 @@ export function createPublicApp(dependencies: PublicAppDependencies = {}) {
     ['/api/v1/registry/meta', 'GET'],
     ['/api/v1/registry/releases', 'GET'],
     ['/api/v1/submissions', 'POST'],
+    ['/api/v1/submissions/bulk/preview', 'POST'],
+    ['/api/v1/submissions/bulk/commit', 'POST'],
     ['/openapi.json', 'GET'],
     ['/docs', 'GET'],
   ]);
@@ -688,6 +796,17 @@ export function createPublicApp(dependencies: PublicAppDependencies = {}) {
         errorEnvelope(context, 'bad_request', 'The request body is not valid JSON.'),
         400,
       );
+    }
+    if (error instanceof BulkSubmissionValidationError) {
+      const details = error.details.map((detail) => ({
+        code: detail.code,
+        message: detail.message,
+        path: detail.path,
+      }));
+      if (error.code === 'preview_checksum_mismatch' || error.code === 'commit_id_conflict') {
+        return context.json(errorEnvelope(context, 'conflict', error.message, details), 409);
+      }
+      return context.json(errorEnvelope(context, 'validation_failed', error.message, details), 422);
     }
     if (error instanceof RegistryDatabaseError) {
       if (error.code === 'not_found') {

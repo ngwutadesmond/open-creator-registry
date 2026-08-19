@@ -31,6 +31,15 @@ The applications are intentionally separate deployable Workers. In production, t
 Worker URL must be protected with Cloudflare Access. Both Workers use the same `DB` binding and
 canonical local D1 state when run individually or together.
 
+## Public creator suggestions
+
+The public `/submit` workflow accepts one creator manually or up to 250 creators from a checked CSV
+or XLSX spreadsheet. Every accepted row becomes a normal pending public submission in the existing
+administration review queue; it does not create an approved creator, candidate, protected handle,
+or Registry release. Raw spreadsheet files are parsed locally and are not uploaded or retained.
+See [PUBLIC_SUBMISSIONS.md](./PUBLIC_SUBMISSIONS.md) for formats, templates, duplicate policy,
+preview/commit semantics, privacy limits, and rate limits.
+
 ## Packages
 
 - `packages/contracts`: shared classifications and recommended actions

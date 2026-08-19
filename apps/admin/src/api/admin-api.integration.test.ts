@@ -406,6 +406,17 @@ describe('creator, evidence and review administration', () => {
       countryCodes: ['NG'],
       requestedHandles: ['submission_phase_five'],
       publicSources: ['https://example.test/submission'],
+      batchReference: 'ba000000-0000-4000-8000-000000000001',
+      batchRowNumber: 2,
+    });
+    const batchDetail = await request(`/api/admin/v1/submissions/${submission.id}`);
+    await expect(batchDetail.json()).resolves.toMatchObject({
+      data: {
+        submission: {
+          batch_reference: 'ba000000-0000-4000-8000-000000000001',
+          batch_row_number: 2,
+        },
+      },
     });
     const converted = await request(
       `/api/admin/v1/submissions/${submission.id}/convert-to-candidate`,

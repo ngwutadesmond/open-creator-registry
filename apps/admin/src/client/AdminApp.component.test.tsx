@@ -174,6 +174,8 @@ describe('AdminApp', () => {
                 id: 'submission-controlled',
                 creator_name: 'Controlled Category Creator',
                 category: 'content_creator',
+                batch_reference: 'ba000000-0000-4000-8000-000000000001',
+                batch_row_number: 2,
               },
               {
                 ...record,
@@ -211,6 +213,7 @@ describe('AdminApp', () => {
 
     render(<AdminApp />);
     expect(await screen.findByText('Content Creator / Influencer')).toBeInTheDocument();
+    expect(screen.getByText('Spreadsheet batch ba000000 · row 2')).toBeInTheDocument();
     expect(screen.getByText('Legacy Video / Online')).toBeInTheDocument();
     expect(screen.getByText('Uncategorised')).toBeInTheDocument();
   });

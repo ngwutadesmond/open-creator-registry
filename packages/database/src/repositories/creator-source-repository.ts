@@ -1,6 +1,7 @@
 import type { SourceVerificationStatus } from '@open-creator-registry/contracts/domain';
 
 import { createNotFoundError } from '../errors';
+import { serializeJson } from '../json';
 import type { CreatorSource } from '../models';
 import { defaultRecordMetadataProvider, type RecordMetadataProvider } from '../runtime';
 import { mapCreatorSource, type CreatorSourceRow } from './row-mappers';
@@ -106,6 +107,25 @@ export function createCreatorSourceRepository(
     return row ? mapCreatorSource(row) : null;
   }
 
+  async function findVerifiedByUrls(urls: string[]): Promise<CreatorSource[]> {
+    const uniqueUrls = [...new Set(urls)];
+    if (uniqueUrls.length === 0) return [];
+    const rows = await allRows<CreatorSourceRow>(
+      db
+        .prepare(
+          `SELECT source.* FROM creator_sources source
+           JOIN creator_entities creator ON creator.id = source.creator_entity_id
+           WHERE creator.review_status = 'approved'
+             AND source.verification_status = 'verified'
+             AND source.source_url IN (SELECT value FROM json_each(?))
+           ORDER BY source.created_at, source.id`,
+        )
+        .bind(serializeJson(uniqueUrls)),
+      'creatorSource.findVerifiedByUrls',
+    );
+    return rows.map(mapCreatorSource);
+  }
+
   async function update(id: string, input: UpdateCreatorSourceInput): Promise<CreatorSource> {
     const current = await findById(id);
     if (!current) throw createNotFoundError('creator source', id);
@@ -144,6 +164,7 @@ export function createCreatorSourceRepository(
     findByExternalIdentity,
     listByCreator,
     listVerifiedByCreator,
+    findVerifiedByUrls,
     update,
     delete: deleteSource,
   };

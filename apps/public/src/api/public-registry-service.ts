@@ -1,5 +1,5 @@
 import type { CreatorProtectionTier } from '@open-creator-registry/contracts/domain';
-import { createNotFoundError } from '@open-creator-registry/database/errors';
+import { createNotFoundError, RegistryDatabaseError } from '@open-creator-registry/database/errors';
 import { createCreatorAliasRepository } from '@open-creator-registry/database/repositories/creator-alias-repository';
 import { createCreatorRepository } from '@open-creator-registry/database/repositories/creator-repository';
 import { createCreatorSourceRepository } from '@open-creator-registry/database/repositories/creator-source-repository';
@@ -18,6 +18,7 @@ import {
   mapPublicRelease,
   mapPublicSource,
 } from './public-mappers';
+import { createSubmissionFingerprint, normalizeSubmissionInput } from './submission-policy';
 
 export type PublicCreatorListInput = {
   query?: string;
@@ -151,17 +152,40 @@ export function createPublicRegistryService(db: D1Database) {
   }
 
   async function createSubmission(input: PublicSubmissionInput) {
-    const repositoryInput = {
-      creatorName: input.creatorName,
-      category: input.category,
-      countryCodes: input.countryCodes?.map((country) => country.toUpperCase()) ?? null,
-      requestedHandles: input.requestedHandles,
-      publicSources: input.publicSources.map((source) => new URL(source).toString()),
-    };
-    if (await submissions.findPendingDuplicate(repositoryInput)) {
+    const normalized = await normalizeSubmissionInput(input);
+    const activeSubmissions = await submissions.listActive();
+    const activeFingerprints = await Promise.all(
+      activeSubmissions.map((submission) =>
+        submission.submissionFingerprint
+          ? Promise.resolve(submission.submissionFingerprint)
+          : createSubmissionFingerprint({
+              creatorName: submission.creatorName,
+              category: submission.category,
+              countryCodes: submission.countryCodes,
+              requestedHandles: submission.requestedHandles,
+              publicSources: submission.publicSources,
+            }),
+      ),
+    );
+    if (activeFingerprints.includes(normalized.submissionFingerprint)) {
       throw new DuplicatePublicSubmissionError();
     }
-    return submissions.create(repositoryInput);
+    try {
+      return await submissions.create({
+        creatorName: normalized.creatorName,
+        normalizedCreatorName: normalized.normalizedCreatorName,
+        category: normalized.category,
+        countryCodes: normalized.countryCodes.length ? normalized.countryCodes : null,
+        requestedHandles: normalized.requestedHandles,
+        publicSources: normalized.publicSources,
+        submissionFingerprint: normalized.submissionFingerprint,
+      });
+    } catch (error) {
+      if (error instanceof RegistryDatabaseError && error.code === 'unique_constraint') {
+        throw new DuplicatePublicSubmissionError();
+      }
+      throw error;
+    }
   }
 
   return {

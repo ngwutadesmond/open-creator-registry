@@ -131,13 +131,25 @@ export type CreatorCandidate = {
 export type PublicSubmission = {
   id: string;
   creatorName: string;
+  normalizedCreatorName: string | null;
   category: string | null;
   countryCodes: string[] | null;
   requestedHandles: string[];
   publicSources: string[];
+  submissionFingerprint: string | null;
+  batchReference: string | null;
+  batchRowNumber: number | null;
   submissionStatus: SubmissionStatus;
   createdAt: string;
   reviewedAt: string | null;
+  updatedAt: string;
+};
+
+export type PublicSubmissionBatch = {
+  id: string;
+  previewChecksum: string;
+  resultJson: string;
+  createdAt: string;
   updatedAt: string;
 };
 

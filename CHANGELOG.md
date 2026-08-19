@@ -5,6 +5,24 @@ after its first public release.
 
 ## Unreleased
 
+### Public bulk creator submissions added
+
+- Added accessible individual/spreadsheet modes at `/submit`, browser-local CSV/XLSX parsing,
+  downloadable guided templates, row preview/filter/selection, explicit confirmation, recoverable
+  result states, and row-level CSV reports without retaining raw files.
+- Added authoritative bulk preview and idempotent commit APIs with a 250-row/2 MiB boundary,
+  centralized category/country/header normalization, exact and possible duplicate policy, dedicated
+  Cloudflare rate-limit bindings, and request-safe errors.
+- Added migration `0006_public_submission_bulk_safety.sql` with nullable origin/fingerprint fields,
+  an active-only exact-fingerprint unique index, and minimal batch-result storage. Existing
+  submissions remain untouched and terminal history does not block corrected resubmission.
+- Preserved the administration-import boundary: accepted rows enter the existing pending
+  Submissions queue, display a safe batch/row origin, and create no creator, candidate, handle,
+  release, ingestion change, or scheduled trigger.
+- Added parser, template, fingerprint, concurrency, idempotency, cross-deduplication, public/admin
+  regression, component, accessibility, responsive, and real-browser coverage plus complete public
+  submission documentation.
+
 ### Public creator submission experience improved
 
 - Replaced free-text category/country entry with a centralized controlled category taxonomy and an

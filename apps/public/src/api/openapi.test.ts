@@ -28,6 +28,8 @@ describe('generated public OpenAPI document', () => {
       '/api/v1/registry/meta',
       '/api/v1/registry/releases',
       '/api/v1/submissions',
+      '/api/v1/submissions/bulk/preview',
+      '/api/v1/submissions/bulk/commit',
       '/openapi.json',
       '/docs',
     ];

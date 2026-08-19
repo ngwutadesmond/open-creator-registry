@@ -1,9 +1,12 @@
+import path from 'node:path';
+
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 const creatorId = '10000000-0000-4000-8000-000000000001';
 const adminUrl = 'http://localhost:5174';
 const publicUrl = 'http://localhost:5173';
+const bulkFixtureDirectory = path.resolve('e2e/fixtures/bulk-submissions');
 
 const browserErrors = new WeakMap<Page, string[]>();
 
@@ -177,6 +180,13 @@ test('validates, recovers, submits structured evidence, and exposes it in the ad
     .getByRole('textbox', { name: /creator public name/i })
     .fill('Phase Four Demo Proposal');
   await page.getByRole('combobox', { name: 'Category' }).selectOption('music');
+  const duplicateCountrySearch = page.getByRole('combobox', { name: /countries/i });
+  await duplicateCountrySearch.fill('Nigeria');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await duplicateCountrySearch.fill('Ghana');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
   await page.getByRole('textbox', { name: 'Username 1' }).fill('@phase_four_demo_proposal');
   await page.getByRole('button', { name: 'Add another username' }).click();
   await page.getByRole('textbox', { name: 'Username 2' }).fill('phase-four-demo');
@@ -227,6 +237,164 @@ test('completes the creator submission flow on a 320px mobile viewport', async (
   await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 320);
 });
 
+test('previews, commits, deduplicates, reports, and reviews CSV and XLSX public batches', async ({
+  page,
+  request,
+}) => {
+  const submissionTotal = async () => {
+    const response = await request.get(`${adminUrl}/api/admin/v1/submissions?limit=100`);
+    expect(response.status()).toBe(200);
+    return ((await response.json()) as { meta: { pagination: { total: number } } }).meta.pagination
+      .total;
+  };
+  const beforeTotal = await submissionTotal();
+
+  await page.goto('/submit');
+  const bulkTab = page.getByRole('tab', { name: 'Upload spreadsheet' });
+  await bulkTab.click();
+  await expect(page).toHaveURL('/submit?mode=bulk');
+  await expect(page.getByRole('heading', { name: 'Upload multiple creators' })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL('/submit');
+  await expect(page.getByRole('tab', { name: 'Submit one creator' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await page.goForward();
+  await expect(page).toHaveURL('/submit?mode=bulk');
+  await expectNoAutomaticAccessibilityViolations(page);
+
+  const csvDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download CSV template' }).click();
+  expect((await csvDownload).suggestedFilename()).toBe('creator-submissions-template.csv');
+
+  await page
+    .locator('#bulk-file-input')
+    .setInputFiles(path.join(bulkFixtureDirectory, 'valid-creators.csv'));
+  await expect(page.getByRole('heading', { name: 'Spreadsheet preview' })).toBeVisible();
+  await expect(page.locator('.bulk-preview-summary')).toContainText('Total rows5');
+  await expect(page.locator('.bulk-preview-summary')).toContainText('Ready5');
+  await expect(page.getByText('5 rows will be submitted')).toBeVisible();
+  await expectNoAutomaticAccessibilityViolations(page);
+  await page.getByRole('button', { name: 'Review 5 selected rows' }).click();
+  await page.getByRole('checkbox', { name: /I confirm that the selected rows/iu }).check();
+  await page.getByRole('button', { name: 'Submit selected rows' }).click();
+  await expect(page.getByRole('heading', { name: 'Spreadsheet processed' })).toBeVisible();
+  await expect(page.locator('.bulk-result-summary')).toContainText(
+    'Total pending submissions created5',
+  );
+  expect(await submissionTotal()).toBe(beforeTotal + 5);
+
+  await page.goto(`${adminUrl}/submissions?status=pending`);
+  for (const name of [
+    'Registry Batch Test One',
+    'Registry Batch Test Two',
+    'Registry Batch Test Three',
+    'Registry Batch Test Four',
+    'Registry Batch Test Five',
+  ]) {
+    await expect(page.getByRole('link', { name })).toBeVisible();
+  }
+  await expect(page.getByText(/Spreadsheet batch [0-9a-f]{8} · row 2/iu)).toBeVisible();
+
+  await page.goto(`${publicUrl}/submit?mode=bulk`);
+  await page
+    .locator('#bulk-file-input')
+    .setInputFiles(path.join(bulkFixtureDirectory, 'valid-creators.csv'));
+  await expect(page.locator('.bulk-preview-summary')).toContainText('Exact duplicates5');
+  await expect(page.locator('tr[data-status="exact_duplicate"]')).toHaveCount(5);
+  await expect(page.getByRole('button', { name: 'Review 0 selected rows' })).toBeDisabled();
+  expect(await submissionTotal()).toBe(beforeTotal + 5);
+
+  await page.getByRole('button', { name: 'Choose a different file' }).click();
+  await page
+    .locator('#bulk-file-input')
+    .setInputFiles(path.join(bulkFixtureDirectory, 'mixed-invalid-creators.csv'));
+  await expect(page.locator('tr[data-status="exact_duplicate"]')).toHaveCount(2);
+  await expect(page.locator('tr[data-status="invalid"]')).toHaveCount(3);
+  const previewReportDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download preview report' }).click();
+  expect((await previewReportDownload).suggestedFilename()).toBe('creator-submission-preview.csv');
+
+  await page.getByRole('button', { name: 'Choose a different file' }).click();
+  await page
+    .locator('#bulk-file-input')
+    .setInputFiles(path.join(bulkFixtureDirectory, 'formula-creators.xlsx'));
+  await expect(page.getByText(/contains a formula in relevant cell A2/iu)).toBeVisible();
+
+  for (const name of [
+    'Registry Batch Test One',
+    'Registry Batch Test Two',
+    'Registry Batch Test Three',
+    'Registry Batch Test Four',
+    'Registry Batch Test Five',
+  ]) {
+    await page.goto(`${adminUrl}/submissions?status=pending`);
+    await page.getByRole('link', { name, exact: true }).click();
+    await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+    await expect(page.getByText(/Spreadsheet batch .*, row \d+/iu)).toBeVisible();
+    await page.getByRole('button', { name: 'Reject' }).click();
+    await page.getByRole('button', { name: 'Confirm decision' }).click();
+    await expect(page.getByText(/Submission action recorded/iu)).toBeVisible();
+  }
+
+  await page.goto(`${publicUrl}/submit?mode=bulk`);
+  const xlsxDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download Excel template' }).click();
+  expect((await xlsxDownload).suggestedFilename()).toBe('creator-submissions-template.xlsx');
+  await page
+    .locator('#bulk-file-input')
+    .setInputFiles(path.join(bulkFixtureDirectory, 'valid-creators.xlsx'));
+  await expect(page.getByRole('heading', { name: 'Spreadsheet preview' })).toBeVisible();
+  await expect(page.locator('.bulk-file-warnings')).toContainText(
+    'Used worksheet “Creators”. 1 additional worksheet was ignored.',
+  );
+  await expect(page.getByText('5 rows will be submitted')).toBeVisible();
+  await page.getByRole('button', { name: 'Review 5 selected rows' }).click();
+  await page.getByRole('checkbox', { name: /I confirm that the selected rows/iu }).check();
+  await page.getByRole('button', { name: 'Submit selected rows' }).click();
+  await expect(page.locator('.bulk-result-summary')).toContainText(
+    'Total pending submissions created5',
+  );
+  expect(await submissionTotal()).toBe(beforeTotal + 10);
+});
+
+test('completes a keyboard-first bulk submission without mobile page overflow', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto('/submit');
+  const bulkTab = page.getByRole('tab', { name: 'Upload spreadsheet' });
+  await bulkTab.focus();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL('/submit?mode=bulk');
+  await page.locator('#bulk-file-input').setInputFiles({
+    name: 'mobile-bulk.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(
+      'creator_name,category,countries,requested_usernames,public_sources\nRegistry Mobile Bulk Test,education,NG,registry_mobile_bulk_test,https://example.test/registry-mobile-bulk-test\n',
+    ),
+  });
+  await expect(page.getByRole('heading', { name: 'Spreadsheet preview' })).toBeVisible();
+  await expect(page.locator('.bulk-preview-table tbody tr')).toHaveAttribute(
+    'data-status',
+    'ready',
+  );
+  await page.getByRole('checkbox', { name: 'Submit row 2' }).focus();
+  await page.keyboard.press('Space');
+  await page.keyboard.press('Space');
+  await page.getByRole('button', { name: 'Review 1 selected rows' }).focus();
+  await page.keyboard.press('Enter');
+  await page.getByRole('checkbox', { name: /I confirm that the selected rows/iu }).focus();
+  await page.keyboard.press('Space');
+  await page.getByRole('button', { name: 'Submit selected rows' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'Spreadsheet processed' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+});
+
 test('keeps the submission form and country list inside all required viewports', async ({
   page,
 }) => {
@@ -257,6 +425,22 @@ test('keeps the submission form and country list inside all required viewports',
     expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(viewport.width);
     await page.keyboard.press('Escape');
     await expect(countrySearch).toBeFocused();
+
+    await page.getByRole('tab', { name: 'Upload spreadsheet' }).click();
+    await page.locator('#bulk-file-input').setInputFiles({
+      name: `viewport-${viewport.width}.csv`,
+      mimeType: 'text/csv',
+      buffer: Buffer.from(
+        `creator_name,category,countries,requested_usernames,public_sources\nRegistry Viewport ${viewport.width},technology,NG,registry_viewport_${viewport.width},https://example.test/registry-viewport-${viewport.width}\n`,
+      ),
+    });
+    await expect(page.getByRole('heading', { name: 'Spreadsheet preview' })).toBeVisible();
+    const bulkDimensions = await page.evaluate(() => ({
+      bodyWidth: document.body.scrollWidth,
+      viewportWidth: document.documentElement.clientWidth,
+    }));
+    expect(bulkDimensions.bodyWidth).toBeLessThanOrEqual(bulkDimensions.viewportWidth);
+    await expect(page.getByRole('region', { name: 'Creator row preview' })).toBeVisible();
   }
 });
 

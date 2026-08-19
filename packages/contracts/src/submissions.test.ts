@@ -8,7 +8,11 @@ import {
   getCountryAliases,
   getCountryOption,
   isCountryCode,
+  normalizeBulkSubmissionHeader,
+  normalizeCountryInput,
   normalizePublicSourceUrl,
+  normalizeSubmissionCategoryInput,
+  resolveBulkSubmissionColumn,
   submissionCategories,
 } from './submissions';
 
@@ -48,5 +52,20 @@ describe('public submission options', () => {
     );
     expect(normalizePublicSourceUrl('ftp://example.com/profile')).toBeNull();
     expect(normalizePublicSourceUrl('not-a-url')).toBeNull();
+  });
+
+  it('normalizes spreadsheet category, country, and header aliases deterministically', () => {
+    expect(normalizeSubmissionCategoryInput(' Content Creator / Influencer ')).toBe(
+      'content_creator',
+    );
+    expect(normalizeSubmissionCategoryInput('FILM_TV')).toBe('film_tv');
+    expect(normalizeSubmissionCategoryInput('unknown')).toBeNull();
+    expect(normalizeCountryInput('Nigeria')).toBe('NG');
+    expect(normalizeCountryInput('uk')).toBe('GB');
+    expect(normalizeCountryInput('United States of America')).toBe('US');
+    expect(normalizeCountryInput('ZZ')).toBeNull();
+    expect(normalizeBulkSubmissionHeader('  Creator   Public NAME ')).toBe('creator public name');
+    expect(resolveBulkSubmissionColumn('Supporting Links')).toBe('public_sources');
+    expect(resolveBulkSubmissionColumn('unrelated')).toBeNull();
   });
 });

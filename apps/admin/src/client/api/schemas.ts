@@ -132,6 +132,8 @@ export const submissionSchema = z.object({
   country_codes: z.array(z.string()).nullable(),
   requested_handles: z.array(z.string()),
   public_sources: z.array(z.string()),
+  batch_reference: z.string().nullable().optional(),
+  batch_row_number: z.number().int().nullable().optional(),
   submission_status: z.string(),
   created_at: z.string(),
   reviewed_at: z.string().nullable(),

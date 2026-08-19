@@ -174,6 +174,12 @@ function SubmissionList() {
                 <td>
                   <Link to={`/submissions/${record.id}`}>{record.creator_name}</Link>
                   <small>{formatSubmissionCategory(record.category) ?? 'Uncategorised'}</small>
+                  {record.batch_reference ? (
+                    <small>
+                      Spreadsheet batch {record.batch_reference.slice(0, 8)} · row{' '}
+                      {record.batch_row_number ?? 'unknown'}
+                    </small>
+                  ) : null}
                 </td>
                 <td>{record.requested_handles.join(', ')}</td>
                 <td>{new Date(record.created_at).toLocaleDateString()}</td>
@@ -456,6 +462,15 @@ function SubmissionDetail({ id }: { id: string }) {
             <dt>Requested handles</dt>
             <dd>{data.submission.requested_handles.join(', ')}</dd>
           </div>
+          {data.submission.batch_reference ? (
+            <div>
+              <dt>Submission origin</dt>
+              <dd>
+                Spreadsheet batch {data.submission.batch_reference.slice(0, 8)}, row{' '}
+                {data.submission.batch_row_number ?? 'unknown'}
+              </dd>
+            </div>
+          ) : null}
         </dl>
         <h3>Public sources</h3>
         <ul>

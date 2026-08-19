@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createCreatorAliasRepository } from '../repositories/creator-alias-repository';
 import { createCreatorSourceRepository } from '../repositories/creator-source-repository';
+import { createPublicSubmissionRepository } from '../repositories/public-submission-repository';
 import { createReservedHandleRepository } from '../repositories/reserved-handle-repository';
 import { seedDatabase } from '../seed';
 import { clearDatabase, createTestCreator } from './test-utils';
@@ -25,6 +26,7 @@ describe('D1 migrations and constraints', () => {
       '0003_registry_administration.sql',
       '0004_scheduled_ingestion_and_profiles.sql',
       '0005_source_configuration_defaults.sql',
+      '0006_public_submission_bulk_safety.sql',
     ]);
     expect(tables.results.map((row) => row.name)).toEqual([
       'admin_approval_decisions',
@@ -41,6 +43,7 @@ describe('D1 migrations and constraints', () => {
       'import_batches',
       'ingestion_record_outcomes',
       'ingestion_runs',
+      'public_submission_batches',
       'public_submissions',
       'registry_release_snapshots',
       'registry_releases',
@@ -62,11 +65,33 @@ describe('D1 migrations and constraints', () => {
         'idx_creator_candidates_review_queue',
         'idx_reserved_handles_confusable_skeleton',
         'idx_public_submissions_review_queue',
+        'idx_public_submissions_active_fingerprint',
+        'idx_public_submissions_active_normalized_name',
+        'idx_public_submissions_batch_reference',
         'idx_registry_releases_latest',
         'idx_audit_logs_entity',
       ]),
     );
     expect(indexes.results.length).toBeGreaterThanOrEqual(20);
+  });
+
+  it('atomically prevents equivalent active submissions while allowing corrected terminal resubmission', async () => {
+    const repository = createPublicSubmissionRepository(env.DB);
+    const input = {
+      creatorName: 'Fingerprint Constraint Creator',
+      category: 'music',
+      countryCodes: ['NG'],
+      requestedHandles: ['fingerprint_constraint'],
+      publicSources: ['https://example.test/fingerprint-constraint'],
+      submissionFingerprint: 'f'.repeat(64),
+    };
+    const first = await repository.create(input);
+    await expect(repository.create(input)).rejects.toMatchObject({ code: 'unique_constraint' });
+    await repository.updateStatus(first.id, 'rejected');
+    await expect(repository.create(input)).resolves.toMatchObject({
+      submissionStatus: 'pending',
+      submissionFingerprint: 'f'.repeat(64),
+    });
   });
 
   it('rejects invalid enumeration values and out-of-range scores', async () => {

@@ -60,6 +60,16 @@
           "namespace_id": "1003",
           "simple": { "limit": 10, "period": 60 },
         },
+        {
+          "name": "PUBLIC_BULK_PREVIEW_RATE_LIMITER",
+          "namespace_id": "1007",
+          "simple": { "limit": 10, "period": 60 },
+        },
+        {
+          "name": "PUBLIC_BULK_COMMIT_RATE_LIMITER",
+          "namespace_id": "1008",
+          "simple": { "limit": 3, "period": 60 },
+        },
       ],
       "assets": {
         "binding": "ASSETS",
@@ -104,6 +114,16 @@
           "name": "PUBLIC_SUBMISSION_RATE_LIMITER",
           "namespace_id": "2003",
           "simple": { "limit": 10, "period": 60 },
+        },
+        {
+          "name": "PUBLIC_BULK_PREVIEW_RATE_LIMITER",
+          "namespace_id": "2007",
+          "simple": { "limit": 10, "period": 60 },
+        },
+        {
+          "name": "PUBLIC_BULK_COMMIT_RATE_LIMITER",
+          "namespace_id": "2008",
+          "simple": { "limit": 3, "period": 60 },
         },
       ],
       "assets": {
