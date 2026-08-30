@@ -54,20 +54,28 @@ const countryCodeSchema = z
   .string()
   .regex(/^[A-Z]{2}$/u, 'Use ISO 3166-1 alpha-2 uppercase codes.');
 
-export const creatorInputSchema = z.object({
+const creatorFieldValidators = {
   canonical_name: z.string().trim().min(2).max(160),
   entity_type: z.string().trim().min(2).max(80),
   primary_category: z.string().trim().min(2).max(80).nullable().optional(),
   country_codes: z.array(countryCodeSchema).max(20).nullable().optional(),
   biography_summary: z.string().trim().max(2_000).nullable().optional(),
-  notoriety_score: z.number().int().min(0).max(100).default(0),
+  notoriety_score: z.number().int().min(0).max(100),
   protection_tier: z.enum(creatorProtectionTiers),
   review_status: z.enum(creatorReviewStatuses),
-  allow_common_name_duplicate: z.boolean().default(false),
+  allow_common_name_duplicate: z.boolean(),
+};
+
+export const creatorInputSchema = z.object({
+  ...creatorFieldValidators,
+  notoriety_score: creatorFieldValidators.notoriety_score.default(0),
+  allow_common_name_duplicate: creatorFieldValidators.allow_common_name_duplicate.default(false),
 });
 
-export const creatorPatchSchema = creatorInputSchema
+export const creatorPatchSchema = z
+  .object(creatorFieldValidators)
   .partial()
+  .strict()
   .refine((value) => Object.keys(value).length > 0, 'At least one field is required.');
 
 export const creatorListQuerySchema = paginationQuerySchema.extend({
@@ -91,6 +99,7 @@ export const aliasInputSchema = z.object({
 });
 export const aliasPatchSchema = aliasInputSchema
   .partial()
+  .strict()
   .refine((value) => Object.keys(value).length > 0, 'At least one field is required.');
 
 const publicUrlSchema = z
@@ -111,19 +120,20 @@ export const sourceInputSchema = z.object({
 export const sourcePatchSchema = sourceInputSchema
   .omit({ source_name: true, source_entity_id: true })
   .partial()
+  .strict()
   .refine((value) => Object.keys(value).length > 0, 'At least one field is required.');
 
 const externalProfilePlatformInputSchema = z.union([
   z.enum(externalProfilePlatforms),
   z.literal('twitter'),
 ]);
-const externalProfileFieldsSchema = z.object({
+const externalProfileFieldValidators = {
   platform: externalProfilePlatformInputSchema,
   platform_account_id: z.string().trim().min(1).max(200).nullable().optional(),
   platform_handle: z.string().trim().min(1).max(100).nullable().optional(),
   profile_url: z.string().url().max(2_000).nullable().optional(),
   profile_name: z.string().trim().min(1).max(200).nullable().optional(),
-  is_primary: z.boolean().default(false),
+  is_primary: z.boolean(),
   verification_status: z.enum(externalProfileVerificationStatuses),
   visibility_status: z.enum(externalProfileVisibilityStatuses),
   source_name: z.string().trim().min(1).max(120),
@@ -134,15 +144,21 @@ const externalProfileFieldsSchema = z.object({
   mapping_version: z.string().trim().min(1).max(80).nullable().optional(),
   last_verified_at: z.string().datetime().nullable().optional(),
   change_reason: z.string().trim().min(3).max(500),
+};
+const externalProfileFieldsSchema = z.object({
+  ...externalProfileFieldValidators,
+  is_primary: externalProfileFieldValidators.is_primary.default(false),
 });
 export const externalProfileInputSchema = externalProfileFieldsSchema.refine(
   (value) => value.platform_account_id || value.platform_handle || value.profile_url,
   'At least one account ID, handle, or profile URL is required.',
 );
-export const externalProfilePatchSchema = externalProfileFieldsSchema
+export const externalProfilePatchSchema = z
+  .object(externalProfileFieldValidators)
   .omit({ change_reason: true })
   .partial()
-  .extend({ change_reason: z.string().trim().min(3).max(500) });
+  .extend({ change_reason: externalProfileFieldValidators.change_reason })
+  .strict();
 export const externalProfileConflictSchema = externalProfileFieldsSchema
   .omit({ change_reason: true })
   .extend({ creator_entity_id: z.string().uuid() })
@@ -176,17 +192,23 @@ export const ingestionStartSchema = z.object({
   scope_key: z.string().trim().min(1).max(120).default('default'),
 });
 
-export const handleInputSchema = z.object({
+const handleFieldValidators = {
   creator_entity_id: z.string().uuid(),
   display_handle: z.string().trim().min(2).max(80),
   classification: z.enum(registryClassifications),
   confidence_score: z.number().int().min(0).max(100),
   decision_source: z.string().trim().min(2).max(160),
   reason: z.string().trim().min(10).max(2_000),
-  status: z.enum(reservationStatuses).default('active'),
+  status: z.enum(reservationStatuses),
+};
+export const handleInputSchema = z.object({
+  ...handleFieldValidators,
+  status: handleFieldValidators.status.default('active'),
 });
-export const handlePatchSchema = handleInputSchema
+export const handlePatchSchema = z
+  .object(handleFieldValidators)
   .partial()
+  .strict()
   .refine((value) => Object.keys(value).length > 0, 'At least one field is required.');
 export const handleListQuerySchema = paginationQuerySchema.extend({
   query: z.string().trim().max(80).optional(),

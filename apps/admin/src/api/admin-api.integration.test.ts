@@ -295,6 +295,129 @@ describe('creator, evidence and review administration', () => {
     ).toEqual(['creator.updated', 'creator.created']);
   });
 
+  it('preserves omitted creator fields and evidence during a review-status-only update', async () => {
+    const create = await request(
+      '/api/admin/v1/creators',
+      jsonInit({
+        canonical_name: 'Fictional Patch Creator',
+        entity_type: 'person',
+        primary_category: 'education',
+        country_codes: ['NG'],
+        biography_summary: 'A fictional creator used to reproduce the PATCH regression.',
+        notoriety_score: 40,
+        protection_tier: 'notable',
+        review_status: 'pending',
+      }),
+    );
+    const created = await responseData(create);
+    const creatorId = String(created.id);
+    const source = await responseData(
+      await request(
+        `/api/admin/v1/creators/${creatorId}/sources`,
+        jsonInit({
+          source_name: 'fictional_source',
+          source_entity_id: 'fictional-patch-creator',
+          source_url: 'https://example.test/fictional-patch-creator',
+          source_license: 'CC0-1.0',
+          verification_status: 'verified',
+          last_checked_at: '2026-07-21T17:00:00.000Z',
+        }),
+      ),
+    );
+    const alias = await responseData(
+      await request(
+        `/api/admin/v1/creators/${creatorId}/aliases`,
+        jsonInit({
+          alias: 'FictionalPatchCreator',
+          language: 'en',
+          alias_type: 'official_handle',
+          confidence_score: 90,
+          source_id: source.id,
+        }),
+      ),
+    );
+    const profile = await responseData(
+      await request(
+        `/api/admin/v1/creators/${creatorId}/profiles`,
+        jsonInit({
+          platform: 'x',
+          platform_account_id: 'fictional-patch-account',
+          platform_handle: 'FictionalPatchCreator',
+          profile_url: 'https://x.com/FictionalPatchCreator',
+          is_primary: true,
+          verification_status: 'cross_source_confirmed',
+          visibility_status: 'public',
+          source_name: 'fictional_source',
+          source_reference: 'fictional-patch-creator',
+          confidence_score: 90,
+          change_reason: 'Attach representative fictional profile evidence.',
+        }),
+      ),
+    );
+
+    const update = await request(`/api/admin/v1/creators/${creatorId}`, {
+      ...jsonInit({ review_status: 'approved' }),
+      method: 'PATCH',
+    });
+    expect(update.status).toBe(200);
+    expect(await responseData(update)).toMatchObject({
+      canonical_name: 'Fictional Patch Creator',
+      entity_type: 'person',
+      primary_category: 'education',
+      country_codes: ['NG'],
+      biography_summary: 'A fictional creator used to reproduce the PATCH regression.',
+      notoriety_score: 40,
+      protection_tier: 'notable',
+      review_status: 'approved',
+    });
+
+    const detail = await responseData(await request(`/api/admin/v1/creators/${creatorId}`));
+    expect(detail).toMatchObject({
+      creator: { notoriety_score: 40, review_status: 'approved' },
+      aliases: [expect.objectContaining({ id: alias.id })],
+      sources: [expect.objectContaining({ id: source.id })],
+      profiles: [expect.objectContaining({ id: profile.id, is_primary: true })],
+    });
+    const reviewAudit = (
+      await createAuditLogRepository(env.DB).findByEntity('creator_entity', creatorId)
+    )[0];
+    expect(reviewAudit).toMatchObject({
+      action: 'creator.updated',
+      previousValue: { notorietyScore: 40, reviewStatus: 'pending' },
+      newValue: { notorietyScore: 40, reviewStatus: 'approved' },
+    });
+    const previous = reviewAudit?.previousValue as Record<string, unknown>;
+    const next = reviewAudit?.newValue as Record<string, unknown>;
+    expect(
+      Object.keys(next).filter(
+        (key) => JSON.stringify(previous[key]) !== JSON.stringify(next[key]),
+      ),
+    ).toEqual(['reviewStatus', 'updatedAt']);
+
+    const explicitZero = await request(`/api/admin/v1/creators/${creatorId}`, {
+      ...jsonInit({ notoriety_score: 0, allow_common_name_duplicate: false }),
+      method: 'PATCH',
+    });
+    expect(explicitZero.status).toBe(200);
+    expect((await responseData(explicitZero)).notoriety_score).toBe(0);
+    expect(
+      (
+        await request(`/api/admin/v1/creators/${creatorId}`, {
+          ...jsonInit({}),
+          method: 'PATCH',
+        })
+      ).status,
+    ).toBe(422);
+    expect(
+      (
+        await request(`/api/admin/v1/creators/${creatorId}`, {
+          ...jsonInit({ review_status: 'approved', unexpected: true }),
+          method: 'PATCH',
+        })
+      ).status,
+    ).toBe(422);
+  });
+
   it('blocks unacknowledged duplicate normalized creator names and invalid score ranges', async () => {
     const duplicate = await request(
       '/api/admin/v1/creators',
@@ -330,6 +453,7 @@ describe('creator, evidence and review administration', () => {
         source_url: 'https://example.test/phase5',
         source_license: 'CC0',
         verification_status: 'verified',
+        last_checked_at: '2026-07-21T17:00:00.000Z',
       }),
     );
     const source = await responseData(sourceResponse);
@@ -352,6 +476,7 @@ describe('creator, evidence and review administration', () => {
       `/api/admin/v1/creators/${creatorId}/aliases`,
       jsonInit({
         alias: 'Phase Five Aurora',
+        language: 'en',
         alias_type: 'known_alias',
         confidence_score: 80,
         source_id: source.id,
@@ -372,14 +497,43 @@ describe('creator, evidence and review administration', () => {
         )
       ).status,
     ).toBe(409);
+    const sourceUpdate = await request(`/api/admin/v1/sources/${String(source.id)}`, {
+      ...jsonInit({ source_license: null }),
+      method: 'PATCH',
+    });
+    expect(await responseData(sourceUpdate)).toMatchObject({
+      source_name: 'phase5_source',
+      source_entity_id: 'phase5-1',
+      source_url: 'https://example.test/phase5',
+      source_license: null,
+      verification_status: 'verified',
+      last_checked_at: '2026-07-21T17:00:00.000Z',
+    });
+    const aliasUpdate = await request(`/api/admin/v1/aliases/${String(alias.id)}`, {
+      ...jsonInit({ confidence_score: 90 }),
+      method: 'PATCH',
+    });
+    expect(await responseData(aliasUpdate)).toMatchObject({
+      alias: 'Phase Five Aurora',
+      language: 'en',
+      alias_type: 'known_alias',
+      confidence_score: 90,
+      source_id: source.id,
+    });
     expect(
-      (
-        await request(`/api/admin/v1/aliases/${String(alias.id)}`, {
-          ...jsonInit({ confidence_score: 90 }),
-          method: 'PATCH',
-        })
-      ).status,
-    ).toBe(200);
+      (await createAuditLogRepository(env.DB).findByEntity('creator_source', String(source.id)))[0],
+    ).toMatchObject({
+      action: 'source.updated',
+      previousValue: { sourceLicense: 'CC0', verificationStatus: 'verified' },
+      newValue: { sourceLicense: null, verificationStatus: 'verified' },
+    });
+    expect(
+      (await createAuditLogRepository(env.DB).findByEntity('creator_alias', String(alias.id)))[0],
+    ).toMatchObject({
+      action: 'alias.updated',
+      previousValue: { alias: 'Phase Five Aurora', language: 'en', confidenceScore: 80 },
+      newValue: { alias: 'Phase Five Aurora', language: 'en', confidenceScore: 90 },
+    });
     expect(
       (await request(`/api/admin/v1/aliases/${String(alias.id)}`, { method: 'DELETE' })).status,
     ).toBe(204);
@@ -506,6 +660,49 @@ describe('critical handles, imports, releases and audit', () => {
         String(created.id),
       ),
     ).toEqual([expect.objectContaining({ action: 'external_profile.created' })]);
+
+    const provenanceUpdate = await request(
+      `/api/admin/v1/external-profiles/${String(created.id)}`,
+      {
+        ...jsonInit({
+          verification_status: 'cross_source_confirmed',
+          source_reference: 'fixture-profile-1-reviewed',
+          change_reason: 'Record additional fictional profile provenance.',
+        }),
+        method: 'PATCH',
+      },
+    );
+    expect(provenanceUpdate.status).toBe(200);
+    expect(await responseData(provenanceUpdate)).toMatchObject({
+      is_primary: true,
+      verification_status: 'cross_source_confirmed',
+      source_reference: 'fixture-profile-1-reviewed',
+    });
+    expect(
+      (
+        await createAuditLogRepository(env.DB).findByEntity(
+          'creator_external_profile',
+          String(created.id),
+        )
+      )[0],
+    ).toMatchObject({
+      action: 'external_profile.updated',
+      previousValue: { isPrimary: true },
+      newValue: { isPrimary: true },
+    });
+
+    const explicitNonPrimary = await request(
+      `/api/admin/v1/external-profiles/${String(created.id)}`,
+      {
+        ...jsonInit({
+          is_primary: false,
+          change_reason: 'Intentionally unset the fictional primary profile.',
+        }),
+        method: 'PATCH',
+      },
+    );
+    expect(explicitNonPrimary.status).toBe(200);
+    expect((await responseData(explicitNonPrimary)).is_primary).toBe(false);
 
     const criticalResponse = await request(
       '/api/admin/v1/creators/10000000-0000-4000-8000-000000000001/profiles',
@@ -673,6 +870,68 @@ describe('critical handles, imports, releases and audit', () => {
       )
     ).json<Record<string, { registry_status: string }>>();
     expect(releasedBody.data?.registry_status).toBe('not_listed');
+  });
+
+  it('does not reactivate non-active handles when unrelated fields are patched', async () => {
+    const creator = await responseData(
+      await request(
+        '/api/admin/v1/creators',
+        jsonInit({
+          canonical_name: 'Fictional Handle Lifecycle Creator',
+          entity_type: 'person',
+          protection_tier: 'notable',
+          review_status: 'approved',
+        }),
+      ),
+    );
+    const states = ['suspended', 'released', 'disputed'] as const;
+    const handles: Array<{ id: string; status: (typeof states)[number] }> = [];
+
+    for (const status of states) {
+      const handle = await responseData(
+        await request(
+          '/api/admin/v1/reserved-handles',
+          jsonInit({
+            creator_entity_id: creator.id,
+            display_handle: `fictional_${status}_handle`,
+            classification: 'monitored',
+            confidence_score: 70,
+            decision_source: 'patch_regression_test',
+            reason: `Fictional ${status} handle used for PATCH lifecycle coverage.`,
+            status,
+          }),
+        ),
+      );
+      handles.push({ id: String(handle.id), status });
+    }
+
+    for (const handle of handles) {
+      const update = await request(`/api/admin/v1/reserved-handles/${handle.id}`, {
+        ...jsonInit({
+          reason: `Update fictional ${handle.status} evidence without changing lifecycle status.`,
+        }),
+        method: 'PATCH',
+      });
+      expect(update.status).toBe(200);
+      expect((await responseData(update)).status).toBe(handle.status);
+      expect(
+        (await createAuditLogRepository(env.DB).findByEntity('reserved_handle', handle.id))[0],
+      ).toMatchObject({
+        action: 'handle.updated',
+        previousValue: { status: handle.status },
+        newValue: { status: handle.status },
+      });
+    }
+
+    const explicitRestore = await request(
+      `/api/admin/v1/reserved-handles/${handles[0]?.id ?? ''}`,
+      {
+        ...jsonInit({ status: 'active' }),
+        method: 'PATCH',
+      },
+    );
+    expect(explicitRestore.status).toBe(200);
+    expect((await responseData(explicitRestore)).status).toBe('active');
   });
 
   it('previews CSV/JSON without mutation, commits by checksum, and is idempotent', async () => {

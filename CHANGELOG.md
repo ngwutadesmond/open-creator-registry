@@ -5,6 +5,15 @@ after its first public release.
 
 ## Unreleased
 
+### Administration PATCH semantics fixed
+
+- Separated creator, reserved-handle, and external-profile PATCH validators from create-time
+  defaults so omitted fields remain omitted instead of materialising `0`, `false`, or `active`.
+- Made creator, handle, profile, alias, and source PATCH bodies strict and non-empty while
+  preserving explicit zero, false, null, and permitted empty-string values.
+- Added schema, OpenAPI, D1 repository, administration API, handle-lifecycle, evidence-association,
+  external-profile, and append-only audit regression coverage for partial updates.
+
 ### Public bulk creator submissions added
 
 - Added accessible individual/spreadsheet modes at `/submit`, browser-local CSV/XLSX parsing,

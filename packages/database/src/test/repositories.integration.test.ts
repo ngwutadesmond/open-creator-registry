@@ -43,6 +43,35 @@ describe('creator repository', () => {
     expect(updated.id).toBe(creator.id);
   });
 
+  it('preserves omitted creator fields while accepting an explicit zero score', async () => {
+    const repository = createCreatorRepository(env.DB);
+    const creator = await repository.create({
+      canonicalName: 'Fictional Repository Creator',
+      entityType: 'person',
+      primaryCategory: 'education',
+      countryCodes: ['NG'],
+      biographySummary: 'Fictional data for repository PATCH regression coverage.',
+      notorietyScore: 40,
+      protectionTier: 'notable',
+      reviewStatus: 'pending',
+    });
+
+    expect(await repository.update(creator.id, { reviewStatus: 'approved' })).toMatchObject({
+      canonicalName: 'Fictional Repository Creator',
+      entityType: 'person',
+      primaryCategory: 'education',
+      countryCodes: ['NG'],
+      biographySummary: 'Fictional data for repository PATCH regression coverage.',
+      notorietyScore: 40,
+      protectionTier: 'notable',
+      reviewStatus: 'approved',
+    });
+    expect(await repository.update(creator.id, { notorietyScore: 0 })).toMatchObject({
+      notorietyScore: 0,
+      reviewStatus: 'approved',
+    });
+  });
+
   it('supports deterministic pagination, sorting, counting, and filters', async () => {
     const repository = createCreatorRepository(env.DB);
     await createTestCreator({
