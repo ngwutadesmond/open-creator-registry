@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createCreatorAliasRepository } from '@open-creator-registry/database/repositories/creator-alias-repository';
 import { createCreatorRepository } from '@open-creator-registry/database/repositories/creator-repository';
+import { createCreatorSourceRepository } from '@open-creator-registry/database/repositories/creator-source-repository';
 import { createRegistryReleaseRepository } from '@open-creator-registry/database/repositories/registry-release-repository';
 import { createReservedHandleRepository } from '@open-creator-registry/database/repositories/reserved-handle-repository';
 import { createDeterministicMetadataProvider } from '@open-creator-registry/database/runtime';
@@ -66,6 +67,35 @@ describe('public handle checking', () => {
     await expect(checkHandle('FrameForge Demo')).resolves.toMatchObject({
       registry_status: 'soft_protected',
       matched_by: 'alias',
+    });
+  });
+
+  it('uses punctuation-bearing display aliases as confusable evidence for handle checks', async () => {
+    const creator = await createCreatorRepository(env.DB).create({
+      canonicalName: 'Punctuation Alias Demo',
+      entityType: 'person',
+      protectionTier: 'notable',
+      reviewStatus: 'approved',
+    });
+    const source = await createCreatorSourceRepository(env.DB).create({
+      creatorEntityId: creator.id,
+      sourceName: 'official_profile',
+      sourceEntityId: 'punctuation-alias-demo',
+      verificationStatus: 'verified',
+    });
+    await createCreatorAliasRepository(env.DB).create({
+      creatorEntityId: creator.id,
+      alias: 'Her First $100K',
+      aliasType: 'known_alias',
+      confidenceScore: 100,
+      sourceId: source.id,
+    });
+
+    await expect(checkHandle('herfirst100k')).resolves.toMatchObject({
+      normalized_handle: 'herfirst100k',
+      registry_status: 'soft_protected',
+      matched_by: 'confusable_skeleton',
+      creator: { id: creator.id, canonical_name: 'Punctuation Alias Demo' },
     });
   });
 

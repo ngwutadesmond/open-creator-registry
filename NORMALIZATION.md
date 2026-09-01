@@ -47,6 +47,19 @@ not the stored canonical handle.
 underscores to spaces, and collapses whitespace. It is a search and duplicate-detection key, not a
 display name.
 
+## Creator aliases
+
+Display-name aliases such as `Her First $100K`, `Creator's Studio`, and `Arts & Crafts` retain
+their reviewed display value. `normalizeAlias` creates only their internal comparison key by
+applying NFKC, locale-independent lowercase, and converting punctuation or symbol runs to an
+underscore. The default comparison-key limit is 80 Unicode code points.
+
+Aliases whose type is `official_handle` or `protected_variant` continue to use the strict
+2–30-character handle rules. Display punctuation is therefore supported without allowing invalid
+usernames into handle-specific records. `createAliasConfusableSkeleton` lets reviewed display
+aliases contribute a conservative public handle risk signal; a skeleton match remains evidence,
+not proof of identity.
+
 ## Confusable skeleton abstraction
 
 `createConfusableSkeleton` currently implements a deliberately small, replaceable mapping for

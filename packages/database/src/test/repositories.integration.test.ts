@@ -1,6 +1,8 @@
 import { env } from 'cloudflare:workers';
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { HandleNormalizationError } from '@open-creator-registry/normalization';
+
 import { createAuditLogRepository } from '../repositories/audit-log-repository';
 import { createCreatorAliasRepository } from '../repositories/creator-alias-repository';
 import { createCreatorCandidateRepository } from '../repositories/creator-candidate-repository';
@@ -193,6 +195,41 @@ describe('alias and reserved-handle repositories', () => {
     expect(await repository.findByNormalizedAlias('official-creator')).toEqual([second]);
     await repository.delete(second.id);
     expect(await repository.findById(second.id)).toBeNull();
+  });
+
+  it('stores punctuation-bearing display aliases without weakening handle aliases', async () => {
+    const creator = await createTestCreator({ canonicalName: 'Punctuation Alias Person' });
+    const source = await createCreatorSourceRepository(env.DB).create({
+      creatorEntityId: creator.id,
+      sourceName: 'official_profile',
+      sourceEntityId: 'punctuation-alias-person',
+      verificationStatus: 'verified',
+    });
+    const repository = createCreatorAliasRepository(env.DB);
+    const alias = await repository.create({
+      creatorEntityId: creator.id,
+      alias: 'Her First $100K',
+      aliasType: 'known_alias',
+      confidenceScore: 100,
+      sourceId: source.id,
+    });
+
+    expect(alias).toMatchObject({
+      alias: 'Her First $100K',
+      normalizedAlias: 'her_first_100k',
+      aliasType: 'known_alias',
+    });
+    expect(await repository.findByNormalizedAlias('Her First $100K')).toEqual([alias]);
+    expect(await repository.findProtectionCandidates(['herfirst100k'])).toEqual([alias]);
+    await expect(
+      repository.create({
+        creatorEntityId: creator.id,
+        alias: 'Her First $100K',
+        aliasType: 'official_handle',
+        confidenceScore: 100,
+        sourceId: source.id,
+      }),
+    ).rejects.toBeInstanceOf(HandleNormalizationError);
   });
 
   it('creates, lists, and updates creator evidence sources', async () => {

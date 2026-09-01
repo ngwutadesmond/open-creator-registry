@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  createAliasConfusableSkeleton,
   createConfusableSkeleton,
   createHandleCandidates,
   HandleNormalizationError,
   isPotentialProtectedVariant,
+  normalizeAlias,
   normalizeCreatorName,
   normalizeHandle,
   validateHandle,
@@ -56,6 +58,28 @@ describe('normalizeHandle', () => {
       valid: false,
       issues: [{ code: 'too_long' }],
     });
+  });
+});
+
+describe('creator-alias normalization', () => {
+  it.each([
+    ['Her First $100K', 'her_first_100k'],
+    ["Creator's Studio", 'creator_s_studio'],
+    ['Arts & Crafts', 'arts_crafts'],
+    ['C++', 'c'],
+  ])('creates a comparison key for %s without changing handle rules', (input, expected) => {
+    expect(normalizeAlias(input)).toBe(expected);
+  });
+
+  it('keeps display-alias confusable checks compatible with public handle inputs', () => {
+    expect(createAliasConfusableSkeleton('Her First $100K')).toBe(
+      createConfusableSkeleton('herfirst100k'),
+    );
+  });
+
+  it('rejects aliases with no letters or numbers and leaves handle validation strict', () => {
+    expect(() => normalizeAlias('$$$')).toThrow(HandleNormalizationError);
+    expect(() => normalizeHandle('Her First $100K')).toThrow(HandleNormalizationError);
   });
 });
 

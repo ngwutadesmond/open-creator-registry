@@ -1,8 +1,10 @@
 const canonicalSeparator = '_';
 const defaultMinimumLength = 2;
 const defaultMaximumLength = 30;
+const defaultAliasMaximumLength = 80;
 const supportedHandlePattern = /^[\p{L}\p{N}_]+$/u;
 const separatorPattern = /[\s._-]+/gu;
+const aliasSeparatorPattern = /[^\p{L}\p{N}]+/gu;
 const combiningMarkPattern = /\p{M}+/gu;
 
 const confusableCharacters: Readonly<Record<string, string>> = {
@@ -80,6 +82,15 @@ function prepareHandle(value: string): string {
   return normalizeSeparators(compatibilityNormalized.toLocaleLowerCase('und'));
 }
 
+function prepareAlias(value: string): string {
+  const trimmed = value.trim().replace(/^@+/u, '');
+  const compatibilityNormalized = trimmed.normalize('NFKC').replace(/^@+/u, '');
+  return compatibilityNormalized
+    .toLocaleLowerCase('und')
+    .replace(aliasSeparatorPattern, canonicalSeparator)
+    .replace(/^_+|_+$/gu, '');
+}
+
 function countCodePoints(value: string): number {
   return [...value].length;
 }
@@ -137,6 +148,40 @@ export function normalizeHandle(input: unknown, options: HandleNormalizationOpti
   return result.normalized;
 }
 
+export function normalizeAlias(input: unknown, options: HandleNormalizationOptions = {}): string {
+  if (typeof input !== 'string') {
+    throw new HandleNormalizationError([
+      { code: 'not_string', message: 'Alias input must be a string.' },
+    ]);
+  }
+
+  const minimumLength = options.minimumLength ?? 1;
+  const maximumLength = options.maximumLength ?? defaultAliasMaximumLength;
+  const normalized = prepareAlias(input);
+  const issues: HandleValidationIssue[] = [];
+
+  if (!normalized) {
+    issues.push({ code: 'empty', message: 'Alias input must contain letters or numbers.' });
+  }
+
+  const length = countCodePoints(normalized);
+  if (normalized && length < minimumLength) {
+    issues.push({
+      code: 'too_short',
+      message: `Alias must be at least ${minimumLength} characters.`,
+    });
+  }
+  if (length > maximumLength) {
+    issues.push({
+      code: 'too_long',
+      message: `Alias must be at most ${maximumLength} characters.`,
+    });
+  }
+
+  if (issues.length > 0) throw new HandleNormalizationError(issues);
+  return normalized;
+}
+
 export function normalizeCreatorName(input: string): string {
   return input
     .trim()
@@ -147,14 +192,21 @@ export function normalizeCreatorName(input: string): string {
     .trim();
 }
 
-export function createConfusableSkeleton(input: unknown): string {
-  const normalized = normalizeHandle(input);
+function createSkeletonFromNormalized(normalized: string): string {
   const decomposed = normalized.normalize('NFKD').replace(combiningMarkPattern, '');
 
   return [...decomposed]
     .map((character) => confusableCharacters[character] ?? character)
     .join('')
     .replaceAll(canonicalSeparator, '');
+}
+
+export function createConfusableSkeleton(input: unknown): string {
+  return createSkeletonFromNormalized(normalizeHandle(input));
+}
+
+export function createAliasConfusableSkeleton(input: unknown): string {
+  return createSkeletonFromNormalized(normalizeAlias(input));
 }
 
 export type HandleCandidates = {

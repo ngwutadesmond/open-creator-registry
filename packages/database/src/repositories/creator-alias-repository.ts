@@ -1,5 +1,9 @@
 import type { AliasType } from '@open-creator-registry/contracts/domain';
-import { createConfusableSkeleton, normalizeHandle } from '@open-creator-registry/normalization';
+import {
+  createAliasConfusableSkeleton,
+  normalizeAlias,
+  normalizeHandle,
+} from '@open-creator-registry/normalization';
 
 import { createNotFoundError } from '../errors';
 import { serializeJson } from '../json';
@@ -21,6 +25,12 @@ export type UpdateCreatorAliasInput = Partial<
   Pick<CreateCreatorAliasInput, 'alias' | 'language' | 'aliasType' | 'confidenceScore' | 'sourceId'>
 >;
 
+function normalizeCreatorAlias(alias: string, aliasType: AliasType): string {
+  return aliasType === 'official_handle' || aliasType === 'protected_variant'
+    ? normalizeHandle(alias)
+    : normalizeAlias(alias);
+}
+
 export function createCreatorAliasRepository(
   db: D1Database,
   metadata: RecordMetadataProvider = defaultRecordMetadataProvider,
@@ -36,7 +46,7 @@ export function createCreatorAliasRepository(
   async function create(input: CreateCreatorAliasInput): Promise<CreatorAlias> {
     const id = metadata.createId();
     const timestamp = metadata.now();
-    const normalizedAlias = normalizeHandle(input.alias);
+    const normalizedAlias = normalizeCreatorAlias(input.alias, input.aliasType);
     await runStatement(
       db
         .prepare(
@@ -50,7 +60,7 @@ export function createCreatorAliasRepository(
           input.creatorEntityId,
           input.alias.trim(),
           normalizedAlias,
-          createConfusableSkeleton(normalizedAlias),
+          createAliasConfusableSkeleton(normalizedAlias),
           input.language ?? null,
           input.aliasType,
           input.confidenceScore,
@@ -81,7 +91,7 @@ export function createCreatorAliasRepository(
     const rows = await allRows<CreatorAliasRow>(
       db
         .prepare('SELECT * FROM creator_aliases WHERE normalized_alias = ? ORDER BY created_at, id')
-        .bind(normalizeHandle(alias)),
+        .bind(normalizeAlias(alias)),
       'creatorAlias.findByNormalizedAlias',
     );
     return rows.map(mapCreatorAlias);
@@ -91,7 +101,8 @@ export function createCreatorAliasRepository(
     const current = await findById(id);
     if (!current) throw createNotFoundError('creator alias', id);
     const alias = input.alias ?? current.alias;
-    const normalizedAlias = normalizeHandle(alias);
+    const aliasType = input.aliasType ?? current.aliasType;
+    const normalizedAlias = normalizeCreatorAlias(alias, aliasType);
     await runStatement(
       db
         .prepare(
@@ -102,9 +113,9 @@ export function createCreatorAliasRepository(
         .bind(
           alias.trim(),
           normalizedAlias,
-          createConfusableSkeleton(normalizedAlias),
+          createAliasConfusableSkeleton(normalizedAlias),
           input.language === undefined ? current.language : input.language,
-          input.aliasType ?? current.aliasType,
+          aliasType,
           input.confidenceScore ?? current.confidenceScore,
           input.sourceId === undefined ? current.sourceId : input.sourceId,
           metadata.now(),
@@ -119,8 +130,8 @@ export function createCreatorAliasRepository(
 
   async function findProtectionCandidates(handles: string[]): Promise<CreatorAlias[]> {
     if (handles.length === 0) return [];
-    const normalizedHandles = [...new Set(handles.map((handle) => normalizeHandle(handle)))];
-    const skeletons = [...new Set(normalizedHandles.map(createConfusableSkeleton))];
+    const normalizedHandles = [...new Set(handles.map((handle) => normalizeAlias(handle)))];
+    const skeletons = [...new Set(normalizedHandles.map(createAliasConfusableSkeleton))];
     const rows = await allRows<CreatorAliasRow>(
       db
         .prepare(

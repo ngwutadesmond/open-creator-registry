@@ -29,7 +29,11 @@ import { createPublicSubmissionRepository } from '@open-creator-registry/databas
 import { createRegistryReleaseRepository } from '@open-creator-registry/database/repositories/registry-release-repository';
 import { createRegistryReleaseSnapshotRepository } from '@open-creator-registry/database/repositories/registry-release-snapshot-repository';
 import { createReservedHandleRepository } from '@open-creator-registry/database/repositories/reserved-handle-repository';
-import { createConfusableSkeleton, normalizeHandle } from '@open-creator-registry/normalization';
+import {
+  createConfusableSkeleton,
+  HandleNormalizationError,
+  normalizeHandle,
+} from '@open-creator-registry/normalization';
 import { createWikidataFixtureFetch } from '@open-creator-registry/ingestion/fixtures';
 import { defaultConnectorContext } from '@open-creator-registry/ingestion/contracts';
 import { createIngestionOrchestrator } from '@open-creator-registry/ingestion/orchestrator';
@@ -2139,6 +2143,17 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
     }
     if (error instanceof AdminImportValidationError) {
       return context.json(errorEnvelope(context, 'validation_failed', error.message), 422);
+    }
+    if (error instanceof HandleNormalizationError) {
+      return context.json(
+        errorEnvelope(
+          context,
+          'validation_failed',
+          error.message,
+          error.issues.map((issue) => ({ ...issue, path: '' })),
+        ),
+        422,
+      );
     }
     if (error instanceof RegistryDatabaseError) {
       const status =

@@ -1,5 +1,7 @@
 import {
+  createAliasConfusableSkeleton,
   createConfusableSkeleton,
+  normalizeAlias,
   normalizeCreatorName,
   normalizeHandle,
 } from '@open-creator-registry/normalization';
@@ -97,7 +99,10 @@ export async function seedDatabase(
   }
 
   for (const alias of seed.aliases) {
-    const normalizedAlias = normalizeHandle(alias.alias);
+    const normalizedAlias =
+      alias.aliasType === 'official_handle' || alias.aliasType === 'protected_variant'
+        ? normalizeHandle(alias.alias)
+        : normalizeAlias(alias.alias);
     statements.push(
       db
         .prepare(
@@ -116,7 +121,7 @@ export async function seedDatabase(
           alias.creatorEntityId,
           alias.alias,
           normalizedAlias,
-          createConfusableSkeleton(normalizedAlias),
+          createAliasConfusableSkeleton(normalizedAlias),
           alias.language ?? null,
           alias.aliasType,
           alias.confidenceScore,

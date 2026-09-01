@@ -18,7 +18,9 @@ import {
 } from '@open-creator-registry/database/repositories/import-batch-repository';
 import { createReservedHandleRepository } from '@open-creator-registry/database/repositories/reserved-handle-repository';
 import {
+  createAliasConfusableSkeleton,
   createConfusableSkeleton,
+  normalizeAlias,
   normalizeCreatorName,
   normalizeHandle,
 } from '@open-creator-registry/normalization';
@@ -365,7 +367,10 @@ export function createAdminImportService(db: D1Database) {
       }
 
       if (record.record_type === 'alias') {
-        const normalizedAlias = normalizeHandle(record.alias);
+        const normalizedAlias =
+          record.alias_type === 'official_handle' || record.alias_type === 'protected_variant'
+            ? normalizeHandle(record.alias)
+            : normalizeAlias(record.alias);
         const duplicateKey = `${creator.id}:${normalizedAlias}`;
         const existing = await aliases.findByNormalizedAlias(record.alias);
         if (
@@ -382,7 +387,7 @@ export function createAdminImportService(db: D1Database) {
           creatorEntityId: creator.id,
           alias: record.alias,
           normalizedAlias,
-          confusableSkeleton: createConfusableSkeleton(normalizedAlias),
+          confusableSkeleton: createAliasConfusableSkeleton(normalizedAlias),
           language: record.language,
           aliasType: record.alias_type,
           confidenceScore: record.confidence_score,

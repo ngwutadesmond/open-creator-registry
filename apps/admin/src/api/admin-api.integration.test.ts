@@ -484,6 +484,44 @@ describe('creator, evidence and review administration', () => {
     );
     const alias = await responseData(aliasResponse);
     expect(aliasResponse.status).toBe(201);
+    const punctuationAliasResponse = await request(
+      `/api/admin/v1/creators/${creatorId}/aliases`,
+      jsonInit({
+        alias: 'Her First $100K',
+        language: 'en',
+        alias_type: 'known_alias',
+        confidence_score: 100,
+        source_id: source.id,
+      }),
+    );
+    const punctuationAlias = await responseData(punctuationAliasResponse);
+    expect(punctuationAliasResponse.status).toBe(201);
+    expect(punctuationAlias).toMatchObject({
+      alias: 'Her First $100K',
+      normalized_alias: 'her_first_100k',
+      alias_type: 'known_alias',
+    });
+    const auditCountBeforeInvalidAlias = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM audit_logs WHERE action = 'alias.created'",
+    ).first<{ count: number }>();
+    const invalidHandleAliasResponse = await request(
+      `/api/admin/v1/creators/${creatorId}/aliases`,
+      jsonInit({
+        alias: 'Her First $100K',
+        alias_type: 'official_handle',
+        confidence_score: 100,
+        source_id: source.id,
+      }),
+    );
+    expect(invalidHandleAliasResponse.status).toBe(422);
+    await expect(invalidHandleAliasResponse.json()).resolves.toMatchObject({
+      error: { code: 'validation_failed' },
+    });
+    expect(
+      await env.DB.prepare(
+        "SELECT COUNT(*) AS count FROM audit_logs WHERE action = 'alias.created'",
+      ).first<{ count: number }>(),
+    ).toEqual(auditCountBeforeInvalidAlias);
     expect(
       (
         await request(
@@ -993,6 +1031,36 @@ describe('critical handles, imports, releases and audit', () => {
         )
       ).status,
     ).toBe(201);
+
+    const aliasPreview = await request(
+      '/api/admin/v1/imports/preview',
+      jsonInit({
+        format: 'json',
+        file_name: 'punctuation-alias.json',
+        content: JSON.stringify([
+          {
+            record_type: 'alias',
+            creator_name: 'Demo Aurora Vale',
+            alias: 'Her First $100K',
+            language: 'en',
+            alias_type: 'known_alias',
+            confidence_score: 100,
+            source_id: '20000000-0000-4000-8000-000000000001',
+          },
+        ]),
+      }),
+    );
+    expect(aliasPreview.status).toBe(201);
+    expect(await responseData(aliasPreview)).toMatchObject({
+      batch: { valid_rows: 1, invalid_rows: 0 },
+      records: [
+        {
+          alias: 'Her First $100K',
+          normalized_alias: 'her_first_100k',
+          confusable_skeleton: 'herfirstlook',
+        },
+      ],
+    });
   });
 
   it('requires different-person release approval and publishes atomically to the public API', async () => {

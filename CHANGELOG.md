@@ -5,6 +5,16 @@ after its first public release.
 
 ## Unreleased
 
+### Creator display aliases with punctuation fixed
+
+- Added a dedicated comparison-key normalizer for reviewed display-name aliases so valid names
+  such as `Her First $100K` no longer fail after passing administration validation.
+- Kept official-handle and protected-variant aliases on the strict handle normalizer, preserved
+  public confusable-risk matching, and mapped residual normalization failures to safe HTTP 422
+  responses instead of generic server errors.
+- Added normalization, repository, import, administration API, audit, and public handle-check
+  regressions without a database migration.
+
 ### Administration PATCH semantics fixed
 
 - Separated creator, reserved-handle, and external-profile PATCH validators from create-time
