@@ -17,6 +17,11 @@ Release approval freezes the snapshot checksum and target update time. Publicati
 before atomically publishing and superseding an earlier release. An approval decision is evidence,
 not an identity claim.
 
+The creator detail page links associated requests, including proposed handles/profiles that do not
+exist yet and changes to currently owned targets. It shows the newest 50 requests across all
+statuses, so an expired proposal remains reviewable. For older history, use the approval explorer.
+Displaying a request never creates its target, records a decision, or changes the approval rules.
+
 ## Reconciling elapsed deadlines
 
 An administrator with `approvals:decide` can mark a past-due pending or approved request expired

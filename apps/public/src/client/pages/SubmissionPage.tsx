@@ -1,6 +1,7 @@
 import {
   lazy,
   Suspense,
+  type FocusEvent,
   type FormEvent,
   type KeyboardEvent,
   useMemo,
@@ -190,6 +191,22 @@ function IndividualSubmissionForm() {
     }
   }
 
+  function validateOnBlur(
+    event: FocusEvent<HTMLInputElement | HTMLSelectElement>,
+    fieldErrors: Partial<SubmissionErrors>,
+  ) {
+    const nextTarget = event.relatedTarget;
+    if (
+      nextTarget instanceof HTMLButtonElement &&
+      nextTarget.type === 'submit' &&
+      nextTarget.form === event.currentTarget.form
+    ) {
+      // Submit validates every field; inserting errors during pointer focus can move its button.
+      return;
+    }
+    setErrors((current) => ({ ...current, ...fieldErrors }));
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submissionPending.current) return;
@@ -343,11 +360,10 @@ function IndividualSubmissionForm() {
                 id="submission-creator-name"
                 name="creator_name"
                 value={draft.creatorName}
-                onBlur={() =>
-                  setErrors((current) => ({
-                    ...current,
+                onBlur={(event) =>
+                  validateOnBlur(event, {
                     creatorName: validateCreatorName(draft.creatorName),
-                  }))
+                  })
                 }
                 onChange={(event) => setCreatorName(event.currentTarget.value)}
                 aria-invalid={Boolean(errors.creatorName)}
@@ -364,11 +380,10 @@ function IndividualSubmissionForm() {
             <CategorySelect
               value={draft.category}
               error={errors.category}
-              onBlur={() =>
-                setErrors((current) => ({
-                  ...current,
+              onBlur={(event) =>
+                validateOnBlur(event, {
                   category: validateCategory(draft.category),
-                }))
+                })
               }
               onChange={setCategory}
             />
@@ -395,11 +410,10 @@ function IndividualSubmissionForm() {
             items={draft.handles}
             errors={errors.handles}
             onAdd={() => addListItem('handles')}
-            onBlur={() =>
-              setErrors((current) => ({
-                ...current,
+            onBlur={(event) =>
+              validateOnBlur(event, {
                 handles: validateHandleRows(draft.handles),
-              }))
+              })
             }
             onChange={(id, value) => updateList('handles', id, value)}
             onRemove={(id) => removeListItem('handles', id)}
@@ -418,11 +432,10 @@ function IndividualSubmissionForm() {
             items={draft.sources}
             errors={errors.sources}
             onAdd={() => addListItem('sources')}
-            onBlur={() =>
-              setErrors((current) => ({
-                ...current,
+            onBlur={(event) =>
+              validateOnBlur(event, {
                 sources: validateSourceRows(draft.sources),
-              }))
+              })
             }
             onChange={(id, value) => updateList('sources', id, value)}
             onRemove={(id) => removeListItem('sources', id)}

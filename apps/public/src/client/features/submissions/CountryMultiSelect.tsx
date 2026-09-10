@@ -1,4 +1,4 @@
-import { type KeyboardEvent, useDeferredValue, useMemo, useRef, useState } from 'react';
+import { type KeyboardEvent, useMemo, useRef, useState } from 'react';
 
 import {
   countryOptionsByName,
@@ -95,11 +95,10 @@ export function CountryMultiSelect({ error, onChange, selected }: CountryMultiSe
   const [liveMessage, setLiveMessage] = useState('');
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const deferredQuery = useDeferredValue(query);
   const inputRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const selectedSet = useMemo(() => new Set(selected), [selected]);
-  const normalizedQuery = normalizeSearchValue(deferredQuery);
+  const normalizedQuery = normalizeSearchValue(query);
   const options = useMemo(() => {
     const matches = countryOptionsByName.filter(
       (option) => !selectedSet.has(option.code) && matchesSearch(option, normalizedQuery),

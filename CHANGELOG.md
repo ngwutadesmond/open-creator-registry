@@ -5,6 +5,25 @@ after its first public release.
 
 ## Unreleased
 
+### Public submission interactions corrected
+
+- Country keyboard selection now uses the current search text, preventing a rapid Nigeria search
+  from selecting the earlier Niger result.
+- Field validation waits for the full submit handler when focus moves to that form's submit
+  button, preventing redundant blur errors from moving the button during a click. Normal
+  field-to-field blur validation remains unchanged.
+- Added desktop/mobile regressions for immediate keyboard selection and a single submit click
+  from an invalid source field, alongside the full public submission workflow.
+
+### Creator approval associations corrected
+
+- Creator details now include critical handle and profile requests linked by the proposed creator
+  or the current target record, including requests whose proposed target does not exist yet.
+- Kept expired history visible and excluded unrelated requests without duplicate entries. This
+  read-only correction changes no decisions, audit records, target data, or approval permissions.
+- Added real-D1 and browser coverage for proposed targets, profile suppression, ownership changes,
+  pagination, and desktop/mobile navigation without a database migration.
+
 ### Elapsed approval requests can be reconciled
 
 - Added an authorized, audited expiry action for unchanged pending or approved requests whose

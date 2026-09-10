@@ -1,3 +1,5 @@
+import type { FocusEventHandler } from 'react';
+
 import {
   isSubmissionCategory,
   submissionCategories,
@@ -9,7 +11,7 @@ import { fieldDescriptionIds } from './submission-form';
 
 type CategorySelectProps = {
   error?: string;
-  onBlur: () => void;
+  onBlur: FocusEventHandler<HTMLSelectElement>;
   onChange: (value: SubmissionCategory | '') => void;
   value: SubmissionCategory | '';
 };

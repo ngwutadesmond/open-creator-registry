@@ -250,6 +250,40 @@ export function createAdminApprovalRepository(
     return row?.count ?? 0;
   }
 
+  async function listByCreator(
+    creatorEntityId: string,
+    options: Pagination = {},
+  ): Promise<PaginatedResult<AdminApprovalRequest>> {
+    const { page, limit, offset } = resolvePagination(options);
+    const rows = await allRows<ApprovalRequestRow>(
+      db
+        .prepare(
+          `SELECT approval.* FROM admin_approval_requests AS approval
+           WHERE (approval.entity_type = 'creator_entity' AND approval.entity_id = ?)
+             OR (approval.entity_type = 'reserved_handle' AND (
+               json_extract(approval.requested_payload, '$.creatorEntityId') = ?
+               OR EXISTS (SELECT 1 FROM reserved_handles AS handle
+                 WHERE handle.id = approval.entity_id AND handle.creator_entity_id = ?)))
+             OR (approval.entity_type = 'creator_external_profile' AND (
+               json_extract(approval.requested_payload, '$.creatorEntityId') = ?
+               OR EXISTS (SELECT 1 FROM creator_external_profiles AS profile
+                 WHERE profile.id = approval.entity_id AND profile.creator_entity_id = ?)))
+           ORDER BY approval.created_at DESC, approval.id DESC LIMIT ? OFFSET ?`,
+        )
+        .bind(
+          creatorEntityId,
+          creatorEntityId,
+          creatorEntityId,
+          creatorEntityId,
+          creatorEntityId,
+          limit,
+          offset,
+        ),
+      'adminApproval.listByCreator',
+    );
+    return { items: rows.map(mapRequest), page, limit };
+  }
+
   async function listDecisions(approvalRequestId: string): Promise<AdminApprovalDecision[]> {
     const rows = await allRows<ApprovalDecisionRow>(
       db
@@ -830,6 +864,7 @@ export function createAdminApprovalRepository(
     create,
     findById,
     list,
+    listByCreator,
     count,
     listDecisions,
     reject,
