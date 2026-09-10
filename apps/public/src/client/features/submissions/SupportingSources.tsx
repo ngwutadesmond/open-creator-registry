@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { type FocusEventHandler, useState } from 'react';
 
 import type { RepeatableDraftItem } from './submission-form';
 
@@ -8,7 +8,7 @@ type SupportingSourcesProps = {
   errors: Record<string, string>;
   items: RepeatableDraftItem[];
   onAdd: () => string | null;
-  onBlur: () => void;
+  onBlur: FocusEventHandler<HTMLInputElement>;
   onChange: (id: string, value: string) => void;
   onRemove: (id: string) => void;
 };

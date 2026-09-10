@@ -5,6 +5,16 @@ after its first public release.
 
 ## Unreleased
 
+### Public submission interactions corrected
+
+- Country keyboard selection now uses the current search text, preventing a rapid Nigeria search
+  from selecting the earlier Niger result.
+- Field validation waits for the full submit handler when focus moves to that form's submit
+  button, preventing redundant blur errors from moving the button during a click. Normal
+  field-to-field blur validation remains unchanged.
+- Added desktop/mobile regressions for immediate keyboard selection and a single submit click
+  from an invalid source field, alongside the full public submission workflow.
+
 ### Creator approval associations corrected
 
 - Creator details now include critical handle and profile requests linked by the proposed creator
