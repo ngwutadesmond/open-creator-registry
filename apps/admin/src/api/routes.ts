@@ -601,11 +601,7 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
       createExternalProfileRepository(context.env.DB).listByCreator(creatorId),
       createReservedHandleRepository(context.env.DB).listByCreator(creatorId),
       createAuditLogRepository(context.env.DB).findByEntity('creator_entity', creatorId),
-      adminApprovalRepository(context).list({
-        entityType: 'creator_entity',
-        entityId: creatorId,
-        limit: 50,
-      }),
+      adminApprovalRepository(context).listByCreator(creatorId, { limit: 50 }),
     ]);
     return context.json(
       successEnvelope(

@@ -5,6 +5,15 @@ after its first public release.
 
 ## Unreleased
 
+### Creator approval associations corrected
+
+- Creator details now include critical handle and profile requests linked by the proposed creator
+  or the current target record, including requests whose proposed target does not exist yet.
+- Kept expired history visible and excluded unrelated requests without duplicate entries. This
+  read-only correction changes no decisions, audit records, target data, or approval permissions.
+- Added real-D1 and browser coverage for proposed targets, profile suppression, ownership changes,
+  pagination, and desktop/mobile navigation without a database migration.
+
 ### Elapsed approval requests can be reconciled
 
 - Added an authorized, audited expiry action for unchanged pending or approved requests whose

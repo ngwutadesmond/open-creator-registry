@@ -670,6 +670,142 @@ describe('creator, evidence and review administration', () => {
 });
 
 describe('critical handles, imports, releases and audit', () => {
+  it('includes proposed handles and profiles in creator approval history before they exist', async () => {
+    const creatorId = '10000000-0000-4000-8000-000000000001';
+    const handle = await request(
+      '/api/admin/v1/reserved-handles',
+      jsonInit({
+        creator_entity_id: creatorId,
+        display_handle: 'demo_pending_association',
+        classification: 'hard_reserved',
+        confidence_score: 95,
+        decision_source: 'integration_test',
+        reason: 'Demonstration request for creator association coverage.',
+        status: 'active',
+      }),
+    );
+    const profile = await request(
+      `/api/admin/v1/creators/${creatorId}/profiles`,
+      jsonInit({
+        platform: 'youtube',
+        platform_account_id: 'demonstration-pending-channel',
+        profile_url: 'https://www.youtube.com/channel/demonstration-pending-channel',
+        verification_status: 'cross_source_confirmed',
+        visibility_status: 'public',
+        source_name: 'Demonstration evidence',
+        confidence_score: 95,
+        change_reason: 'Demonstration request for creator association coverage.',
+      }),
+    );
+    expect(handle.status).toBe(202);
+    expect(profile.status).toBe(202);
+    const handleApproval = (await responseData(handle)).approval_request as { id: string };
+    const profileApproval = await responseData(profile);
+    const detail = await responseData(
+      await request(`/api/admin/v1/creators/${creatorId}`, undefined, viewerBindings),
+    );
+    expect(detail.approval_requests).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: handleApproval.id,
+          action_type: 'handle.create_critical',
+          status: 'pending',
+        }),
+        expect.objectContaining({
+          id: profileApproval.id,
+          action_type: 'external_profile.create_critical',
+          status: 'pending',
+        }),
+      ]),
+    );
+    const other = await responseData(
+      await request('/api/admin/v1/creators/10000000-0000-4000-8000-000000000002'),
+    );
+    expect(other.approval_requests).toEqual([]);
+    expect(
+      await createReservedHandleRepository(env.DB).findExact('demo_pending_association'),
+    ).toBeNull();
+    expect(
+      await createExternalProfileRepository(env.DB).findByPlatformAccountId(
+        'youtube',
+        'demonstration-pending-channel',
+      ),
+    ).toBeNull();
+    expect(await createAdminApprovalRepository(env.DB).listDecisions(handleApproval.id)).toEqual(
+      [],
+    );
+  });
+
+  it('associates current targets and proposed owners without unrelated or duplicate requests', async () => {
+    const creatorId = '10000000-0000-4000-8000-000000000001';
+    const otherId = '10000000-0000-4000-8000-000000000002';
+    const handle = (await createReservedHandleRepository(env.DB).listByCreator(creatorId))[0];
+    const profile = (await createExternalProfileRepository(env.DB).listByCreator(creatorId))[0];
+    if (!handle || !profile) throw new Error('Expected demonstration handle and profile.');
+    const repository = createAdminApprovalRepository(env.DB);
+    const common = {
+      requestedBy: 'admin-one@example.test',
+      reason: 'Demonstration association regression fixture.',
+      expiresAt: '2026-07-22T18:00:00.000Z',
+      requestId: metadata.createRequestId(),
+    };
+    const transfer = await repository.create({
+      ...common,
+      actionType: 'handle.update_critical',
+      entityType: 'reserved_handle',
+      entityId: handle.id,
+      requestedPayload: { id: handle.id, creatorEntityId: otherId },
+    });
+    const suppression = await repository.create({
+      ...common,
+      actionType: 'external_profile.delete_critical',
+      entityType: 'creator_external_profile',
+      entityId: profile.id,
+      requestedPayload: { id: profile.id },
+    });
+    const overlapping = await repository.create({
+      ...common,
+      actionType: 'external_profile.update_critical',
+      entityType: 'creator_external_profile',
+      entityId: profile.id,
+      requestedPayload: { id: profile.id, creatorEntityId: creatorId },
+    });
+    const direct = await repository.create({
+      ...common,
+      actionType: 'critical.emergency_override',
+      entityType: 'creator_entity',
+      entityId: creatorId,
+      requestedPayload: {},
+    });
+    await env.DB.prepare("UPDATE admin_approval_requests SET status = 'expired' WHERE id = ?")
+      .bind(direct.id)
+      .run();
+    await repository.create({
+      ...common,
+      actionType: 'release.publish',
+      entityType: 'registry_release',
+      entityId: creatorId,
+      requestedPayload: { creatorEntityId: creatorId },
+    });
+    const auditsBefore = await createAuditLogRepository(env.DB).count({});
+    const detail = await responseData(await request(`/api/admin/v1/creators/${creatorId}`));
+    const approvals = detail.approval_requests as Array<{ id: string; status: string }>;
+    expect(approvals.map((item) => item.id).sort()).toEqual(
+      [transfer.id, suppression.id, overlapping.id, direct.id].sort(),
+    );
+    expect(approvals.find((item) => item.id === direct.id)?.status).toBe('expired');
+    const other = await responseData(await request(`/api/admin/v1/creators/${otherId}`));
+    expect(other.approval_requests).toEqual([expect.objectContaining({ id: transfer.id })]);
+    const firstPage = await repository.listByCreator(creatorId, { page: 1, limit: 2 });
+    const secondPage = await repository.listByCreator(creatorId, { page: 2, limit: 2 });
+    expect([...firstPage.items, ...secondPage.items].map((item) => item.id)).toEqual(
+      approvals.map((item) => item.id),
+    );
+    expect(await createAuditLogRepository(env.DB).count({})).toBe(auditsBefore);
+    expect(await createReservedHandleRepository(env.DB).findById(handle.id)).toEqual(handle);
+    expect(await createExternalProfileRepository(env.DB).findById(profile.id)).toEqual(profile);
+  });
+
   const expiryReason = 'Record the elapsed deadline without applying or reissuing the change.';
 
   async function expiredRequest(

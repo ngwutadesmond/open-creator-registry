@@ -37,6 +37,12 @@ Creator deletion is intentionally absent. Audit update/delete routes do not exis
 handle changes and release publication use the approval workflow described in
 `APPROVAL_WORKFLOW.md`.
 
+Creator detail includes the newest 50 associated approval requests across all statuses: direct
+creator targets, proposed handle/profile ownership, and existing handle/profile target ownership.
+Proposed creations appear before their target rows exist. A proposed transfer appears for both
+the current and proposed creator; this association does not authorize or apply the transfer.
+Unrelated creators and registry releases are excluded. Use the approval explorer for older history.
+
 Example:
 
 ```bash
