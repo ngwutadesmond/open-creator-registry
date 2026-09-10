@@ -61,6 +61,9 @@
     "deploy:admin:production:bootstrap": "node scripts/cloudflare/deploy.mjs --application admin --environment production --phase bootstrap",
     "deploy:admin:production:final": "node scripts/cloudflare/deploy.mjs --application admin --environment production --phase final"
   },
+  "overrides": {
+    "@ai-sdk/provider-utils": "4.0.33"
+  },
   "devDependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",
     "@axe-core/playwright": "^4.12.1",
@@ -96,5 +99,8 @@
     "node": ">=22.0.0",
     "npm": ">=10.0.0"
   },
-  "packageManager": "npm@11.9.0"
+  "packageManager": "npm@11.9.0",
+  "dependencies": {
+    "@scalar/api-reference": "^1.63.0"
+  }
 }

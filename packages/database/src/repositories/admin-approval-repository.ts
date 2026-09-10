@@ -324,6 +324,65 @@ export function createAdminApprovalRepository(
     return rejected;
   }
 
+  async function expire(
+    id: string,
+    expectedRevision: string,
+    administratorIdentifier: string,
+    reason: string,
+    requestId: string,
+  ): Promise<AdminApprovalRequest> {
+    const current = await findById(id);
+    if (!current) throw createNotFoundError('admin approval request', id);
+    const timestamp = metadata.now();
+    if (
+      !['pending', 'approved'].includes(current.status) ||
+      current.expiresAt > timestamp ||
+      current.updatedAt !== expectedRevision
+    ) {
+      throw createInvalidInputError(
+        'Only an unchanged, past-due pending or approved request can be marked expired.',
+      );
+    }
+    const guardId = metadata.createId();
+    await withDatabaseErrorMapping('adminApproval.expire', () =>
+      db.batch([
+        db
+          .prepare(
+            `INSERT INTO admin_mutation_guards (id, valid)
+             VALUES (?, (SELECT COUNT(*) FROM admin_approval_requests
+               WHERE id = ? AND status = ? AND updated_at = ? AND expires_at <= ?))`,
+          )
+          .bind(guardId, id, current.status, expectedRevision, timestamp),
+        db
+          .prepare(
+            `UPDATE admin_approval_requests SET status = 'expired', resolved_at = ?, updated_at = ?
+             WHERE id = ? AND status = ? AND updated_at = ? AND expires_at <= ?`,
+          )
+          .bind(timestamp, timestamp, id, current.status, expectedRevision, timestamp),
+        db
+          .prepare(
+            `INSERT INTO audit_logs (
+              id, action, entity_type, entity_id, actor_identifier, previous_value, new_value,
+              metadata, created_at
+            ) VALUES (?, 'approval.expired', 'admin_approval_request', ?, ?, ?, ?, ?, ?)`,
+          )
+          .bind(
+            metadata.createId(),
+            id,
+            administratorIdentifier,
+            serializeJson({ status: current.status, updated_at: current.updatedAt }),
+            serializeJson({ status: 'expired', reason, expires_at: current.expiresAt }),
+            serializeJson({ request_id: requestId }),
+            timestamp,
+          ),
+        db.prepare('DELETE FROM admin_mutation_guards WHERE id = ?').bind(guardId),
+      ]),
+    );
+    const expired = await findById(id);
+    if (!expired) throw createNotFoundError('admin approval request', id);
+    return expired;
+  }
+
   function commonApplyStatements(
     current: AdminApprovalRequest,
     administratorIdentifier: string,
@@ -777,6 +836,7 @@ export function createAdminApprovalRepository(
     applyHandle,
     applyExternalProfile,
     approveRelease,
+    expire,
     publishApprovedRelease,
   };
 }

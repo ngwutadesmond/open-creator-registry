@@ -88,4 +88,14 @@ describe('generated administration OpenAPI document', () => {
     expect(profilePatch.required).toEqual(['change_reason']);
     expect(profilePatch.additionalProperties).toBe(false);
   });
+
+  it('requires a reason and observed revision for audited approval expiry', () => {
+    const schema = requestSchema(
+      createAdminOpenApiDocument(),
+      '/api/admin/v1/approval-requests/{approvalId}/expire',
+      'post',
+    );
+    expect(schema.required).toEqual(['reason', 'expected_revision']);
+    expect(schema.additionalProperties).toBe(false);
+  });
 });

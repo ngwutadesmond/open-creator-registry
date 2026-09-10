@@ -65,6 +65,7 @@ import {
   aliasInputSchema,
   aliasPatchSchema,
   approvalIdParamsSchema,
+  approvalExpirySchema,
   approvalListQuerySchema,
   auditListQuerySchema,
   auditLogIdParamsSchema,
@@ -1987,6 +1988,18 @@ export function createAdminApp(dependencies: AdminAppDependencies = {}) {
       ),
       200,
     );
+  });
+  app.post('/api/admin/v1/approval-requests/:approvalId/expire', async (context) => {
+    const { approvalId } = parseParams(context, approvalIdParamsSchema);
+    const body = await parseBody(context, approvalExpirySchema);
+    const expired = await adminApprovalRepository(context).expire(
+      approvalId,
+      body.expected_revision,
+      context.get('adminIdentity').email,
+      body.reason,
+      context.get('requestId'),
+    );
+    return context.json(successEnvelope(context, toAdminApiValue(expired)), 200);
   });
   app.post('/api/admin/v1/approval-requests/:approvalId/approve', async (context) => {
     const { approvalId } = parseParams(context, approvalIdParamsSchema);

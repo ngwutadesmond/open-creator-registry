@@ -152,7 +152,7 @@ const rules: readonly PermissionRule[] = [
   },
   {
     methods: ['POST'],
-    pattern: /^\/api\/admin\/v1\/approval-requests\/[^/]+\/(?:approve|reject)$/u,
+    pattern: /^\/api\/admin\/v1\/approval-requests\/[^/]+\/(?:approve|reject|expire)$/u,
     permission: 'approvals:decide',
   },
   {

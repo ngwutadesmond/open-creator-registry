@@ -272,6 +272,10 @@ export const releaseCreateSchema = z.object({
 });
 export const actionReasonSchema = z.object({ reason: z.string().trim().min(3).max(500) });
 
+export const approvalExpirySchema = actionReasonSchema
+  .extend({ expected_revision: z.string().datetime() })
+  .strict();
+
 export const approvalListQuerySchema = paginationQuerySchema.extend({
   status: z.enum(approvalRequestStatuses).optional(),
   action_type: z.enum(approvalActionTypes).optional(),

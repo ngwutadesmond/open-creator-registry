@@ -30,7 +30,7 @@ limited to 256 KiB and 500 records. SQL stays in prepared repository statements.
 - `/imports` preview, commit, list, and detail
 - `/ingestion-runs` list and detail
 - `/releases` create, calculate, request approval, approve, publish, and withdraw
-- `/approval-requests` list, detail, approve, and reject
+- `/approval-requests` list, detail, approve, reject, and expire
 - `/audit-logs` read-only list and detail
 
 Creator deletion is intentionally absent. Audit update/delete routes do not exist. Critical hard

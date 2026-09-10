@@ -2,6 +2,7 @@ import { env } from 'cloudflare:workers';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createAuditLogRepository } from '@open-creator-registry/database/repositories/audit-log-repository';
+import { createAdminApprovalRepository } from '@open-creator-registry/database/repositories/admin-approval-repository';
 import { createCreatorCandidateRepository } from '@open-creator-registry/database/repositories/creator-candidate-repository';
 import { createPublicSubmissionRepository } from '@open-creator-registry/database/repositories/public-submission-repository';
 import { createReservedHandleRepository } from '@open-creator-registry/database/repositories/reserved-handle-repository';
@@ -669,6 +670,182 @@ describe('creator, evidence and review administration', () => {
 });
 
 describe('critical handles, imports, releases and audit', () => {
+  const expiryReason = 'Record the elapsed deadline without applying or reissuing the change.';
+
+  async function expiredRequest(
+    actionType:
+      | 'handle.create_critical'
+      | 'external_profile.create_critical'
+      | 'release.publish' = 'handle.create_critical',
+    expiresAt = metadata.now(),
+  ) {
+    return createAdminApprovalRepository(env.DB, {
+      createId: () => crypto.randomUUID(),
+      now: () => '2026-07-20T18:00:00.000Z',
+    }).create({
+      actionType,
+      entityType: actionType === 'release.publish' ? 'registry_release' : 'creator_entity',
+      entityId: '10000000-0000-4000-8000-000000000001',
+      requestedBy: 'admin-one@example.test',
+      requestedPayload: { fixture: 'Expired proposal must never be applied.' },
+      reason: 'Demonstration approval for expiry regression coverage.',
+      expiresAt,
+      requestId: metadata.createRequestId(),
+    });
+  }
+
+  it.each([
+    'handle.create_critical',
+    'external_profile.create_critical',
+    'release.publish',
+  ] as const)(
+    'audits expiry of %s at its deadline without applying or deciding it',
+    async (actionType) => {
+      const approval = await expiredRequest(actionType);
+      const repository = createAdminApprovalRepository(env.DB);
+      const countsBefore = await env.DB.prepare(
+        `SELECT (SELECT COUNT(*) FROM reserved_handles) AS handles,
+          (SELECT COUNT(*) FROM creator_external_profiles) AS profiles,
+          (SELECT COUNT(*) FROM creator_entities) AS creators,
+          (SELECT COUNT(*) FROM registry_releases WHERE release_status = 'published') AS releases`,
+      ).first();
+      const response = await request(
+        `/api/admin/v1/approval-requests/${approval.id}/expire`,
+        jsonInit({ reason: expiryReason, expected_revision: approval.updatedAt }),
+      );
+      expect(response.status).toBe(200);
+      expect(await responseData(response)).toMatchObject({
+        id: approval.id,
+        status: 'expired',
+        resolved_at: metadata.now(),
+        updated_at: metadata.now(),
+        applied_at: null,
+        approval_count: 0,
+      });
+      expect(await repository.listDecisions(approval.id)).toEqual([]);
+      const audits = await createAuditLogRepository(env.DB).list({
+        entityType: 'admin_approval_request',
+        entityId: approval.id,
+      });
+      expect(audits.items.filter((audit) => audit.action === 'approval.expired')).toHaveLength(1);
+      expect(audits.items.find((audit) => audit.action === 'approval.expired')).toMatchObject({
+        actorIdentifier: 'admin-one@example.test',
+        previousValue: { status: 'pending', updated_at: approval.updatedAt },
+        newValue: { status: 'expired', reason: expiryReason, expires_at: approval.expiresAt },
+        metadata: { request_id: metadata.createRequestId() },
+      });
+      expect(
+        await env.DB.prepare(
+          `SELECT (SELECT COUNT(*) FROM reserved_handles) AS handles,
+            (SELECT COUNT(*) FROM creator_external_profiles) AS profiles,
+            (SELECT COUNT(*) FROM creator_entities) AS creators,
+            (SELECT COUNT(*) FROM registry_releases WHERE release_status = 'published') AS releases`,
+        ).first(),
+      ).toEqual(countsBefore);
+      const replay = await request(
+        `/api/admin/v1/approval-requests/${approval.id}/expire`,
+        jsonInit({ reason: expiryReason, expected_revision: approval.updatedAt }),
+      );
+      expect(replay.status).toBe(422);
+      expect(await repository.count({ status: 'expired' })).toBe(1);
+    },
+  );
+
+  it('rejects premature, stale, invalid and unauthorized expiry without changing the request', async () => {
+    const approval = await expiredRequest('handle.create_critical', '2026-07-22T18:00:00.000Z');
+    const body = { reason: expiryReason, expected_revision: approval.updatedAt };
+    const path = `/api/admin/v1/approval-requests/${approval.id}/expire`;
+    expect((await request(path, jsonInit(body))).status).toBe(422);
+    expect((await request(path, jsonInit(body), viewerBindings)).status).toBe(403);
+    expect((await request(path, jsonInit({ reason: expiryReason }))).status).toBe(422);
+    expect((await request(path, jsonInit({ ...body, status: 'expired' }))).status).toBe(422);
+    const pastDue = await expiredRequest();
+    expect(
+      (
+        await request(
+          `/api/admin/v1/approval-requests/${pastDue.id}/expire`,
+          jsonInit({ ...body, expected_revision: '2026-07-19T18:00:00.000Z' }),
+        )
+      ).status,
+    ).toBe(422);
+    const repository = createAdminApprovalRepository(env.DB);
+    expect(await repository.findById(approval.id)).toEqual(approval);
+    expect(await repository.findById(pastDue.id)).toEqual(pastDue);
+    expect(await createAuditLogRepository(env.DB).count({ action: 'approval.expired' })).toBe(0);
+  });
+
+  it('rolls back expiry when its audit write fails', async () => {
+    const approval = await expiredRequest();
+    await env.DB.prepare(
+      `CREATE TRIGGER reject_expiry_audit BEFORE INSERT ON audit_logs
+       WHEN NEW.action = 'approval.expired' BEGIN SELECT RAISE(ABORT, 'audit unavailable'); END;`,
+    ).run();
+    try {
+      const response = await request(
+        `/api/admin/v1/approval-requests/${approval.id}/expire`,
+        jsonInit({ reason: expiryReason, expected_revision: approval.updatedAt }),
+      );
+      expect(response.status).toBe(503);
+      expect(await createAdminApprovalRepository(env.DB).findById(approval.id)).toEqual(approval);
+      expect(
+        await env.DB.prepare('SELECT COUNT(*) AS count FROM admin_mutation_guards').first(),
+      ).toEqual({ count: 0 });
+    } finally {
+      await env.DB.exec('DROP TRIGGER reject_expiry_audit');
+    }
+  });
+
+  it('allows only one concurrent expiry and preserves approved release decisions', async () => {
+    const approval = await expiredRequest('release.publish');
+    await env.DB.prepare(
+      "UPDATE admin_approval_requests SET status = 'approved', approval_count = 1 WHERE id = ?",
+    )
+      .bind(approval.id)
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO admin_approval_decisions
+       (id, approval_request_id, administrator_identifier, decision, reason, created_at)
+       VALUES (?, ?, 'admin-two@example.test', 'approved', 'Reviewed demonstration release.', ?)`,
+    )
+      .bind(crypto.randomUUID(), approval.id, '2026-07-20T19:00:00.000Z')
+      .run();
+    const repository = createAdminApprovalRepository(env.DB);
+    const decisionsBefore = await repository.listDecisions(approval.id);
+    const path = `/api/admin/v1/approval-requests/${approval.id}/expire`;
+    const responses = await Promise.all([
+      request(path, jsonInit({ reason: expiryReason, expected_revision: approval.updatedAt })),
+      request(path, jsonInit({ reason: expiryReason, expected_revision: approval.updatedAt })),
+    ]);
+    expect(responses.filter((response) => response.status === 200)).toHaveLength(1);
+    expect(responses.every((response) => [200, 409, 422].includes(response.status))).toBe(true);
+    expect(await createAdminApprovalRepository(env.DB).findById(approval.id)).toMatchObject({
+      status: 'expired',
+      approvalCount: 1,
+      appliedAt: null,
+    });
+    expect(await createAuditLogRepository(env.DB).count({ action: 'approval.expired' })).toBe(1);
+    expect(await repository.listDecisions(approval.id)).toEqual(decisionsBefore);
+  });
+
+  it.each(['rejected', 'applied', 'expired', 'invalid'] as const)(
+    'refuses to expire a terminal %s request',
+    async (status) => {
+      const approval = await expiredRequest();
+      await env.DB.prepare('UPDATE admin_approval_requests SET status = ? WHERE id = ?')
+        .bind(status, approval.id)
+        .run();
+      const response = await request(
+        `/api/admin/v1/approval-requests/${approval.id}/expire`,
+        jsonInit({ reason: expiryReason, expected_revision: approval.updatedAt }),
+      );
+      expect(response.status).toBe(422);
+      expect(await createAdminApprovalRepository(env.DB).findById(approval.id)).toMatchObject({
+        status,
+      });
+      expect(await createAuditLogRepository(env.DB).count({ action: 'approval.expired' })).toBe(0);
+    },
+  );
+
   it('manages public external profiles and applies critical profile changes through approval', async () => {
     const nonCriticalCreatorId = '10000000-0000-4000-8000-000000000002';
     const createdResponse = await request(

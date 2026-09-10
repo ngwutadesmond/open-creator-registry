@@ -5,6 +5,7 @@ import {
   aliasInputSchema,
   aliasPatchSchema,
   approvalListQuerySchema,
+  approvalExpirySchema,
   auditListQuerySchema,
   candidateApproveSchema,
   candidateDecisionSchema,
@@ -430,6 +431,13 @@ const routes: RouteContract[] = [
     path: '/api/admin/v1/approval-requests/{approvalId}',
     summary: 'Read an approval request and decisions',
     tag: 'Approvals',
+  },
+  {
+    method: 'post',
+    path: '/api/admin/v1/approval-requests/{approvalId}/expire',
+    summary: 'Audit expiry of an unchanged past-due request without applying its change',
+    tag: 'Approvals',
+    body: approvalExpirySchema,
   },
   {
     method: 'post',

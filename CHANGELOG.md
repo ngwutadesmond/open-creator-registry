@@ -5,6 +5,20 @@ after its first public release.
 
 ## Unreleased
 
+### Elapsed approval requests can be reconciled
+
+- Added an authorized, audited expiry action for unchanged pending or approved requests whose
+  deadline has passed. Expiry retains decision history and never applies or reissues the proposal.
+- Added an explicit expiry confirmation to approval details and disabled approval/rejection of
+  past-due requests. Four-eyes approval and stale/replay checks remain enforced.
+- Covered deadlines, authorization, revision conflicts, concurrency, audit rollback, terminal
+  states, OpenAPI, and the administrator interface without a database migration.
+- Updated Hono to the patched 4.13.7 line for the production dependency gate. Added a compatible
+  `@ai-sdk/provider-utils` 4.0.33 override for Scalar's agent-chat dependency, which still pins the
+  affected 4.0.5 version transitively. Remove the override when Scalar adopts the patched package.
+- Moved the shared Scalar browser-asset dependency to the root package that prepares those assets,
+  keeping it in production audit scope and making the override effective across both workspaces.
+
 ### Creator display aliases with punctuation fixed
 
 - Added a dedicated comparison-key normalizer for reviewed display-name aliases so valid names

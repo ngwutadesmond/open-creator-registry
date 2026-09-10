@@ -760,23 +760,36 @@ function ReleaseDetail({ id }: { id: string }) {
 }
 
 function ApprovalDetail({ id }: { id: string }) {
+  const { can } = useAdminIdentity();
   const load = useCallback(
     (signal: AbortSignal) =>
       adminApi.get(`/api/admin/v1/approval-requests/${id}`, approvalDetailSchema, signal),
     [id],
   );
   const { resource, retry } = useAdminResource(load, id);
-  const [action, setAction] = useState<'approve' | 'reject' | null>(null);
+  const [action, setAction] = useState<'approve' | 'reject' | 'expire' | null>(null);
   const [error, setError] = useState<AdminApiError | null>(null);
+  const [busy, setBusy] = useState(false);
   if (resource.status === 'loading') return <LoadingState label="Loading approval request…" />;
   if (resource.status === 'error') return <ErrorState error={resource.error} onRetry={retry} />;
   const approval = resource.data.data.approval;
+  const pastDue = approval.expires_at <= resource.data.meta.timestamp;
+  const canExpire =
+    can('approvals:decide') && pastDue && ['pending', 'approved'].includes(approval.status);
   const apply = async () => {
-    if (!action) return;
+    if (!action || busy) return;
+    setBusy(true);
+    setError(null);
     try {
       await adminApi.post(
         `/api/admin/v1/approval-requests/${id}/${action}`,
-        { reason: `Independent ${action} decision after reviewing the intended change.` },
+        action === 'expire'
+          ? {
+              reason:
+                'Recorded the elapsed approval deadline without applying the proposed change.',
+              expected_revision: approval.updated_at,
+            }
+          : { reason: `Independent ${action} decision after reviewing the intended change.` },
         dataEnvelopeSchema(z.unknown()),
       );
       setAction(null);
@@ -784,6 +797,8 @@ function ApprovalDetail({ id }: { id: string }) {
     } catch (caught) {
       setError(caught as AdminApiError);
       setAction(null);
+    } finally {
+      setBusy(false);
     }
   };
   return (
@@ -815,27 +830,46 @@ function ApprovalDetail({ id }: { id: string }) {
         <p>{approval.reason}</p>
         <pre className="json-view">{JSON.stringify(approval.requested_payload, null, 2)}</pre>
       </section>
+      {pastDue && ['pending', 'approved'].includes(approval.status) ? (
+        <Feedback kind="info">
+          This request is past its deadline and cannot be approved or applied. Mark it expired, then
+          review the current target and evidence before requesting a replacement.
+        </Feedback>
+      ) : null}
       <div className="form-actions">
         <button
           className="primary-button"
-          disabled={approval.status !== 'pending'}
+          disabled={!can('approvals:decide') || approval.status !== 'pending' || pastDue || busy}
           onClick={() => setAction('approve')}
         >
           Approve independently
         </button>
         <button
           className="danger-button"
-          disabled={approval.status !== 'pending'}
+          disabled={!can('approvals:decide') || approval.status !== 'pending' || pastDue || busy}
           onClick={() => setAction('reject')}
         >
           Reject request
         </button>
+        {canExpire ? (
+          <button className="secondary-button" disabled={busy} onClick={() => setAction('expire')}>
+            Mark expired
+          </button>
+        ) : null}
       </div>
       <ConfirmationDialog
         open={Boolean(action)}
-        title={`${action ?? 'Review'} sensitive change?`}
-        description="Self-approval and replay are rejected by the server. The full decision is written to the append-only audit log."
-        confirmLabel={`Confirm ${action ?? 'decision'}`}
+        title={
+          action === 'expire'
+            ? 'Mark this request expired?'
+            : `${action ?? 'Review'} sensitive change?`
+        }
+        description={
+          action === 'expire'
+            ? 'Record the elapsed deadline in the audit log. This does not approve, apply, or reissue the proposed change.'
+            : 'Self-approval and replay are rejected by the server. The full decision is written to the append-only audit log.'
+        }
+        confirmLabel={action === 'expire' ? 'Confirm expiry' : `Confirm ${action ?? 'decision'}`}
         onCancel={() => setAction(null)}
         onConfirm={() => void apply()}
       />
